@@ -1,0 +1,190 @@
+package com.jobsearchcv.backend.service
+
+import com.jobsearchcv.backend.domain.model.JobSearchOut
+import com.jobsearchcv.backend.service.ScraperJobService
+import jakarta.annotation.PostConstruct
+import jakarta.annotation.PreDestroy
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import org.quartz.*
+import org.quartz.impl.StdSchedulerFactory
+import org.springframework.stereotype.Service
+import java.util.concurrent.ConcurrentHashMap
+
+@Service
+class JobSearchScheduler(
+    private val scraperJobService: ScraperJobService
+) {
+
+    companion object {
+        private val logger: Logger = LoggerFactory.getLogger(JobSearchScheduler::class.java)
+    }
+    
+    private lateinit var scheduler: Scheduler
+    private val activeSearches: MutableMap<String, JobSearchOut> = ConcurrentHashMap()
+    
+    @PostConstruct
+    fun initializeScheduler() {
+        scheduler = StdSchedulerFactory.getDefaultScheduler()
+        scheduler.start()
+        logger.info("Job search scheduler started")
+    }
+
+    @PreDestroy
+    fun shutdown() {
+        if (::scheduler.isInitialized && !scheduler.isShutdown) {
+            scheduler.shutdown(true)
+            activeSearches.clear()
+            logger.info("Job search scheduler stopped")
+        }
+    }
+
+    suspend fun addInitialJobSearches(jobSearches: List<JobSearchOut>) {
+        try {
+            jobSearches.forEach { search ->
+                addJobSearch(search)
+            }
+            logger.info("Added {} initial job searches", jobSearches.size)
+        } catch (e: Exception) {
+            logger.error("Error adding initial job searches", e)
+        }
+    }
+
+    suspend fun addJobSearch(jobSearch: JobSearchOut) {
+        try {
+            // If job already exists, remove it first to ensure clean state
+            if (jobSearch.id in activeSearches) {
+                logger.info("Job search already exists: {}, removing old version before adding new one", jobSearch.id)
+                removeJobSearch(jobSearch.id)
+            }
+            
+            activeSearches[jobSearch.id] = jobSearch
+            scheduleJobSearch(jobSearch)
+            logger.info("Added job search: {}", jobSearch.id)
+        } catch (e: Exception) {
+            logger.error("Error adding job search", e)
+        }
+    }
+
+    suspend fun removeJobSearch(searchId: String) {
+        try {
+            if (searchId in activeSearches) {
+                // Remove from scheduler
+                val jobKey = JobKey.jobKey("job-search-$searchId", "job-searches")
+                scheduler.deleteJob(jobKey)
+                
+                // Remove from active searches
+                activeSearches.remove(searchId)
+                
+                logger.info("Removed job search: {}", searchId)
+            } else {
+                logger.warn("Job search not found: {}", searchId)
+            }
+        } catch (e: Exception) {
+            logger.error("Error removing job search: {}", searchId, e)
+        }
+    }
+    
+    suspend fun updateJobSearch(jobSearch: JobSearchOut) {
+        try {
+            // Remove existing job if present
+            if (jobSearch.id in activeSearches) {
+                val jobKey = JobKey.jobKey("job-search-${jobSearch.id}", "job-searches")
+                scheduler.deleteJob(jobKey)
+                logger.info("Removed existing scheduled job for update: {}", jobSearch.id)
+            }
+            
+            // Update active searches
+            activeSearches[jobSearch.id] = jobSearch
+            
+            // Schedule with new parameters
+            scheduleJobSearch(jobSearch)
+            logger.info("Updated job search: {}", jobSearch.toLogString())
+        } catch (e: Exception) {
+            logger.error("Error updating job search: {}", jobSearch.id, e)
+            throw e
+        }
+    }
+
+    suspend fun scheduleJobSearch(jobSearch: JobSearchOut) {
+        try {
+            val jobDataMap = JobDataMap().apply {
+                put("searchId", jobSearch.id)
+                put("scheduler", this@JobSearchScheduler)
+            }
+
+            val jobDetail = JobBuilder.newJob(JobSearchJob::class.java)
+                .withIdentity("job-search-${jobSearch.id}", "job-searches")
+                .setJobData(jobDataMap)
+                .storeDurably(false) // Job will be removed if no triggers reference it
+                .build()
+
+            val trigger = TriggerBuilder.newTrigger()
+                .withIdentity("trigger-${jobSearch.id}", "job-searches")
+                .withSchedule(CronScheduleBuilder.cronSchedule(jobSearch.timePeriod.cronExpression))
+                .build()
+
+            // Use rescheduleJob if job already exists, otherwise schedule new
+            val jobKey = JobKey.jobKey("job-search-${jobSearch.id}", "job-searches")
+            if (scheduler.checkExists(jobKey)) {
+                scheduler.rescheduleJob(TriggerKey.triggerKey("trigger-${jobSearch.id}", "job-searches"), trigger)
+                logger.info("Rescheduled existing job search: {}", jobSearch.toLogString())
+            } else {
+                scheduler.scheduleJob(jobDetail, trigger)
+                logger.info("Scheduled new job search: {}", jobSearch.toLogString())
+            }
+
+        } catch (e: Exception) {
+            logger.error("Failed to schedule job search: {}", jobSearch.toLogString(), e)
+            throw e
+        }
+    }
+
+    suspend fun unscheduleJobSearch(searchId: String) {
+        try {
+            val jobKey = JobKey.jobKey("job-search-$searchId", "job-searches")
+            scheduler.deleteJob(jobKey)
+            logger.info("Unscheduled job search: {}", searchId)
+        } catch (e: Exception) {
+            logger.error("Failed to unschedule job search: {}", searchId, e)
+            throw e
+        }
+    }
+
+    
+
+    fun getActiveSearchesCount(): Int = activeSearches.size
+    
+    fun getActiveSearches(): Map<String, JobSearchOut> = activeSearches.toMap()
+
+    class JobSearchJob : Job {
+    
+        companion object {
+            private val logger: Logger = LoggerFactory.getLogger(JobSearchJob::class.java)
+        }
+        override fun execute(context: JobExecutionContext) {
+            try {
+                val searchId = context.jobDetail.jobDataMap.getString("searchId")
+                val scheduler = context.jobDetail.jobDataMap.get("scheduler") as JobSearchScheduler
+
+                logger.info("Executing scheduled job search: {}", searchId)
+
+                runBlocking {
+                    val jobSearch = scheduler.activeSearches[searchId]
+                    if (jobSearch != null) {
+                        scheduler.scraperJobService.triggerScraperJobAndLog(jobSearch)
+                    } else {
+                        logger.warn("Job search not found in active searches: {}", searchId)
+                    }
+                }
+
+                logger.info("Initiated scheduled job search: {}", searchId)
+            } catch (e: Exception) {
+                logger.error("Error executing scheduled job search", e)
+            }
+        }
+    }
+} 

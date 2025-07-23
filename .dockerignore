@@ -1,0 +1,54 @@
+# Git
+.git
+.gitignore
+
+# Build artifacts
+build/
+.gradle/
+*.class
+
+# IDE files
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/
+.project
+.classpath
+.settings/
+
+# Logs
+logs/
+*.log
+*.log.gz
+
+# Documentation
+*.md
+README*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.*
+
+# Test files
+src/test/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Package files (not needed in container)
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Gradle wrapper jar should be included, so exclude it from ignore
+!gradle/wrapper/gradle-wrapper.jar

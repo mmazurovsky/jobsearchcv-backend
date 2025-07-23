@@ -1,0 +1,36 @@
+spring:
+  config:
+    activate:
+      on-profile: test
+    import: file:.env.test[.properties]
+  application:
+    name: jobsearchcv-backend-test
+  data:
+    mongodb:
+      uri: ${MONGO_URL:mongodb://localhost:27017/jobs_alerts_test}
+      database: jobs_alerts_test
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      use-big-decimal-for-floats: true
+
+server:
+  port: 0  # Random port for testing
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    root: INFO
+    com.jobsalerts: DEBUG
+    org.springframework: WARN
+    org.mongodb: WARN

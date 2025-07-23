@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en" itemscope itemtype="https://schema.org/WebPage">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>6figs Job Search Agent - AI-Powered Job Hunter | Find Your Dream Job Fast</title>
+    <meta name="description" content="Transform your job search with 6figs AI-powered Telegram bot. Get personalized job matches delivered instantly. Join 250+ successful professionals who landed their dream jobs.">
+    <meta name="keywords" content="job search, AI job finder, telegram bot, job alerts, career opportunities, job matching, employment, recruitment, job board, career search">
+    <meta name="author" content="6figs">
+    <meta name="robots" content="index, follow">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://6figs.com/">
+    <meta property="og:title" content="6figs Job Search Agent - AI-Powered Job Hunter">
+    <meta property="og:description" content="Transform your job search with 6figs AI-powered Telegram bot. Get personalized job matches delivered instantly.">
+    <meta property="og:image" content="https://6figs.com/logo.png">
+    <meta property="og:site_name" content="6figs">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://6figs.com/">
+    <meta property="twitter:title" content="6figs Job Search Agent - AI-Powered Job Hunter">
+    <meta property="twitter:description" content="Transform your job search with 6figs AI-powered Telegram bot. Get personalized job matches delivered instantly.">
+    <meta property="twitter:image" content="https://6figs.com/logo.png">
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://6figs.com/">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    
+    <!-- Preconnect to external domains -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.tailwindcss.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flowbite@2.0.0/dist/flowbite.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "6figs Job Search Agent",
+        "description": "AI-powered Telegram bot that finds and delivers personalized job matches instantly",
+        "url": "https://6figs.com",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Telegram",
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+        },
+        "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": "5",
+            "ratingCount": "250",
+            "bestRating": "5",
+            "worstRating": "1"
+        },
+        "creator": {
+            "@type": "Organization",
+            "name": "6figs",
+            "url": "https://6figs.com"
+        }
+    }
+    </script>
+    <style>
+        :root {
+            --emoji-distance-close: 10px;
+            --emoji-distance-medium: 0px;
+            --emoji-distance-far: 5px;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #000000;
+            color: #ffffff;
+        }
+        
+        .gradient-cta {
+            background: linear-gradient(135deg, #6B46C1 0%, #EC4899 50%, #F59E0B 100%);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+        
+        .gradient-cta:hover {
+            transform: translateY(-2px);
+        }
+        
+        .gradient-cta::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            animation: shine 2s ease-in-out infinite;
+        }
+        
+        @keyframes shine {
+            0% { left: -100%; }
+            50% { left: 100%; }
+            100% { left: 100%; }
+        }
+        
+        .testimonial-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        .benefit-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        
+        .timeline-progress {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #ffffff, rgba(255,255,255,0.7), transparent);
+            border-radius: 2px;
+            transform: translateY(-50%);
+            width: 0%;
+            animation: progressFlow 6s ease-out infinite;
+        }
+        
+        @keyframes progressFlow {
+            0% { width: 0%; opacity: 0; }
+            20% { opacity: 1; }
+            100% { width: 85%; opacity: 0; }
+        }
+        
+        .step-process {
+            position: relative;
+            padding: 2rem 0;
+        }
+        
+        .step-item {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 1rem;
+            padding: 2rem;
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+        
+        .step-item.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .step-number {
+            position: absolute;
+            top: -15px;
+            left: 2rem;
+            background: linear-gradient(135deg, #6B46C1 0%, #EC4899 100%);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.125rem;
+            box-shadow: 0 4px 15px rgba(107, 70, 193, 0.3);
+        }
+        
+        .step-arrow {
+            display: none;
+        }
+        
+        @media (min-width: 768px) {
+            .step-process {
+                padding: 3rem 0;
+            }
+            
+            .step-item {
+                display: flex;
+                align-items: center;
+                padding: 2.5rem;
+                margin-bottom: 2rem;
+            }
+            
+            .step-arrow {
+                display: block;
+                position: absolute;
+                right: -20px;
+                top: 50%;
+                transform: translateY(-50%);
+                width: 0;
+                height: 0;
+                border-left: 15px solid rgba(255, 255, 255, 0.2);
+                border-top: 10px solid transparent;
+                border-bottom: 10px solid transparent;
+            }
+            
+            .step-item:last-child .step-arrow {
+                display: none;
+            }
+        }
+        
+        .fade-in {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: all 1s ease;
+        }
+        
+        .fade-in.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        
+        .cta-container {
+            position: relative;
+            display: inline-block;
+            margin: 1rem 0;
+            padding: 1rem;
+        }
+        
+        .logo-size {
+            width: 8rem;
+            height: 8.5rem;
+        }
+        
+        .gradient-text {
+            background: linear-gradient(90deg, #EC4899, #F59E0B);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        
+        .gradient-text:hover {
+            transform: scale(1.05);
+        }
+        
+    </style>
+</head>
+<body class="min-h-screen" itemscope itemtype="https://schema.org/WebPage">
+    
+    <div class="min-h-screen flex flex-col max-w-7xl mx-auto px-8 py-12" role="main">
+        <!-- Header -->
+        <header class="text-center mb-16 fade-in" role="banner">
+            <img src="logo.png" 
+                 alt="6figs Job Search Agent - AI-powered job finder logo" 
+                 class="logo-size mx-auto mb-8"
+                 width="128"
+                 height="136"
+                 loading="eager">
+            <h1 class="text-5xl md:text-7xl font-bold mb-4 tracking-tight" itemProp="name">
+                <span class="gradient-text" onclick="window.open('https://4figs.short.gy/telegram', '_blank')" aria-label="Start using 6figs Job Search Agent on Telegram">6figs</span>
+            </h1>
+            <div class="text-center mb-8">
+                <h2 class="text-3xl md:text-5xl font-bold text-gray-300">
+                    Job Search Agent
+                </h2>
+
+                <h3 class="text-2xl md:text-5xl font-bold text-gray-400 my-3">
+                    Telegram bot
+                </h3>
+            </div>
+            <p class="text-xl text-gray-400 mb-6 max-w-3xl mx-auto" itemProp="description">
+                Searching for a job? 💼<br>
+                <span class="text-white">Let AI help you land your dream role.</span><br>
+                Stop wasting time scrolling through job boards.<br>
+                Get perfect matches delivered to you. ✨
+            </p>
+            
+            <!-- CTA Section -->
+            <div class="cta-container">
+                <button class="gradient-cta text-white px-12 py-4 rounded-full text-xl font-semibold mb-16 relative z-10" 
+                        onclick="window.open('https://4figs.short.gy/telegram', '_blank')"
+                        aria-label="Start using 6figs Job Search Agent on Telegram">
+                    Find New Job Now
+                </button>
+            </div>
+        </header>
+        
+        <!-- Why Choose Section -->
+        <section class="mb-16 fade-in" aria-labelledby="benefits-heading">
+            <h2 id="benefits-heading" class="text-3xl font-bold mb-12 text-center text-white">Why Choose <span class="gradient-text" onclick="window.open('https://4figs.short.gy/telegram', '_blank')" aria-label="Start using 6figs Job Search Agent on Telegram">6figs</span>?</h2>
+            
+            <!-- Benefits Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                <div class="benefit-card p-6 rounded-lg text-center">
+                    <div class="text-4xl mb-4">🕵️</div>
+                    <h3 class="text-lg font-semibold mb-2 text-white">Scans job market 24/7</h3>
+                    <p class="text-gray-400 text-sm">Save many hours of scrolling boards manually</p>
+                </div>
+                <div class="benefit-card p-6 rounded-lg text-center">
+                    <div class="text-4xl mb-4">🗑️</div>
+                    <h3 class="text-lg font-semibold mb-2 text-white">Matching your prompt</h3>
+                    <p class="text-gray-400 text-sm">Filters out irrelevant and repetetive jobs</p>
+                </div>
+                <div class="benefit-card p-6 rounded-lg text-center">
+                    <div class="text-4xl mb-4">🥇</div>
+                    <h3 class="text-lg font-semibold mb-2 text-white">You apply first</h3>
+                    <p class="text-gray-400 text-sm">Stand out, beat 95% of candidates</p>
+                </div>
+
+            </div>
+            
+            <!-- Testimonials Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Testimonial 1 -->
+                <div class="testimonial-card p-6 rounded-lg">
+                    <div class="flex mb-3 text-sm">
+                        <span style="background: linear-gradient(90deg, #EC4899, #F59E0B); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">★★★★★</span>
+                    </div>
+                    <p class="text-gray-300 mb-4 text-sm leading-relaxed">
+                        "6figs completely changed my job search experience. I landed my best role in just three weeks. The AI really knows what I'm looking for!"
+                    </p>
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3" style="background: linear-gradient(135deg, #6B46C1, #EC4899);">
+                            RK
+                        </div>
+                        <div>
+                            <p class="font-semibold text-sm text-white">Rajesh Kumar</p>
+                            <p class="text-gray-400 text-xs">Senior Software Engineer</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Testimonial 2 -->
+                <div class="testimonial-card p-6 rounded-lg">
+                    <div class="flex mb-3 text-sm">
+                        <span style="background: linear-gradient(90deg, #EC4899, #F59E0B); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">★★★★★</span>
+                    </div>
+                    <p class="text-gray-300 mb-4 text-sm leading-relaxed">
+                        "Finally, a job tool that is truly personalized. No more spending hours on LinkedIn. I get perfectly matched jobs delivered straight in Telegram."
+                    </p>
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3" style="background: linear-gradient(135deg, #6B46C1, #EC4899);">
+                            EA
+                        </div>
+                        <div>
+                            <p class="font-semibold text-sm text-white">Anna Voinova</p>
+                            <p class="text-gray-400 text-xs">Product Manager</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Testimonial 3 -->
+                <div class="testimonial-card p-6 rounded-lg">
+                    <div class="flex mb-3 text-sm">
+                        <span style="background: linear-gradient(90deg, #EC4899, #F59E0B); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">★★★★★</span>
+                    </div>
+                    <p class="text-gray-300 mb-4 text-sm leading-relaxed">
+                        "I was skeptical at first, but this actually works! Got an interview at a big tech company by applying early. The bot saves me so much time."
+                    </p>
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3" style="background: linear-gradient(135deg, #6B46C1, #EC4899);">
+                            AO
+                        </div>
+                        <div>
+                            <p class="font-semibold text-sm text-white">Adebayo Okonkwo</p>
+                            <p class="text-gray-400 text-xs">UX/UI Designer</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Testimonial 4 -->
+                <div class="testimonial-card p-6 rounded-lg">
+                    <div class="flex mb-3 text-sm">
+                        <span style="background: linear-gradient(90deg, #EC4899, #F59E0B); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">★★★★★</span>
+                    </div>
+                    <p class="text-gray-300 mb-4 text-sm leading-relaxed">
+                        "The best part is being first to apply. I started getting more invitations once I started applying faster. Game changer!"
+                    </p>
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3" style="background: linear-gradient(135deg, #6B46C1, #EC4899);">
+                            DV
+                        </div>
+                        <div>
+                            <p class="font-semibold text-sm text-white">Dmitri Volkov</p>
+                            <p class="text-gray-400 text-xs">DevOps Engineer</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Stats Card -->
+                <div class="testimonial-card p-6 rounded-lg text-center">
+                    <div class="text-3xl font-bold text-white mb-2">>250</div>
+                    <div class="text-sm text-gray-300 mb-2">Successful Usecases</div>
+                    <div class="text-xs text-gray-400">Trusted by professionals worldwide</div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- How It Works -->
+        <section class="mb-16 fade-in" aria-labelledby="how-it-works-heading">
+            <h2 id="how-it-works-heading" class="text-3xl font-bold mb-8 text-center text-white">How it works 🛠️</h2>
+            
+            <div class="step-process max-w-4xl mx-auto">
+                <div class="step-item">
+                    <div class="step-number">1</div>
+                    <div class="step-arrow"></div>
+                    <div class="flex items-start space-x-4">
+                        <div class="text-4xl">🔭</div>
+                        <div>
+                            <h3 class="text-xl font-semibold mb-3 text-white">Scans market</h3>
+                            <p class="text-gray-400">Checks for new jobs every few minutes</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="step-item">
+                    <div class="step-number">2</div>
+                    <div class="step-arrow"></div>
+                    <div class="flex items-start space-x-4">
+                        <div class="text-4xl">🕵️‍♀️</div>
+                        <div>
+                            <h3 class="text-xl font-semibold mb-3 text-white">Filters with AI</h3>
+                            <p class="text-gray-400">AI-powered prompt-based preference filtering</p>
+                        </div>
+                    </div>
+                </div>
+                
+
+                
+                <div class="step-item">
+                    <div class="step-number">3</div>
+                    <div class="step-arrow"></div>
+                    <div class="flex items-start space-x-4">
+                        <div class="text-4xl">🎯</div>
+                        <div>
+                            <h3 class="text-xl font-semibold mb-3 text-white">Checks relevance</h3>
+                            <p class="text-gray-400">No duplicates, no irrelevant jobs</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-item">
+                    <div class="step-number">4</div>
+                    <div class="step-arrow"></div>
+                    <div class="flex items-start space-x-4">
+                        <div class="text-4xl">⚡</div>
+                        <div>
+                            <h3 class="text-xl font-semibold mb-3 text-white">Texts you instantly</h3>
+                            <p class="text-gray-400">Fast delivery for your competitive edge</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="step-item">
+                    <div class="step-number">5</div>
+                    <div class="flex items-start space-x-4">
+                        <div class="text-4xl">📋</div>
+                        <div>
+                            <h3 class="text-xl font-semibold mb-3 text-white">Simple summary</h3>
+                            <p class="text-gray-400">On point job summaries, no blahblahblah</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Final CTA -->
+        <section class="text-center fade-in" aria-labelledby="cta-heading">
+            <div class="testimonial-card p-8 rounded-lg">
+                <h3 id="cta-heading" class="text-2xl font-bold mb-4 text-white">
+                    Ready to transform your job search?
+                </h3>
+                <p class="text-gray-300 mb-4">
+                    Join hundreds of successful professionals who trust us to find them the best jobs
+                </p>
+                <div class="cta-container">
+                    <button class="gradient-cta text-white px-12 py-4 rounded-full text-xl font-semibold relative z-10" 
+                            onclick="window.open('https://4figs.short.gy/telegram', '_blank')"
+                            aria-label="Start using 6figs Job Search Agent on Telegram">
+                        Find New Job
+                    </button>
+                </div>
+            </div>
+        </section>
+    </div>
+    
+    <script>
+        
+        // Advanced Intersection Observer with progressive animation timing
+        const observerOptions = {
+            threshold: 0.2,
+            rootMargin: '0px 0px -20px 0px'
+        };
+        
+        const staggeredObserver = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, observerOptions);
+        
+        // Step process animation
+        const stepObserver = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    const steps = entry.target.querySelectorAll('.step-item');
+                    steps.forEach((step, index) => {
+                        setTimeout(() => {
+                            step.classList.add('visible');
+                        }, index * 300);
+                    });
+                }
+            });
+        }, { threshold: 0.2 });
+        
+        // Observe elements
+        document.querySelectorAll('.fade-in').forEach(el => {
+            staggeredObserver.observe(el);
+        });
+        
+        document.querySelectorAll('.step-process').forEach(el => {
+            stepObserver.observe(el);
+        });
+    </script>
+</body>
+</html>
