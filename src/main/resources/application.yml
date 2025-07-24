@@ -79,7 +79,7 @@ aws:
       cvs: ${AWS_S3_CVS_BUCKET:applyfirst-cvs}
 
 cors:
-  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,https://applyfirst.com,https://www.applyfirst.com} 
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
 
 
 
