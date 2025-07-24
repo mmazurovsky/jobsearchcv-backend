@@ -24,7 +24,7 @@ class JobSearchService(
     }
     
     fun getSearchById(searchId: String): JobSearchOut? {
-        return jobSearchRepository.findById(searchId).orElse(null)
+        return jobSearchRepository.findById(searchId)
     }
     
     suspend fun deleteJobSearch(userId: String, searchId: String): Boolean {

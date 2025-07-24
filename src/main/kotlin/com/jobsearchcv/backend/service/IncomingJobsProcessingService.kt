@@ -41,7 +41,7 @@ class IncomingJobsProcessingService(
                     isImmediateSearch = true
                     logger.info("Processing job data for temp job for user $userId, searchId=$jobSearchId")
                 } else {
-                    savedJobSearch = jobSearchRepository.findById(jobSearchId).getOrNull()
+                    savedJobSearch = jobSearchRepository.findById(jobSearchId)
                     if (savedJobSearch == null) {
                         logger.error("Job search not found: {}", jobSearchId)
                         Sentry.captureMessage(

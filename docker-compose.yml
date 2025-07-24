@@ -10,9 +10,9 @@ services:
     ports:
       - "8080:8080"
     env_file:
-      - .env.${ENV:-prod}
+      - .env.${ENV}
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
+      - SPRING_PROFILES_ACTIVE=${ENV}
     volumes:
       - ./logs:/app/logs
     platform: linux/amd64

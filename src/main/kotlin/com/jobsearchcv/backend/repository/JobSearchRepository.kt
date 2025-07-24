@@ -4,27 +4,70 @@ import com.jobsearchcv.backend.domain.model.JobSearchOut
 import org.springframework.data.mongodb.core.MongoTemplate
 import org.springframework.data.mongodb.core.query.Criteria
 import org.springframework.data.mongodb.core.query.Query
-import org.springframework.data.mongodb.repository.MongoRepository
 import org.springframework.stereotype.Repository
 
-interface JobSearchRepositoryCustom {
-    fun countByUserId(userId: String): Long
-}
-
-@Repository
-interface JobSearchRepository : MongoRepository<JobSearchOut, String>, JobSearchRepositoryCustom {
+interface JobSearchRepository {
+    fun save(jobSearch: JobSearchOut): JobSearchOut
+    fun saveAll(jobSearches: List<JobSearchOut>): List<JobSearchOut>
+    fun findById(id: String): JobSearchOut?
+    fun findAll(): List<JobSearchOut>
     fun findByUserId(userId: String): List<JobSearchOut>
     fun findByIdAndUserId(id: String, userId: String): JobSearchOut?
+    fun deleteById(id: String)
     fun deleteByIdAndUserId(id: String, userId: String): Long
+    fun countByUserId(userId: String): Long
+    fun existsById(id: String): Boolean
 }
 
 @Repository
 class JobSearchRepositoryImpl(
     private val mongoTemplate: MongoTemplate
-) : JobSearchRepositoryCustom {
-    
+) : JobSearchRepository {
+
+    override fun save(jobSearch: JobSearchOut): JobSearchOut {
+        return mongoTemplate.save(jobSearch)
+    }
+
+    override fun saveAll(jobSearches: List<JobSearchOut>): List<JobSearchOut> {
+        return mongoTemplate.insertAll(jobSearches).toList()
+    }
+
+    override fun findById(id: String): JobSearchOut? {
+        return mongoTemplate.findById(id, JobSearchOut::class.java)
+    }
+
+    override fun findAll(): List<JobSearchOut> {
+        return mongoTemplate.findAll(JobSearchOut::class.java)
+    }
+
+    override fun findByUserId(userId: String): List<JobSearchOut> {
+        val query = Query(Criteria.where("user_id").`is`(userId))
+        return mongoTemplate.find(query, JobSearchOut::class.java)
+    }
+
+    override fun findByIdAndUserId(id: String, userId: String): JobSearchOut? {
+        val query = Query(Criteria.where("id").`is`(id).and("user_id").`is`(userId))
+        return mongoTemplate.findOne(query, JobSearchOut::class.java)
+    }
+
+    override fun deleteById(id: String) {
+        val query = Query(Criteria.where("id").`is`(id))
+        mongoTemplate.remove(query, JobSearchOut::class.java)
+    }
+
+    override fun deleteByIdAndUserId(id: String, userId: String): Long {
+        val query = Query(Criteria.where("id").`is`(id).and("user_id").`is`(userId))
+        val result = mongoTemplate.remove(query, JobSearchOut::class.java)
+        return result.deletedCount
+    }
+
     override fun countByUserId(userId: String): Long {
-        val query = Query(Criteria.where("userId").`is`(userId))
+        val query = Query(Criteria.where("user_id").`is`(userId))
         return mongoTemplate.count(query, JobSearchOut::class.java)
+    }
+
+    override fun existsById(id: String): Boolean {
+        val query = Query(Criteria.where("id").`is`(id))
+        return mongoTemplate.exists(query, JobSearchOut::class.java)
     }
 }
