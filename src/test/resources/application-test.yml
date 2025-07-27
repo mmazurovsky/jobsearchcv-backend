@@ -2,7 +2,7 @@ spring:
   config:
     activate:
       on-profile: test
-    import: file:.env.test[.properties]
+    import: file:.env.local[.properties]
   application:
     name: jobsearchcv-backend-test
   data:
@@ -34,3 +34,35 @@ logging:
     com.jobsalerts: DEBUG
     org.springframework: WARN
     org.mongodb: WARN
+
+# Supabase configuration for tests
+supabase:
+  url: https://test.supabase.co
+  anon:
+    key: test-key
+  secret: test-jwt-secret-key-for-testing-purposes-only
+
+# Sentry configuration for tests
+sentry:
+  dsn: ""
+  environment: test
+
+# LLM configuration for tests
+llm:
+  api:
+    key: test-key
+    url: https://test.api.com
+  model: test-model
+
+# AWS configuration for tests
+aws:
+  s3:
+    access-key: test-access-key
+    secret-key: test-secret-key
+    region: us-east-1
+    bucket:
+      cvs: test-bucket
+
+# CORS configuration for tests
+cors:
+  allowed-origins: http://localhost:3000

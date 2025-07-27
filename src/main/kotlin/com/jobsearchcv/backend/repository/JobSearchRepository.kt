@@ -12,6 +12,7 @@ interface JobSearchRepository {
     fun findById(id: String): JobSearchOut?
     fun findAll(): List<JobSearchOut>
     fun findByUserId(userId: String): List<JobSearchOut>
+    fun findByUserIdAndIsApproved(userId: String, isApproved: Boolean): List<JobSearchOut>
     fun findByIdAndUserId(id: String, userId: String): JobSearchOut?
     fun deleteById(id: String)
     fun deleteByIdAndUserId(id: String, userId: String): Long
@@ -42,6 +43,11 @@ class JobSearchRepositoryImpl(
 
     override fun findByUserId(userId: String): List<JobSearchOut> {
         val query = Query(Criteria.where("user_id").`is`(userId))
+        return mongoTemplate.find(query, JobSearchOut::class.java)
+    }
+
+    override fun findByUserIdAndIsApproved(userId: String, isApproved: Boolean): List<JobSearchOut> {
+        val query = Query(Criteria.where("user_id").`is`(userId).and("is_approved").`is`(isApproved))
         return mongoTemplate.find(query, JobSearchOut::class.java)
     }
 

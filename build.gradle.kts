@@ -4,8 +4,9 @@ plugins {
     id("org.springframework.boot") version "3.3.5"
     id("io.spring.dependency-management") version "1.1.6"
     id("io.sentry.jvm.gradle") version "5.8.0"
-    kotlin("jvm") version "2.0.20"
-    kotlin("plugin.spring") version "2.0.20"
+    kotlin("jvm") version "2.2.0"
+    kotlin("plugin.spring") version "2.2.0"
+    kotlin("plugin.serialization") version "2.2.0"
     idea
 }
 
@@ -28,14 +29,31 @@ sentry {
     // Generates a JVM (Java, Kotlin, etc.) source bundle and uploads your source code to Sentry.
     // This enables source context, allowing you to see your source
     // code as part of your stack traces in Sentry.
-    includeSourceContext = true
+    includeSourceContext = false
 
     org = "self-a04"
     projectName = "job-search-cv-backend"
 //    authToken = System.getenv("SENTRY_AUTH_TOKEN")
 }
 
+val serialization = "1.9.0"
+val datetime = "0.7.1-0.6.x-compat"
+val supabase = "3.2.2"
+val ktorVersion = "3.2.2"
 
+
+
+configurations.all {
+    resolutionStrategy {
+        force(
+            "org.jetbrains.kotlinx:kotlinx-serialization-core:$serialization",
+            "org.jetbrains.kotlinx:kotlinx-serialization-json:$serialization",
+            "org.jetbrains.kotlinx:kotlinx-serialization-properties:$serialization",
+            "org.jetbrains.kotlinx:kotlinx-serialization-cbor:$serialization",
+            "org.jetbrains.kotlinx:kotlinx-datetime:$datetime"
+        )
+    }
+}
 dependencies {
     // ── Spring Boot ──────────────────────────────────────────────
     implementation("org.springframework.boot:spring-boot-starter-web")
@@ -54,17 +72,18 @@ dependencies {
     implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.14.0")
     implementation("io.sentry:sentry-logback:8.14.0")
 
-    // ── Kotlin / Coroutines ──────────────────────────────────────
+    // ── Kotlin / Coroutines, Serialization ──────────────────────────────────────
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactive")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
-
-    // ── Telegram and other social media ─────────────────────────────────────────────
-    implementation("dev.inmo:tgbotapi:15.2.0")
+    implementation(enforcedPlatform("org.jetbrains.kotlinx:kotlinx-serialization-bom:$serialization"))
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json")   // no version
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-core")   // no version
+    implementation("org.jetbrains.kotlinx:kotlinx-datetime:${datetime}")
 
     // ── HTTP (Ktor 2) ────────────────────────────────────────────
-    val ktorVersion = "2.3.12"
+
     implementation("io.ktor:ktor-client-core:$ktorVersion")
     implementation("io.ktor:ktor-client-cio:$ktorVersion")
     implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
@@ -80,6 +99,17 @@ dependencies {
     implementation("org.apache.poi:poi:5.2.5")
     implementation("org.apache.poi:poi-scratchpad:5.2.5") // For .doc files
     implementation("org.apache.poi:poi-ooxml:5.2.5") // For .docx files
+
+    // ── Security & JWT ─────────────────────────────────────────
+    implementation("org.springframework.boot:spring-boot-starter-security")
+    implementation("io.jsonwebtoken:jjwt-api:0.12.5")
+    runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.5")
+    runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.5")
+    
+    // ── Supabase ──────────────────────────────────────────────
+    implementation("io.github.jan-tennert.supabase:supabase-kt-jvm:$supabase")
+    implementation("io.github.jan-tennert.supabase:auth-kt-jvm:$supabase")
+    implementation(platform("io.github.jan-tennert.supabase:bom:$supabase"))
 
     // ── Configuration processing ────────────────────────────────
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
@@ -99,9 +129,6 @@ tasks.withType<KotlinCompile> {
     compilerOptions {
         freeCompilerArgs.add("-Xjsr305=strict")
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
-    }
-    kotlinOptions {
-        jvmTarget = "21"
     }
 }
 

@@ -11,6 +11,7 @@ import org.springframework.data.mongodb.core.mapping.Document
 import java.time.OffsetDateTime
 
 data class JobSearchIn(
+    val id: String,
     val jobTitle: String,
     val location: String,
     val jobTypes: List<JobType>,
@@ -34,7 +35,8 @@ data class JobSearchOut(
     @Indexed(unique = false) @field:Field("user_id") val userId: String,
     @Indexed(unique = false) @field:Field("created_at") val createdAt: OffsetDateTime,
     @field:Field("filter_text") val filterText: String? = null,
-    @field:Field("destination") val destination: String? = null
+    @field:Field("destination") val destination: String? = null,
+    @Indexed(unique = false) @field:Field("is_approved") val isApproved: Boolean = false
 ) {
     fun toLogString(): String {
         return "id=$id, title=$jobTitle, location=$location, " +
@@ -57,11 +59,11 @@ data class JobSearchOut(
 
     companion object {
         /**
-         * Creates a persistent JobSearchOut from JobSearchIn with a new UUID
+         * Creates a persistent JobSearchOut from JobSearchIn with a new UUID and destination
          */
-        fun fromJobSearchIn(input: JobSearchIn, userId: String): JobSearchOut {
+        fun fromJobSearchIn(input: JobSearchIn, userId: String, destinationId: String? = null, isApproved: Boolean = false): JobSearchOut {
             return JobSearchOut(
-                id = java.util.UUID.randomUUID().toString(),
+                id = input.id,
                 jobTitle = input.jobTitle,
                 location = input.location,
                 jobTypes = input.jobTypes,
@@ -70,13 +72,15 @@ data class JobSearchOut(
                 userId = userId,
                 filterText = input.filterText,
                 createdAt = OffsetDateTime.now(),
+                destination = destinationId,
+                isApproved = isApproved
             )
         }
 
         /**
          * Creates a temporary JobSearchOut from JobSearchIn with a temporary ID prefix
          */
-        fun fromJobSearchInAsTemp(input: JobSearchIn, userId: String): JobSearchOut {
+        fun fromJobSearchInAsTemp(input: JobSearchIn, userId: String, destinationId: String? = null): JobSearchOut {
             return JobSearchOut(
                 id = "temp-${java.util.UUID.randomUUID()}",
                 jobTitle = input.jobTitle,
@@ -87,6 +91,8 @@ data class JobSearchOut(
                 userId = userId,
                 filterText = input.filterText,
                 createdAt = OffsetDateTime.now(),
+                destination = destinationId,
+                isApproved = false
             )
         }
     }
@@ -108,7 +114,7 @@ data class SearchJobsParams(
     val location: String,
     @JsonProperty("time_period") val timePeriod: String,
     @JsonProperty("job_types") val jobTypes: List<String> = emptyList(),
-    @JsonProperty("remote_types") val remoteTypes: List<String> = emptyList(),
+    @param:JsonProperty("remote_types") val remoteTypes: List<String> = emptyList(),
     @JsonProperty("filter_text") val filterText: String? = null,
     @JsonProperty("callback_url") val callbackUrl: String,
     @JsonProperty("job_search_id") val jobSearchId: String? = null,

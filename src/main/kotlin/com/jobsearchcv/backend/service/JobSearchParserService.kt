@@ -9,6 +9,7 @@ import com.jobsearchcv.backend.service.client.DeepSeekRequest
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
+import java.util.UUID
 
 data class JobSearchParseResult(
     val success: Boolean,
@@ -141,6 +142,7 @@ class JobSearchParserService(
             logger.debug("Parsed timePeriod: {} from input: '{}'", timePeriod, timePeriodName)
 
             val jobSearchIn = JobSearchIn(
+                id = UUID.randomUUID().toString(),
                 jobTitle = jobTitle!!,
                 location = location!!,
                 jobTypes = jobTypes,

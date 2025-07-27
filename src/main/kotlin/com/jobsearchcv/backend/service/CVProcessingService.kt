@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import org.springframework.web.multipart.MultipartFile
 import java.io.ByteArrayInputStream
+import java.util.UUID
 
 @Service
 class CVProcessingService(
@@ -249,6 +250,7 @@ Remember: Return ONLY the JSON object, no additional text or formatting.
                     val timePeriod = TimePeriod.fromDisplayName(timePeriodRaw) ?: TimePeriod.getDefault()
                     
                     JobSearchIn(
+                        id = UUID.randomUUID().toString(),
                         jobTitle = jobTitle,
                         location = jobLocation,
                         jobTypes = jobTypes.ifEmpty { listOf(JobType.getDefault()) },

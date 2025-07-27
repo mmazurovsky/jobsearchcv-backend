@@ -23,6 +23,14 @@ spring:
     async:
       request-timeout: 60000  # 60 seconds timeout for async requests
 
+
+# Supabase configuration
+supabase:
+  url: ${SUPABASE_URL:https://your-project.supabase.co}
+  anon:
+    key: ${SUPABASE_ANON_KEY:your-supabase-anon-key}
+  secret: ${SUPABASE_JWT_SECRET}
+
 sentry:
   dsn: ${SENTRY_DSN}
   # Add data like request headers and IP for users,
@@ -58,6 +66,8 @@ logging:
   level:
     root: ${LOG_LEVEL:INFO}
     com.jobsalerts: ${LOG_LEVEL:INFO}
+    # Enable request logging
+    org.springframework.web.filter.CommonsRequestLoggingFilter: DEBUG
 
 llm:
   api:
