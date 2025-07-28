@@ -9,7 +9,7 @@ import com.jobsearchcv.backend.service.SupabaseUser
 import com.jobsearchcv.backend.repository.JobSearchRepository
 import com.jobsearchcv.backend.domain.model.*
 import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
@@ -41,10 +41,10 @@ class CVController(
 
     // 1. Upload CV, save to S3, and create job searches using AI analysis
     @PostMapping("/uploadAndCreateSearches")
-    suspend fun uploadAndCreateSearches(
+    fun uploadAndCreateSearches(
         @RequestParam("file") file: MultipartFile,
         authentication: Authentication
-    ): ResponseEntity<UploadAndCreateSearchesResponse> = coroutineScope {
+    ): ResponseEntity<UploadAndCreateSearchesResponse> = runBlocking {
         try {
             // Extract user ID from authentication
             val userId = authentication.principal as String
@@ -54,11 +54,11 @@ class CVController(
             )
 
             // Validate file
-            validateUploadedFile(file)
+            val fileExtension = validateUploadedFile(file)
 
             // Start both coroutines in parallel
             val s3UploadDeferred = async {
-                performS3Upload(file, userId)
+                performS3Upload(file, userId, fileExtension)
             }
 
             val cvProcessingDeferred = async {
@@ -72,13 +72,13 @@ class CVController(
             // Check if both operations succeeded
             if (!s3Result.success) {
                 logger.error("S3 upload failed: ${s3Result.errorMessage}")
-                return@coroutineScope ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(createErrorResponse("Failed to upload CV: ${s3Result.errorMessage}"))
             }
 
             if (!processingResult.success) {
                 logger.error("CV processing failed: ${processingResult.errorMessage}")
-                return@coroutineScope ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(createErrorResponse("Failed to process CV: ${processingResult.errorMessage}"))
             }
 
@@ -108,7 +108,7 @@ class CVController(
                 )
             }
 
-            return@coroutineScope ResponseEntity.ok(
+            return@runBlocking ResponseEntity.ok(
                 UploadAndCreateSearchesResponse(
                     cvId = s3Result.cvId,
                     linkToCv = s3Result.linkToCv,
@@ -126,20 +126,20 @@ class CVController(
 
         } catch (e: IllegalArgumentException) {
             logger.warn("Invalid CV upload request: ${e.message}")
-            return@coroutineScope ResponseEntity.badRequest()
+            return@runBlocking ResponseEntity.badRequest()
                 .body(createErrorResponse("Invalid request: ${e.message}"))
         } catch (e: Exception) {
             logger.error("Failed to upload CV and create searches: ${e.message}", e)
-            return@coroutineScope ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(createErrorResponse("Internal server error: ${e.message}"))
         }
     }
 
     // 2. Get all CVs for a user (CV IDs and links)
     @GetMapping("/user")
-    suspend fun getUserCVs(
+    fun getUserCVs(
         authentication: Authentication
-    ): ResponseEntity<List<CVResponse>> {
+    ): ResponseEntity<List<CVResponse>> = runBlocking {
         try {
             // Extract user ID from authentication
             val userId = authentication.principal as String
@@ -155,20 +155,20 @@ class CVController(
                 )
             }
 
-            return ResponseEntity.ok(cvResponses)
+            return@runBlocking ResponseEntity.ok(cvResponses)
 
         } catch (e: Exception) {
             logger.error("Failed to get CVs for user", e)
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
+            return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
         }
     }
 
     // 3. Delete CV by CV ID
     @DeleteMapping("/{cvId}")
-    suspend fun deleteCV(
+    fun deleteCV(
         @PathVariable cvId: String,
         authentication: Authentication
-    ): ResponseEntity<Void> {
+    ): ResponseEntity<Void> = runBlocking {
         try {
             // Extract user ID from authentication
             val userId = authentication.principal as String
@@ -179,7 +179,7 @@ class CVController(
 
             val deleted = cvService.deleteCV(userId, cvId)
 
-            return if (deleted) {
+            return@runBlocking if (deleted) {
                 logger.info("Successfully deleted CV: cvId=$cvId, userId=$userId")
                 ResponseEntity.noContent().build()
             } else {
@@ -189,17 +189,17 @@ class CVController(
 
         } catch (e: Exception) {
             logger.error("Failed to delete CV: cvId=$cvId", e)
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
+            return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
         }
     }
 
     // 4. Create job searches with authentication
     @PostMapping("/createJobSearches")
-    suspend fun createJobSearches(
+    fun createJobSearches(
         @RequestBody request: CreateJobSearchesRequest,
         @RequestParam("isApproved") isApproved: Boolean,
         authentication: Authentication
-    ): ResponseEntity<CreateJobSearchesResponse> {
+    ): ResponseEntity<CreateJobSearchesResponse> = runBlocking {
         try {
             val userId = authentication.principal as String
 
@@ -221,7 +221,7 @@ class CVController(
                 )
             }
 
-            return ResponseEntity.ok(
+            return@runBlocking ResponseEntity.ok(
                 CreateJobSearchesResponse(
                     message = result.message,
                     jobSearchIds = result.jobSearchIds,
@@ -232,7 +232,7 @@ class CVController(
 
         } catch (e: JobSearchCreationException) {
             logger.error("Job search creation failed: ${e.message}", e)
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            return@runBlocking ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(
                     CreateJobSearchesResponse(
                         e.message ?: "Job search creation failed",
@@ -242,21 +242,21 @@ class CVController(
                 )
         } catch (e: IllegalArgumentException) {
             logger.warn("Invalid request: ${e.message}")
-            return ResponseEntity.badRequest()
+            return@runBlocking ResponseEntity.badRequest()
                 .body(CreateJobSearchesResponse(e.message ?: "Invalid request", emptyList(), ""))
         } catch (e: Exception) {
             logger.error("Unexpected error creating job searches: ${e.message}", e)
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(CreateJobSearchesResponse("Internal server error", emptyList(), ""))
         }
     }
 
     // 5. Get job searches for a user by approval status
     @GetMapping("/searches")
-    suspend fun getUserSearches(
+    fun getUserSearches(
         @RequestParam("isApproved") isApproved: Boolean,
         authentication: Authentication
-    ): ResponseEntity<List<JobSearchOut>> {
+    ): ResponseEntity<List<JobSearchOut>> = runBlocking {
         try {
             val userId = authentication.principal as String
             logger.info("Getting job searches for user: $userId, isApproved=$isApproved")
@@ -264,11 +264,11 @@ class CVController(
             val searches = jobSearchRepository.findByUserIdAndIsApproved(userId, isApproved)
             
             logger.info("Found ${searches.size} searches for user: $userId with isApproved=$isApproved")
-            return ResponseEntity.ok(searches)
+            return@runBlocking ResponseEntity.ok(searches)
             
         } catch (e: Exception) {
             logger.error("Failed to get searches for user: ${e.message}", e)
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
+            return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
         }
     }
 
@@ -283,7 +283,7 @@ class CVController(
         )
     }
 
-    private fun validateUploadedFile(file: MultipartFile) {
+    private fun validateUploadedFile(file: MultipartFile): String {
         // Check file size
         if (file.size > MAX_FILE_SIZE) {
             throw IllegalArgumentException("File size exceeds maximum allowed size of 10MB")
@@ -307,6 +307,7 @@ class CVController(
                 }"
             )
         }
+        return extension
 
         // Check content type
         val contentType = file.contentType
@@ -328,10 +329,10 @@ class CVController(
     /**
      * Coroutine to handle S3 upload
      */
-    private suspend fun performS3Upload(file: MultipartFile, userId: String): S3UploadResult {
+    private suspend fun performS3Upload(file: MultipartFile, userId: String, fileExtension: String): S3UploadResult {
         return try {
             logger.info("Starting S3 upload coroutine for user: $userId")
-            val savedCV = cvService.uploadAndSaveCV(file, userId)
+            val savedCV = cvService.uploadAndSaveCV(file, userId, fileExtension)
             logger.info("S3 upload completed successfully: cvId=${savedCV.id}")
 
             S3UploadResult(

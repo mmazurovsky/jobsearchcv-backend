@@ -51,6 +51,12 @@
             <appender-ref ref="FILE"/>
             <appender-ref ref="ERROR_FILE"/>
         </root>
+        
+        <!-- Logbook Logger for HTTP request/response logging -->
+        <logger name="org.zalando.logbook" level="TRACE" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="FILE"/>
+        </logger>
     </springProfile>
 
     <springProfile name="test">
@@ -114,7 +120,6 @@
     <logger name="org.mongodb.driver" level="WARN"/>
     <logger name="org.quartz" level="INFO"/>
     <logger name="io.ktor" level="INFO"/>
-    <logger name="dev.inmo.tgbotapi" level="INFO"/>
     
     <!-- Reduce noise from common frameworks -->
     <logger name="org.springframework.web.servlet.DispatcherServlet" level="WARN"/>

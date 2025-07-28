@@ -75,7 +75,7 @@ class S3Service(
             .build()
     }
 
-    suspend fun uploadFile(file: MultipartFile, bucket: String, key: String): String =
+    suspend fun uploadFile(file: MultipartFile, bucket: String, key: String, fileExtension: String): String =
         withContext(Dispatchers.IO) {
             if (isTestEnvironment) {
                 logger.info("Test environment detected - simulating S3 upload for: bucket=$bucket, key=$key")
@@ -96,7 +96,7 @@ class S3Service(
                     val putObjectRequest = PutObjectRequest.builder()
                         .bucket(bucket)
                         .key(key)
-                        .contentType(file.contentType)
+                        .contentType(fileExtension)
                         .metadata(metadata)
                         .build()
 

@@ -22,16 +22,16 @@ class SimpleCVService(
         private val logger: Logger = LoggerFactory.getLogger(SimpleCVService::class.java)
     }
     
-    suspend fun uploadAndSaveCV(file: MultipartFile, userId: String): SimpleUserCV {
+    suspend fun uploadAndSaveCV(file: MultipartFile, userId: String, fileExtension: String ): SimpleUserCV {
         logger.info("Uploading CV for user: $userId, filename: ${file.originalFilename}")
         
         try {
             // Generate S3 key with proper structure
             val fileName = file.originalFilename ?: "cv_${System.currentTimeMillis()}"
-            val s3Key = "$userId-$fileName-${java.util.UUID.randomUUID()}"
+            val s3Key = "$userId-${java.util.UUID.randomUUID()}-$fileName"
             
             // Upload to S3
-            val uploadedKey = s3Service.uploadFile(file, cvsBucket, s3Key)
+            val uploadedKey = s3Service.uploadFile(file, cvsBucket, s3Key, fileExtension)
             
             // Generate permanent public URL (never expires)
             val fileUrl = s3Service.getPublicUrl(uploadedKey, cvsBucket)
@@ -41,7 +41,7 @@ class SimpleCVService(
                 userId = userId,
                 linkToCv = fileUrl,
                 fileSize = file.size,
-                contentType = file.contentType ?: "application/octet-stream",
+                contentType = fileExtension,
                 s3Bucket = cvsBucket,
                 s3Key = uploadedKey
             )

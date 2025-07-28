@@ -29,6 +29,7 @@ class SecurityConfig(
                     // Public endpoints
                     .requestMatchers("/api/cv/health").permitAll()
                     .requestMatchers("/api/job-data-callback").permitAll()
+                    .requestMatchers("/api/test/**").permitAll() // Test endpoints for Logbook
                     // Protected endpoints
                     .requestMatchers("/api/cv/uploadAndCreateSearches").authenticated()
                     .requestMatchers("/api/cv/createJobSearches").authenticated()
@@ -42,10 +43,10 @@ class SecurityConfig(
     @Bean
     fun corsConfigurationSource(): CorsConfigurationSource {
         val configuration = CorsConfiguration().apply {
-            allowedOrigins = listOf("*") // Configure appropriately for production
+            allowedOrigins = listOf("http://localhost:3000") // Must be specific when allowCredentials = true
             allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS")
             allowedHeaders = listOf("*")
-            allowCredentials = false // Set to true if you need credentials
+            allowCredentials = true // Required for Authorization headers
         }
         val source = UrlBasedCorsConfigurationSource()
         source.registerCorsConfiguration("/**", configuration)

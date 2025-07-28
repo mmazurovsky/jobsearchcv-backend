@@ -40,6 +40,7 @@ val serialization = "1.9.0"
 val datetime = "0.7.1-0.6.x-compat"
 val supabase = "3.2.2"
 val ktorVersion = "3.2.2"
+val logbookVersion = "3.7.0"
 
 
 
@@ -67,6 +68,9 @@ dependencies {
     // Spring Boot includes Logback by default - no additional dependencies needed
     // Add structured logging for production
     implementation("net.logstash.logback:logstash-logback-encoder:7.4")
+    // Add request/response logging (Jakarta EE for Spring Boot 3)
+    implementation("org.zalando:logbook-spring-boot-starter:$logbookVersion")
+    implementation("org.zalando:logbook-servlet:$logbookVersion")
     
     // ── Sentry Error Tracking ───────────────────────────────────
     implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.14.0")

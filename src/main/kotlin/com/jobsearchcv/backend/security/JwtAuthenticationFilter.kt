@@ -28,9 +28,11 @@ class JwtAuthenticationFilter(
         filterChain: FilterChain
     ) {
         val authHeader = request.getHeader("Authorization")
+        log.debug("Processing request to ${request.requestURI}, Authorization header present: ${authHeader != null}")
         
         if (authHeader != null && authHeader.startsWith(BEARER_PREFIX)) {
             val token = authHeader.substring(BEARER_PREFIX.length)
+            log.debug("Extracted JWT token, length: ${token.length}")
             
             try {
                 val supabaseUser = supabaseAuthService.validateTokenAndExtractUser(token)
@@ -43,10 +45,14 @@ class JwtAuthenticationFilter(
                     }
                     SecurityContextHolder.getContext().authentication = authentication
                     log.debug("Set authentication for user: ${supabaseUser.id}, email: ${supabaseUser.email}")
+                } else {
+                    log.debug("Token validation returned null user")
                 }
             } catch (e: Exception) {
                 log.warn("Invalid JWT token: ${e.message}")
             }
+        } else {
+            log.debug("No Authorization header or doesn't start with Bearer")
         }
         
         filterChain.doFilter(request, response)
