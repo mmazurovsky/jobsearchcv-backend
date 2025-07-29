@@ -1,9 +1,11 @@
 package com.jobsearchcv.backend.domain.model
 
+import io.swagger.v3.oas.annotations.media.Schema
 import org.quartz.CronScheduleBuilder
 import org.quartz.CronTrigger
 import org.quartz.TriggerBuilder
 
+@Schema(description = "Time period for job search frequency", enumAsRef = true)
 enum class TimePeriod(
     val seconds: Int,
     val cronExpression: String,

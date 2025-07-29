@@ -204,7 +204,7 @@ class JobSearchCreationService(
             userId, Channel.EMAIL.value, email
         ) ?: run {
             logger.info("Creating new email destination for user: $userId, email: $email")
-            destinationRepository.save(Destination.create(userId, Channel.EMAIL, email))
+            destinationRepository.save(Destination.createNew(userId, Channel.EMAIL, email))
         }
     }
     

@@ -44,10 +44,11 @@ class JobSearchScheduler(
 
     suspend fun addInitialJobSearches(jobSearches: List<JobSearchOut>) {
         try {
-            jobSearches.forEach { search ->
+            val approvedSearches = jobSearches.filter { it.isApproved }
+            approvedSearches.forEach { search ->
                 addJobSearch(search)
             }
-            logger.info("Added {} initial job searches", jobSearches.size)
+            logger.info("Added {} initial job searches (out of {} total, {} were approved)", approvedSearches.size, jobSearches.size, approvedSearches.size)
         } catch (e: Exception) {
             logger.error("Error adding initial job searches", e)
         }
@@ -55,6 +56,12 @@ class JobSearchScheduler(
 
     suspend fun addJobSearch(jobSearch: JobSearchOut) {
         try {
+            // Only add approved job searches
+            if (!jobSearch.isApproved) {
+                logger.info("Skipping unapproved job search: {}", jobSearch.id)
+                return
+            }
+            
             // If job already exists, remove it first to ensure clean state
             if (jobSearch.id in activeSearches) {
                 logger.info("Job search already exists: {}, removing old version before adding new one", jobSearch.id)
@@ -90,6 +97,18 @@ class JobSearchScheduler(
     
     suspend fun updateJobSearch(jobSearch: JobSearchOut) {
         try {
+            // Check if job search is approved
+            if (!jobSearch.isApproved) {
+                // If it was previously scheduled, remove it
+                if (jobSearch.id in activeSearches) {
+                    val jobKey = JobKey.jobKey("job-search-${jobSearch.id}", "job-searches")
+                    scheduler.deleteJob(jobKey)
+                    activeSearches.remove(jobSearch.id)
+                    logger.info("Removed unapproved job search from scheduler: {}", jobSearch.id)
+                }
+                return
+            }
+            
             // Remove existing job if present
             if (jobSearch.id in activeSearches) {
                 val jobKey = JobKey.jobKey("job-search-${jobSearch.id}", "job-searches")

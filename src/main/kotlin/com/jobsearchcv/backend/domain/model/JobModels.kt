@@ -2,6 +2,7 @@ package com.jobsearchcv.backend.domain.model
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.jobsearchcv.backend.TelegramMessages
+import io.swagger.v3.oas.annotations.media.Schema
 import org.springframework.data.annotation.Id
 import org.springframework.data.mongodb.core.mapping.Field
 import org.springframework.data.mongodb.core.index.Indexed
@@ -10,13 +11,21 @@ import org.springframework.data.mongodb.core.index.CompoundIndexes
 import org.springframework.data.mongodb.core.mapping.Document
 import java.time.OffsetDateTime
 
+@Schema(description = "Job search input configuration")
 data class JobSearchIn(
+    @Schema(description = "Unique identifier for the job search", example = "search-123", required = true)
     val id: String,
+    @Schema(description = "Job title to search for", example = "Senior Software Engineer", required = true)
     val jobTitle: String,
+    @Schema(description = "Location for job search", example = "San Francisco, CA", required = true)
     val location: String,
+    @Schema(description = "Types of job positions to include", required = true)
     val jobTypes: List<JobType>,
+    @Schema(description = "Remote work preferences", required = true)
     val remoteTypes: List<RemoteType>,
+    @Schema(description = "Search frequency and timing", required = true)
     val timePeriod: TimePeriod,
+    @Schema(description = "Additional filter text for job descriptions", example = "Spring Boot", required = false)
     val filterText: String? = null,
 ) {
     fun toHumanReadableString(): String {
@@ -25,18 +34,40 @@ data class JobSearchIn(
 }
 
 @Document(collection = "job_searches")
+@Schema(description = "Saved job search configuration with metadata")
 data class JobSearchOut(
-    @Id val id: String,
-    @field:Field("job_title") val jobTitle: String,
+    @Id 
+    @Schema(description = "Unique identifier for the job search", example = "search-123e4567-e89b-12d3-a456-426614174000", required = true)
+    val id: String,
+    @field:Field("job_title") 
+    @Schema(description = "Job title to search for", example = "Senior Software Engineer", required = true)
+    val jobTitle: String,
+    @Schema(description = "Location for job search", example = "San Francisco, CA", required = true)
     val location: String,
-    @field:Field("job_types") val jobTypes: List<JobType> = emptyList(),
-    @field:Field("remote_types") val remoteTypes: List<RemoteType> = emptyList(),
-    @field:Field("time_period") val timePeriod: TimePeriod,
-    @Indexed(unique = false) @field:Field("user_id") val userId: String,
-    @Indexed(unique = false) @field:Field("created_at") val createdAt: OffsetDateTime,
-    @field:Field("filter_text") val filterText: String? = null,
-    @field:Field("destination") val destination: String? = null,
-    @Indexed(unique = false) @field:Field("is_approved") val isApproved: Boolean = false
+    @field:Field("job_types") 
+    @Schema(description = "Types of job positions to include", required = true)
+    val jobTypes: List<JobType> = emptyList(),
+    @field:Field("remote_types") 
+    @Schema(description = "Remote work preferences", required = true)
+    val remoteTypes: List<RemoteType> = emptyList(),
+    @field:Field("time_period") 
+    @Schema(description = "Search frequency and timing", required = true)
+    val timePeriod: TimePeriod,
+    @Indexed(unique = false) @field:Field("user_id") 
+    @Schema(description = "ID of the user who owns this job search", required = true)
+    val userId: String,
+    @Indexed(unique = false) @field:Field("created_at") 
+    @Schema(description = "Timestamp when the job search was created", required = true)
+    val createdAt: OffsetDateTime,
+    @field:Field("filter_text") 
+    @Schema(description = "Additional filter text for job descriptions", example = "Spring Boot", required = false)
+    val filterText: String? = null,
+    @field:Field("destination") 
+    @Schema(description = "Destination ID for notifications", required = false)
+    val destination: String? = null,
+    @Indexed(unique = false) @field:Field("is_approved") 
+    @Schema(description = "Whether the job search is approved for automated scheduling", required = true)
+    val isApproved: Boolean = false
 ) {
     fun toLogString(): String {
         return "id=$id, title=$jobTitle, location=$location, " +

@@ -2,12 +2,15 @@ package com.jobsearchcv.backend.controller
 
 import com.jobsearchcv.backend.service.SimpleCVService
 import com.jobsearchcv.backend.service.CVProcessingService
-import com.jobsearchcv.backend.service.UserAuthService
-import com.jobsearchcv.backend.service.JobSearchCreationService
-import com.jobsearchcv.backend.service.JobSearchCreationException
-import com.jobsearchcv.backend.service.SupabaseUser
 import com.jobsearchcv.backend.repository.JobSearchRepository
 import com.jobsearchcv.backend.domain.model.*
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
+import io.swagger.v3.oas.annotations.media.Schema
+import io.swagger.v3.oas.annotations.responses.ApiResponse
+import io.swagger.v3.oas.annotations.responses.ApiResponses
+import io.swagger.v3.oas.annotations.security.SecurityRequirement
+import io.swagger.v3.oas.annotations.tags.Tag
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
@@ -17,15 +20,14 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
 import org.springframework.security.core.Authentication
-import jakarta.servlet.http.HttpServletRequest
 
 @RestController
 @RequestMapping("/api/cv")
+@Tag(name = "CV Management", description = "Upload, process, and manage CVs")
+@SecurityRequirement(name = "bearerAuth")
 class CVController(
     private val cvService: SimpleCVService,
     private val cvProcessingService: CVProcessingService,
-    private val userAuthService: UserAuthService,
-    private val jobSearchCreationService: JobSearchCreationService,
     private val jobSearchRepository: JobSearchRepository
 ) {
     companion object {
@@ -39,11 +41,19 @@ class CVController(
         private val ALLOWED_EXTENSIONS = setOf("pdf", "doc", "docx")
     }
 
-    // 1. Upload CV, save to S3, and create job searches using AI analysis
     @PostMapping("/uploadAndCreateSearches")
-    fun uploadAndCreateSearches(
-        @RequestParam("file") file: MultipartFile,
-        authentication: Authentication
+    @Operation(
+        summary = "Upload CV and create job searches",
+        description = "Uploads a CV file, saves it to S3, analyzes it with AI, and creates recommended job searches"
+    )
+    @ApiResponses(
+        ApiResponse(responseCode = "200", description = "CV uploaded and searches created successfully"),
+        ApiResponse(responseCode = "400", description = "Invalid file or request"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    )
+    fun uploadCVAndCreateSearches(
+        @RequestParam("file") @Parameter(description = "CV file (PDF, DOC, or DOCX)") file: MultipartFile,
+        @Parameter(hidden = true) authentication: Authentication
     ): ResponseEntity<UploadAndCreateSearchesResponse> = runBlocking {
         try {
             // Extract user ID from authentication
@@ -135,10 +145,17 @@ class CVController(
         }
     }
 
-    // 2. Get all CVs for a user (CV IDs and links)
     @GetMapping("/user")
+    @Operation(
+        summary = "Get user CVs",
+        description = "Retrieves all CVs for the authenticated user"
+    )
+    @ApiResponses(
+        ApiResponse(responseCode = "200", description = "CVs retrieved successfully"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    )
     fun getUserCVs(
-        authentication: Authentication
+        @Parameter(hidden = true) authentication: Authentication
     ): ResponseEntity<List<CVResponse>> = runBlocking {
         try {
             // Extract user ID from authentication
@@ -163,11 +180,19 @@ class CVController(
         }
     }
 
-    // 3. Delete CV by CV ID
     @DeleteMapping("/{cvId}")
+    @Operation(
+        summary = "Delete CV",
+        description = "Deletes a CV by ID. Only the owner can delete their CVs."
+    )
+    @ApiResponses(
+        ApiResponse(responseCode = "204", description = "CV deleted successfully"),
+        ApiResponse(responseCode = "404", description = "CV not found"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    )
     fun deleteCV(
-        @PathVariable cvId: String,
-        authentication: Authentication
+        @Parameter(description = "CV ID") @PathVariable cvId: String,
+        @Parameter(hidden = true) authentication: Authentication
     ): ResponseEntity<Void> = runBlocking {
         try {
             // Extract user ID from authentication
@@ -193,84 +218,6 @@ class CVController(
         }
     }
 
-    // 4. Create job searches with authentication
-    @PostMapping("/createJobSearches")
-    fun createJobSearches(
-        @RequestBody request: CreateJobSearchesRequest,
-        @RequestParam("isApproved") isApproved: Boolean,
-        authentication: Authentication
-    ): ResponseEntity<CreateJobSearchesResponse> = runBlocking {
-        try {
-            val userId = authentication.principal as String
-
-            logger.info("Creating job searches request for user: $userId, count=${request.jobSearches.size}, isApproved=$isApproved")
-
-            // Delegate to service with isApproved parameter
-            val result = jobSearchCreationService.createJobSearches(
-                jobSearches = request.jobSearches,
-                userId = userId,
-                isApproved = isApproved
-            )
-
-            val immediateSearchSummaries = result.immediateSearchTriggerResults.map {
-                ImmediateSearchSummary(
-                    originalJobSearchId = it.originalJobSearchId,
-                    immediateSearchId = it.immediateSearchId,
-                    success = it.success,
-                    errorMessage = it.errorMessage
-                )
-            }
-
-            return@runBlocking ResponseEntity.ok(
-                CreateJobSearchesResponse(
-                    message = result.message,
-                    jobSearchIds = result.jobSearchIds,
-                    destinationId = result.destinationId,
-                    immediateSearchResults = immediateSearchSummaries
-                )
-            )
-
-        } catch (e: JobSearchCreationException) {
-            logger.error("Job search creation failed: ${e.message}", e)
-            return@runBlocking ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(
-                    CreateJobSearchesResponse(
-                        e.message ?: "Job search creation failed",
-                        emptyList(),
-                        ""
-                    )
-                )
-        } catch (e: IllegalArgumentException) {
-            logger.warn("Invalid request: ${e.message}")
-            return@runBlocking ResponseEntity.badRequest()
-                .body(CreateJobSearchesResponse(e.message ?: "Invalid request", emptyList(), ""))
-        } catch (e: Exception) {
-            logger.error("Unexpected error creating job searches: ${e.message}", e)
-            return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(CreateJobSearchesResponse("Internal server error", emptyList(), ""))
-        }
-    }
-
-    // 5. Get job searches for a user by approval status
-    @GetMapping("/searches")
-    fun getUserSearches(
-        @RequestParam("isApproved") isApproved: Boolean,
-        authentication: Authentication
-    ): ResponseEntity<List<JobSearchOut>> = runBlocking {
-        try {
-            val userId = authentication.principal as String
-            logger.info("Getting job searches for user: $userId, isApproved=$isApproved")
-            
-            val searches = jobSearchRepository.findByUserIdAndIsApproved(userId, isApproved)
-            
-            logger.info("Found ${searches.size} searches for user: $userId with isApproved=$isApproved")
-            return@runBlocking ResponseEntity.ok(searches)
-            
-        } catch (e: Exception) {
-            logger.error("Failed to get searches for user: ${e.message}", e)
-            return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
-        }
-    }
 
     @GetMapping("/health")
     fun healthCheck(): ResponseEntity<Map<String, String>> {
@@ -406,13 +353,19 @@ class CVController(
     }
 }
 
-// Simplified Data Transfer Objects
+// Data Transfer Objects
+@Schema(description = "Response for CV upload operation")
 data class CVUploadResponse(
+    @Schema(description = "Unique identifier for the uploaded CV", example = "cv-123e4567-e89b-12d3-a456-426614174000", required = true)
     val cvId: String,
+    @Schema(description = "Direct link to the CV file", example = "https://s3.amazonaws.com/bucket/cv-123.pdf", required = true)
     val linkToCv: String
 )
 
+@Schema(description = "CV information response")
 data class CVResponse(
+    @Schema(description = "Unique identifier for the CV", example = "cv-123e4567-e89b-12d3-a456-426614174000", required = true)
     val cvId: String,
+    @Schema(description = "Direct link to access the CV file", example = "https://s3.amazonaws.com/bucket/cv-123.pdf", required = true)
     val linkToCv: String
 )

@@ -1,0 +1,246 @@
+package com.jobsearchcv.backend.controller
+
+import com.jobsearchcv.backend.domain.model.*
+import com.jobsearchcv.backend.repository.JobSearchRepository
+import com.jobsearchcv.backend.service.JobSearchCreationException
+import com.jobsearchcv.backend.service.JobSearchCreationService
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
+import io.swagger.v3.oas.annotations.media.Schema
+import io.swagger.v3.oas.annotations.responses.ApiResponse
+import io.swagger.v3.oas.annotations.responses.ApiResponses
+import io.swagger.v3.oas.annotations.security.SecurityRequirement
+import io.swagger.v3.oas.annotations.tags.Tag
+import kotlinx.coroutines.runBlocking
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
+import org.springframework.security.core.Authentication
+import org.springframework.web.bind.annotation.*
+
+@RestController
+@RequestMapping("/api/job-searches")
+@Tag(name = "Job Searches", description = "Manage job searches and alerts")
+@SecurityRequirement(name = "bearerAuth")
+class JobSearchController(
+    private val jobSearchCreationService: JobSearchCreationService,
+    private val jobSearchRepository: JobSearchRepository
+) {
+    companion object {
+        private val logger: Logger = LoggerFactory.getLogger(JobSearchController::class.java)
+    }
+
+    @PostMapping
+    @Operation(
+        summary = "Create job searches",
+        description = "Creates new job searches for the authenticated user with specified approval status"
+    )
+    @ApiResponses(
+        ApiResponse(responseCode = "200", description = "Job searches created successfully"),
+        ApiResponse(responseCode = "400", description = "Invalid request or job search creation failed"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    )
+    fun createJobSearches(
+        @RequestBody request: CreateJobSearchesRequest,
+        @RequestParam("isApproved") @Parameter(description = "Whether the job searches should be immediately approved") isApproved: Boolean,
+        @Parameter(hidden = true) authentication: Authentication
+    ): ResponseEntity<CreateJobSearchesResponse> = runBlocking {
+        try {
+            val userId = authentication.principal as String
+
+            logger.info("Creating job searches request for user: $userId, count=${request.jobSearches.size}, isApproved=$isApproved")
+
+            // Delegate to service with isApproved parameter
+            val result = jobSearchCreationService.createJobSearches(
+                jobSearches = request.jobSearches,
+                userId = userId,
+                isApproved = isApproved
+            )
+
+            val immediateSearchSummaries = result.immediateSearchTriggerResults.map {
+                ImmediateSearchSummary(
+                    originalJobSearchId = it.originalJobSearchId,
+                    immediateSearchId = it.immediateSearchId,
+                    success = it.success,
+                    errorMessage = it.errorMessage
+                )
+            }
+
+            return@runBlocking ResponseEntity.ok(
+                CreateJobSearchesResponse(
+                    message = result.message,
+                    jobSearchIds = result.jobSearchIds,
+                    destinationId = result.destinationId,
+                    immediateSearchResults = immediateSearchSummaries
+                )
+            )
+
+        } catch (e: JobSearchCreationException) {
+            logger.error("Job search creation failed: ${e.message}", e)
+            return@runBlocking ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(
+                    CreateJobSearchesResponse(
+                        e.message ?: "Job search creation failed",
+                        emptyList(),
+                        ""
+                    )
+                )
+        } catch (e: IllegalArgumentException) {
+            logger.warn("Invalid request: ${e.message}")
+            return@runBlocking ResponseEntity.badRequest()
+                .body(CreateJobSearchesResponse(e.message ?: "Invalid request", emptyList(), ""))
+        } catch (e: Exception) {
+            logger.error("Unexpected error creating job searches: ${e.message}", e)
+            return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(CreateJobSearchesResponse("Internal server error", emptyList(), ""))
+        }
+    }
+
+    @GetMapping
+    @Operation(
+        summary = "Get user job searches",
+        description = "Retrieves job searches for the authenticated user filtered by approval status"
+    )
+    @ApiResponses(
+        ApiResponse(responseCode = "200", description = "Job searches retrieved successfully"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    )
+    fun getUserSearches(
+        @RequestParam("isApproved") @Parameter(description = "Filter by approval status") isApproved: Boolean,
+        @Parameter(hidden = true) authentication: Authentication
+    ): ResponseEntity<List<JobSearchOut>> = runBlocking {
+        try {
+            val userId = authentication.principal as String
+            logger.info("Getting job searches for user: $userId, isApproved=$isApproved")
+            
+            val searches = jobSearchRepository.findByUserIdAndIsApproved(userId, isApproved)
+            
+            logger.info("Found ${searches.size} searches for user: $userId with isApproved=$isApproved")
+            return@runBlocking ResponseEntity.ok(searches)
+            
+        } catch (e: Exception) {
+            logger.error("Failed to get searches for user: ${e.message}", e)
+            return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
+        }
+    }
+
+    @DeleteMapping("/{searchId}")
+    @Operation(
+        summary = "Delete a job search",
+        description = "Deletes a job search by ID. Only the owner can delete their job searches."
+    )
+    @ApiResponses(
+        ApiResponse(responseCode = "204", description = "Job search deleted successfully"),
+        ApiResponse(responseCode = "404", description = "Job search not found"),
+        ApiResponse(responseCode = "403", description = "Forbidden - not the owner"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    )
+    fun deleteJobSearch(
+        @Parameter(description = "Job search ID") @PathVariable searchId: String,
+        @Parameter(hidden = true) authentication: Authentication
+    ): ResponseEntity<Void> = runBlocking {
+        try {
+            val userId = authentication.principal as String
+            logger.info("Deleting job search: id=$searchId, userId=$userId")
+            
+            // Check if job search exists and belongs to user
+            val jobSearch = jobSearchRepository.findById(searchId)
+            
+            if (jobSearch == null) {
+                logger.warn("Job search not found: id=$searchId")
+                return@runBlocking ResponseEntity.notFound().build()
+            }
+            
+            if (jobSearch.userId != userId) {
+                logger.warn("User $userId attempted to delete job search belonging to another user")
+                return@runBlocking ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+            }
+            
+            // Delete job search
+            jobSearchRepository.deleteById(searchId)
+            
+            logger.info("Successfully deleted job search: id=$searchId")
+            return@runBlocking ResponseEntity.noContent().build()
+            
+        } catch (e: Exception) {
+            logger.error("Failed to delete job search: id=$searchId", e)
+            return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
+        }
+    }
+
+    @PutMapping("/{searchId}")
+    @Operation(
+        summary = "Update a job search",
+        description = "Updates an existing job search. Only the owner can update their job searches."
+    )
+    @ApiResponses(
+        ApiResponse(responseCode = "200", description = "Job search updated successfully"),
+        ApiResponse(responseCode = "404", description = "Job search not found"),
+        ApiResponse(responseCode = "403", description = "Forbidden - not the owner"),
+        ApiResponse(responseCode = "400", description = "Invalid request"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    )
+    fun updateJobSearch(
+        @Parameter(description = "Job search ID") @PathVariable searchId: String,
+        @RequestBody request: UpdateJobSearchRequest,
+        @Parameter(hidden = true) authentication: Authentication
+    ): ResponseEntity<JobSearchOut> = runBlocking {
+        try {
+            val userId = authentication.principal as String
+            logger.info("Updating job search: id=$searchId, userId=$userId")
+            
+            // Check if job search exists and belongs to user
+            val existingJobSearch = jobSearchRepository.findById(searchId)
+            
+            if (existingJobSearch == null) {
+                logger.warn("Job search not found: id=$searchId")
+                return@runBlocking ResponseEntity.notFound().build()
+            }
+            
+            if (existingJobSearch.userId != userId) {
+                logger.warn("User $userId attempted to update job search belonging to another user")
+                return@runBlocking ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+            }
+            
+            // Update job search
+            val updatedJobSearch = existingJobSearch.copy(
+                jobTitle = request.jobTitle ?: existingJobSearch.jobTitle,
+                location = request.location ?: existingJobSearch.location,
+                jobTypes = request.jobTypes ?: existingJobSearch.jobTypes,
+                remoteTypes = request.remoteTypes ?: existingJobSearch.remoteTypes,
+                timePeriod = request.timePeriod ?: existingJobSearch.timePeriod,
+                filterText = request.filterText,
+                isApproved = request.isApproved ?: existingJobSearch.isApproved
+            )
+            
+            val savedJobSearch = jobSearchRepository.save(updatedJobSearch)
+            
+            logger.info("Successfully updated job search: id=$searchId")
+            return@runBlocking ResponseEntity.ok(savedJobSearch)
+            
+        } catch (e: Exception) {
+            logger.error("Failed to update job search: id=$searchId", e)
+            return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
+        }
+    }
+}
+
+// Request DTOs
+@Schema(description = "Request to update a job search")
+data class UpdateJobSearchRequest(
+    @Schema(description = "Job title to search for", example = "Software Engineer", required = false)
+    val jobTitle: String? = null,
+    @Schema(description = "Location for job search", example = "New York, NY", required = false)
+    val location: String? = null,
+    @Schema(description = "Types of job positions", required = false)
+    val jobTypes: List<JobType>? = null,
+    @Schema(description = "Remote work preferences", required = false)
+    val remoteTypes: List<RemoteType>? = null,
+    @Schema(description = "Search frequency/time period", required = false)
+    val timePeriod: TimePeriod? = null,
+    @Schema(description = "Additional filter text for job descriptions", example = "Spring Boot", required = false)
+    val filterText: String? = null,
+    @Schema(description = "Whether the job search is approved for scheduling", required = false)
+    val isApproved: Boolean? = null
+)

@@ -30,9 +30,15 @@ class SecurityConfig(
                     .requestMatchers("/api/cv/health").permitAll()
                     .requestMatchers("/api/job-data-callback").permitAll()
                     .requestMatchers("/api/test/**").permitAll() // Test endpoints for Logbook
+                    // OpenAPI endpoints
+                    .requestMatchers("/v3/api-docs/**").permitAll()
+                    .requestMatchers("/swagger-ui/**").permitAll()
+                    .requestMatchers("/swagger-ui.html").permitAll()
                     // Protected endpoints
                     .requestMatchers("/api/cv/uploadAndCreateSearches").authenticated()
-                    .requestMatchers("/api/cv/createJobSearches").authenticated()
+                    .requestMatchers("/api/cv/**").authenticated()
+                    .requestMatchers("/api/job-searches/**").authenticated()
+                    .requestMatchers("/api/destinations/**").authenticated()
                     // All other endpoints require authentication by default
                     .anyRequest().authenticated()
             }

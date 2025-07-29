@@ -104,6 +104,19 @@ logbook:
     style: http
   minimum-status: 200 # Only log successful responses and above
 
+# Springdoc OpenAPI configuration
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+    display-request-duration: true
+    disable-swagger-default-url: true
+  packages-to-scan: com.jobsearchcv.backend.controller
+  paths-to-match: /api/**
+
 
 
 

@@ -1,5 +1,8 @@
 package com.jobsearchcv.backend.domain.model
 
+import io.swagger.v3.oas.annotations.media.Schema
+
+@Schema(description = "Type of job position", enumAsRef = true)
 enum class JobType {
     `Full-time`,
     `Part-time`,
