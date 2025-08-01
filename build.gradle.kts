@@ -97,6 +97,7 @@ dependencies {
     implementation(platform("software.amazon.awssdk:bom:2.25.0"))
     implementation("software.amazon.awssdk:s3")
     implementation("software.amazon.awssdk:s3-transfer-manager")
+    implementation("software.amazon.awssdk:ses")
     
     // ── Document Processing ─────────────────────────────────────
     implementation("org.apache.pdfbox:pdfbox:3.0.3")
