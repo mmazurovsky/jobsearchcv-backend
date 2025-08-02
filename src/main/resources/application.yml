@@ -75,12 +75,6 @@ logging:
     org.springframework.security: DEBUG
     com.jobsearchcv.backend.security: DEBUG
 
-llm:
-  api:
-    key: ${LLM_API_KEY:}
-    url: ${LLM_API_URL:https://api.openai.com/v1/chat/completions}
-  model: ${LLM_MODEL:gpt-4o-mini}
-
 DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:}
 
 aws:
@@ -93,6 +87,10 @@ aws:
       delay-ms: ${AWS_S3_RETRY_DELAY_MS:1000}
     bucket:
       cvs: ${AWS_S3_CVS_BUCKET:applyfirst-cvs}
+  ses:
+    region: ${AWS_SES_REGION}
+    from-email: ${AWS_SES_FROM_EMAIL}
+    from-name: ${AWS_SES_FROM_NAME}
 
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
