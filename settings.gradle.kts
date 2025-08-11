@@ -1,1 +1,6 @@
-rootProject.name = "jobsearchcv-backend" 
+pluginManagement {
+    plugins {
+        kotlin("jvm") version "2.2.0"
+    }
+}
+rootProject.name = "jobsearchcv-backend"

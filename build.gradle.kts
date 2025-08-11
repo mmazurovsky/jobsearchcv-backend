@@ -130,6 +130,7 @@ dependencies {
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.2.1")
     testImplementation("org.testcontainers:junit-jupiter:1.19.3")
     testImplementation("org.testcontainers:mongodb:1.19.3")
+    implementation(kotlin("stdlib-jdk8"))
 }
 
 

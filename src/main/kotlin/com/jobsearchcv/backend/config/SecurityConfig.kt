@@ -1,6 +1,7 @@
 package com.jobsearchcv.backend.config
 
 import com.jobsearchcv.backend.security.JwtAuthenticationFilter
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
@@ -15,14 +16,15 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 @Configuration
 @EnableWebSecurity
 class SecurityConfig(
-    private val jwtAuthenticationFilter: JwtAuthenticationFilter
+    private val jwtAuthenticationFilter: JwtAuthenticationFilter,
+    @Value("\${cors.allowed-origins}") private val localAllowedOrigins: String
 ) {
     
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
         return http
             .csrf { it.disable() }
-            .cors { it.configurationSource(corsConfigurationSource()) }
+            .cors { } // Use default CORS configuration
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests { authz ->
                 authz
@@ -49,10 +51,21 @@ class SecurityConfig(
     @Bean
     fun corsConfigurationSource(): CorsConfigurationSource {
         val configuration = CorsConfiguration().apply {
-            allowedOrigins = listOf("http://localhost:3000") // Must be specific when allowCredentials = true
-            allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS")
+            val origins = localAllowedOrigins.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            
+            if (origins.contains("*")) {
+                // If wildcard is present, use patterns and disable credentials
+                allowedOriginPatterns = listOf("*")
+                allowCredentials = false
+            } else {
+                // Explicit origins with credentials
+                allowedOrigins = origins
+                allowCredentials = true // Required for Authorization headers
+            }
+            
+            allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH")
             allowedHeaders = listOf("*")
-            allowCredentials = true // Required for Authorization headers
+            maxAge = 3600
         }
         val source = UrlBasedCorsConfigurationSource()
         source.registerCorsConfiguration("/**", configuration)

@@ -10,8 +10,8 @@ import org.springframework.scheduling.annotation.EnableScheduling
 @EnableScheduling
 @EnableAsync
 @EnableMongoRepositories
-class CoreServiceApplication
+class JobSearchCvBackendApplication
 
 fun main(args: Array<String>) {
-    val context = runApplication<CoreServiceApplication>(*args)
+    val context = runApplication<JobSearchCvBackendApplication>(*args)
 } 
