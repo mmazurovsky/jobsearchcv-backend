@@ -5,7 +5,7 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.jobsearchcv.backend.domain.model.*
 import com.jobsearchcv.backend.service.client.DeepSeekClient
-import com.jobsearchcv.backend.service.client.DeepSeekRequest
+import com.jobsearchcv.backend.service.client.LLMRequest
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -37,7 +37,7 @@ class JobSearchParserService(
             }
 
             val prompt = buildPrompt(userInput)
-            val response = deepSeekClient.chat(DeepSeekRequest(prompt))
+            val response = deepSeekClient.chat(LLMRequest(prompt))
             
             if (response.success && response.content != null) {
                 parseDeepSeekResponse(response.content, userId)

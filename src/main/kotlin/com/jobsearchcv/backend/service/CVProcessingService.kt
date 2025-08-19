@@ -4,8 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.jobsearchcv.backend.domain.model.*
-import com.jobsearchcv.backend.service.client.DeepSeekClient
-import com.jobsearchcv.backend.service.client.DeepSeekRequest
+import com.jobsearchcv.backend.service.client.OpenRouterClient
+import com.jobsearchcv.backend.service.client.LLMRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.apache.pdfbox.Loader
@@ -23,7 +23,7 @@ import java.util.UUID
 
 @Service
 class CVProcessingService(
-    private val deepSeekClient: DeepSeekClient
+    private val openRouterClient: OpenRouterClient
 ) {
     companion object {
         private val logger: Logger = LoggerFactory.getLogger(CVProcessingService::class.java)
@@ -70,27 +70,27 @@ class CVProcessingService(
         try {
             logger.info("Processing CV with AI for user: ${request.userId}")
             
-            if (!deepSeekClient.isAvailable()) {
+            if (!openRouterClient.isAvailable()) {
                 return CVProcessingResult(
                     success = false,
                     analysisResult = null,
-                    errorMessage = "DeepSeek API is not available"
+                    errorMessage = "OpenRouter API is not available"
                 )
             }
 
             val systemPrompt = buildCVProcessingPrompt(request.extractedText)
             
-            val deepSeekRequest = DeepSeekRequest(
+            val LLMRequest = LLMRequest(
                 prompt = systemPrompt,
                 temperature = 0.3,
                 maxTokens = 3000,
-                model = "deepseek-chat"
+                model = "openai/gpt-3.5-turbo-instruct"
             )
 
-            val response = deepSeekClient.chat(deepSeekRequest)
+            val response = openRouterClient.chat(LLMRequest)
 
             if (!response.success || response.content.isNullOrBlank()) {
-                logger.error("DeepSeek API failed: ${response.errorMessage}")
+                logger.error("OpenRouter API failed: ${response.errorMessage}")
                 return CVProcessingResult(
                     success = false,
                     analysisResult = null,

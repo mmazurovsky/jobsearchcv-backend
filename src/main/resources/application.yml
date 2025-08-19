@@ -76,6 +76,7 @@ logging:
     com.jobsearchcv.backend.security: DEBUG
 
 DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:}
+OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:}
 
 aws:
   s3:
