@@ -78,9 +78,12 @@ class JobSearchCreationService(
             
             val updatedSearches = searchesToUpdate.map { jobSearchRepository.save(it) }
             
-            // Delete searches that are no longer in the request
+            // Delete searches that are no longer in the request, but preserve approved ones
             idsToDelete.forEach { id ->
-                jobSearchRepository.deleteByIdAndUserId(id, userId)
+                val searchToDelete = existingSearchesMap[id]
+                if (searchToDelete != null && !searchToDelete.isApproved) {
+                    jobSearchRepository.deleteByIdAndUserId(id, userId)
+                }
             }
             
             val savedJobSearches = createdSearches + updatedSearches
@@ -170,9 +173,12 @@ class JobSearchCreationService(
             
             val updatedSearches = searchesToUpdate.map { jobSearchRepository.save(it) }
             
-            // Delete searches that are no longer in the request
+            // Delete searches that are no longer in the request, but preserve approved ones
             idsToDelete.forEach { id ->
-                jobSearchRepository.deleteByIdAndUserId(id, userId)
+                val searchToDelete = existingSearchesMap[id]
+                if (searchToDelete != null && !searchToDelete.isApproved) {
+                    jobSearchRepository.deleteByIdAndUserId(id, userId)
+                }
             }
             
             val savedJobSearches = createdSearches + updatedSearches

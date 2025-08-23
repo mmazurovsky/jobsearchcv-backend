@@ -6,7 +6,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.jobsearchcv.backend.domain.model.*
 import com.jobsearchcv.backend.repository.ProcessedJobRepository
 import com.jobsearchcv.backend.service.client.DeepSeekClient
-import com.jobsearchcv.backend.service.client.DeepSeekRequest
+import com.jobsearchcv.backend.service.client.LLMRequest
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import kotlinx.coroutines.*
@@ -384,7 +384,7 @@ class BatchJobProcessingService(
 
             val prompt = buildEnrichmentPrompt(batch)
             logger.info("[JobSearch: $jobSearchId] 🤖 Enrichment batch $batchIndex/$batchesSize - About to call DeepSeek API")
-            val request = DeepSeekRequest(prompt = prompt)
+            val request = LLMRequest(prompt = prompt)
             val response = deepSeekClient.chat(request)
             logger.info("[JobSearch: $jobSearchId] 🤖 Enrichment batch $batchIndex/$batchesSize - DeepSeek API call completed, success: ${response.success}")
 
@@ -441,7 +441,7 @@ class BatchJobProcessingService(
 
             val prompt = buildCompatibilityPrompt(batch, jobSearch)
             logger.info("[JobSearch: $jobSearchId] 🤖 Compatibility batch $batchIndex/$batchesSize - About to call DeepSeek API")
-            val request = DeepSeekRequest(prompt = prompt)
+            val request = LLMRequest(prompt = prompt)
             val response = deepSeekClient.chat(request)
             logger.info("[JobSearch: $jobSearchId] 🤖 Compatibility batch $batchIndex/$batchesSize - DeepSeek API call completed, success: ${response.success}")
 

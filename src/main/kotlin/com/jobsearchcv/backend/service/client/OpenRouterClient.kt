@@ -15,34 +15,24 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
 
-data class LLMRequest(
-    val prompt: String,
-    val temperature: Double = 0.1,
-    val maxTokens: Int = 1000,
-    val model: String = "deepseek-chat"
-)
-
-data class DeepSeekResponse(
-    val success: Boolean,
-    val content: String? = null,
-    val errorMessage: String? = null,
-    val statusCode: Int? = null
-)
-
 @Service
-class DeepSeekClient(
-
-
-    @Value("\${DEEPSEEK_API_KEY}")     private    val deepseekApiKey: String,
-
-    ) {
+class OpenRouterClient(
+    @Value("\${OPENROUTER_API_KEY}")
+    private val openRouterApiKey: String,
+) {
 
     companion object {
-        private val logger: Logger = LoggerFactory.getLogger(DeepSeekClient::class.java)
+        private val logger: Logger = LoggerFactory.getLogger(OpenRouterClient::class.java)
         private const val MAX_RETRIES = 3
         private const val INITIAL_DELAY_MS = 1000L
         private const val CONNECT_TIMEOUT_SECONDS = 30L
         private const val REQUEST_TIMEOUT_SECONDS = 60L
+        private const val OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
+        
+        // Default models - easy to change
+//        const val QWEN_1_5B = "qwen/qwen-2-1.5b-instruct"
+//        const val QWEN_2_5B = "qwen/qwen-2.5-coder-32b-instruct"
+//        const val DEFAULT_MODEL = QWEN_1_5B
     }
 
     private val httpClient = HttpClient.newBuilder()
@@ -55,32 +45,32 @@ class DeepSeekClient(
     suspend fun chat(request: LLMRequest): DeepSeekResponse {
         return withContext(Dispatchers.IO) {
             try {
-                logger.info("🤖 DeepSeek API call started - Model: {}, Temperature: {}, MaxTokens: {}", 
+                logger.info("🤖 OpenRouter API call started - Model: {}, Temperature: {}, MaxTokens: {}", 
                     request.model, request.temperature, request.maxTokens)
-                logger.info("🤖 DeepSeek API prompt length: {} characters", request.prompt.length)
-                logger.debug("🤖 DeepSeek API prompt: {}", request.prompt.take(500) + "...")
+                logger.info("🤖 OpenRouter API prompt length: {} characters", request.prompt.length)
+                logger.debug("🤖 OpenRouter API prompt: {}", request.prompt.take(500) + "...")
                 
-                if (deepseekApiKey.isNullOrBlank()) {
-                    logger.error("❌ DeepSeek API key not configured")
+                if (openRouterApiKey.isNullOrBlank()) {
+                    logger.error("❌ OpenRouter API key not configured")
                     return@withContext DeepSeekResponse(
                         success = false,
-                        errorMessage = "DeepSeek API key not configured"
+                        errorMessage = "OpenRouter API key not configured"
                     )
                 }
 
-                logger.info("🌐 Calling DeepSeek API...")
+                logger.info("🌐 Calling OpenRouter API...")
                 val response = callAPIWithRetry(request)
-                logger.info("✅ DeepSeek API response received - Status: {}", response.statusCode())
+                logger.info("✅ OpenRouter API response received - Status: {}", response.statusCode())
                 
                 when (response.statusCode()) {
                     200 -> {
                         val content = parseSuccessResponse(response.body())
-                        logger.info("✅ DeepSeek API success - Response length: {} characters", content.length)
-                        logger.debug("🤖 DeepSeek API response content: {}", content.take(500) + "...")
+                        logger.info("✅ OpenRouter API success - Response length: {} characters", content.length)
+                        logger.debug("🤖 OpenRouter API response content: {}", content.take(500) + "...")
                         DeepSeekResponse(success = true, content = content)
                     }
                     400 -> {
-                        logger.error("❌ DeepSeek API bad request (400): {}", response.body())
+                        logger.error("❌ OpenRouter API bad request (400): {}", response.body())
                         DeepSeekResponse(
                             success = false,
                             errorMessage = "Bad request: Check prompt format and parameters",
@@ -88,7 +78,7 @@ class DeepSeekClient(
                         )
                     }
                     401 -> {
-                        logger.error("❌ DeepSeek API unauthorized (401): Invalid API key")
+                        logger.error("❌ OpenRouter API unauthorized (401): Invalid API key")
                         DeepSeekResponse(
                             success = false,
                             errorMessage = "Unauthorized: Invalid API key",
@@ -96,7 +86,7 @@ class DeepSeekClient(
                         )
                     }
                     429 -> {
-                        logger.error("❌ DeepSeek API rate limit exceeded (429)")
+                        logger.error("❌ OpenRouter API rate limit exceeded (429)")
                         DeepSeekResponse(
                             success = false,
                             errorMessage = "Rate limit exceeded: Try again later",
@@ -104,15 +94,15 @@ class DeepSeekClient(
                         )
                     }
                     500, 502, 503, 504 -> {
-                        logger.error("❌ DeepSeek API server error ({}): {}", response.statusCode(), response.body())
+                        logger.error("❌ OpenRouter API server error ({}): {}", response.statusCode(), response.body())
                         DeepSeekResponse(
                             success = false,
-                            errorMessage = "Server error: DeepSeek API is temporarily unavailable",
+                            errorMessage = "Server error: OpenRouter API is temporarily unavailable",
                             statusCode = response.statusCode()
                         )
                     }
                     else -> {
-                        logger.error("❌ DeepSeek API unexpected status ({}): {}", response.statusCode(), response.body())
+                        logger.error("❌ OpenRouter API unexpected status ({}): {}", response.statusCode(), response.body())
                         DeepSeekResponse(
                             success = false,
                             errorMessage = "API request failed with status ${response.statusCode()}",
@@ -121,10 +111,10 @@ class DeepSeekClient(
                     }
                 }
             } catch (e: Exception) {
-                logger.error("💥 Error calling DeepSeek API", e)
+                logger.error("💥 Error calling OpenRouter API", e)
                 DeepSeekResponse(
                     success = false,
-                    errorMessage = "Failed to call DeepSeek API: ${e.message}"
+                    errorMessage = "Failed to call OpenRouter API: ${e.message}"
                 )
             }
         }
@@ -135,7 +125,7 @@ class DeepSeekClient(
         
         repeat(MAX_RETRIES) { attempt ->
             try {
-                logger.info("🔄 Attempt ${attempt + 1} of $MAX_RETRIES for DeepSeek API call")
+                logger.info("🔄 Attempt ${attempt + 1} of $MAX_RETRIES for OpenRouter API call")
                 return callAPI(request)
             } catch (e: Exception) {
                 lastException = e
@@ -162,8 +152,12 @@ class DeepSeekClient(
     }
 
     private suspend fun callAPI(request: LLMRequest): HttpResponse<String> {
+        // Use the model from request, or default to Qwen model
+        val modelToUse = request.model
+
+        
         val requestBody = objectMapper.writeValueAsString(mapOf(
-            "model" to request.model,
+            "model" to modelToUse,
             "messages" to listOf(
                 mapOf(
                     "role" to "user",
@@ -175,11 +169,13 @@ class DeepSeekClient(
         ))
 
         val httpRequest = HttpRequest.newBuilder()
-            .uri(URI.create("https://api.deepseek.com/chat/completions"))
+            .uri(URI.create(OPENROUTER_API_URL))
             .header("Content-Type", "application/json")
-            .header("Authorization", "Bearer ${deepseekApiKey}")
+            .header("Authorization", "Bearer $openRouterApiKey")
             .header("Accept", "application/json")
             .header("User-Agent", "JobSearchCV/1.0")
+            .header("HTTP-Referer", "https://jobsearchcv.com") // Optional but recommended by OpenRouter
+            .header("X-Title", "JobSearchCV Backend") // Optional metadata for OpenRouter
             .timeout(Duration.ofSeconds(REQUEST_TIMEOUT_SECONDS))
             .POST(HttpRequest.BodyPublishers.ofString(requestBody))
             .build()
@@ -193,6 +189,6 @@ class DeepSeekClient(
     }
 
     fun isAvailable(): Boolean {
-        return !deepseekApiKey.isNullOrBlank()
+        return !openRouterApiKey.isNullOrBlank()
     }
-} 
+}
