@@ -62,12 +62,12 @@ data class JobSearchOut(
     @field:Field("filter_text") 
     @Schema(description = "Additional filter text for job descriptions", example = "Spring Boot", required = false)
     val filterText: String? = null,
-    @field:Field("destination") 
-    @Schema(description = "Destination ID for notifications", required = false)
-    val destination: String? = null,
-    @Indexed(unique = false) @field:Field("is_approved") 
+    @Indexed(unique = false) @field:Field("is_approved")
     @Schema(description = "Whether the job search is approved for automated scheduling", required = true)
-    val isApproved: Boolean = false
+    val isApproved: Boolean = false,
+    @field:Field("destination")
+    @Schema(description = "Destination channel for sending job results (e.g., 'xcom_us_tech', 'email', 'telegram')", required = false)
+    val destination: String? = null
 ) {
     fun toLogString(): String {
         return "id=$id, title=$jobTitle, location=$location, " +

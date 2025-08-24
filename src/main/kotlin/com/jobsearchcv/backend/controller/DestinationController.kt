@@ -85,30 +85,33 @@ class DestinationController(
                 request.channelValue
             )
             
-            if (existingDestination != null) {
-                logger.info("Destination already exists for user: $userId")
-                return@runBlocking ResponseEntity.ok(DestinationResponse(
-                    success = true,
-                    message = "Destination already exists",
-                    destination = existingDestination
-                ))
+            val savedDestination = if (existingDestination != null) {
+                logger.info("Destination already exists for user: $userId, updating createdAt")
+                // Update the existing destination with new createdAt
+                val updatedDestination = existingDestination.copy(createdAt = java.time.OffsetDateTime.now())
+                destinationRepository.save(updatedDestination)
+            } else {
+                // Create new destination
+                val destination = Destination.createNew(
+                    userId = userId,
+                    channel = channel,
+                    channelValue = request.channelValue
+                )
+                // Save to database
+                destinationRepository.save(destination)
             }
             
-            // Create new destination
-            val destination = Destination.createNew(
-                userId = userId,
-                channel = channel,
-                channelValue = request.channelValue
-            )
+            val messageText = if (existingDestination != null) {
+                "Destination updated successfully"
+            } else {
+                "Destination added successfully"
+            }
             
-            // Save to database
-            val savedDestination = destinationRepository.save(destination)
-            
-            logger.info("Successfully added destination: id=${savedDestination.id}, userId=$userId")
+            logger.info("Successfully processed destination: id=${savedDestination.id}, userId=$userId")
             
             return@runBlocking ResponseEntity.ok(DestinationResponse(
                 success = true,
-                message = "Destination added successfully",
+                message = messageText,
                 destination = savedDestination
             ))
             

@@ -2,33 +2,33 @@ package com.jobsearchcv.backend.service
 
 import com.jobsearchcv.backend.TelegramMessages
 import com.jobsearchcv.backend.domain.model.ScoredJobData
-import com.jobsearchcv.backend.service.EmailTemplateService.Companion.BUSINESS_ADDRESS
+import com.jobsearchcv.backend.domain.model.EmailContent
 import org.springframework.stereotype.Service
 
 @Service
 class EmailTemplateService {
 
     companion object {
-        const val BUSINESS_ADDRESS = "Job Search CV, 123 Tech Street, San Francisco, CA 94105, USA"
+        const val BUSINESS_NAME = "Antkowiak Services GbR"
+        const val BUSINESS_ADDRESS = "73262 Germany, Reichenbach an der Fils, Katherinenstr. 4"
+        const val EMAIL_GROUND_TEXT = "You're receiving this email because you have an active job alert created at applyfirst.app"
     }
 
     fun createJobNotificationEmail(
         recipient: String,
-        username: String,
         searchName: String,
         jobs: List<ScoredJobData>,
         alertId: String
     ): EmailContent {
         val subject = "🎉 Found ${jobs.size} new jobs for $searchName!"
 
-        val htmlBody = createHtmlEmail(username, searchName, jobs, alertId)
-        val textBody = createPlainTextEmail(username, searchName, jobs, alertId)
+        val htmlBody = createHtmlEmail(searchName, jobs, alertId)
+        val textBody = createPlainTextEmail(searchName, jobs, alertId)
 
         return EmailContent(recipient, subject, htmlBody, textBody)
     }
 
     private fun createHtmlEmail(
-        username: String,
         searchName: String,
         jobs: List<ScoredJobData>,
         alertId: String
@@ -39,24 +39,41 @@ class EmailTemplateService {
         appendLine("    <meta charset=\"UTF-8\">")
         appendLine("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">")
         appendLine("    <title>New Job Opportunities</title>")
+        appendLine("    <link href='https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap' rel='stylesheet'>")
         appendLine("    <style>")
         appendLine("        body {")
-        appendLine("            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;")
+        appendLine("            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;")
         appendLine("            line-height: 1.6;")
         appendLine("            color: #000000;")
         appendLine("            background-color: #ffffff;")
         appendLine("            margin: 0;")
         appendLine("            padding: 0;")
+        appendLine("            text-align: left;")
         appendLine("        }")
         appendLine("        .container {")
         appendLine("            max-width: 600px;")
         appendLine("            margin: 0 auto;")
         appendLine("            padding: 20px;")
+        appendLine("            text-align: left;")
+        appendLine("        }")
+        appendLine("        .brand-name {")
+        appendLine("            margin: 0 0 8px 0;")
+        appendLine("            text-align: left;")
+        appendLine("        }")
+        appendLine("        .brand-name a {")
+        appendLine("            font-family: 'Inter', sans-serif;")
+        appendLine("            font-size: 20px;")
+        appendLine("            font-weight: 700;")
+        appendLine("            color: #000000;")
+        appendLine("            text-decoration: none;")
+        appendLine("        }")
+        appendLine("        .brand-name a:hover {")
+        appendLine("            text-decoration: underline;")
         appendLine("        }")
         appendLine("        .header {")
-        appendLine("            border-bottom: 1px solid #e5e5e5;")
         appendLine("            padding-bottom: 20px;")
         appendLine("            margin-bottom: 30px;")
+        appendLine("            text-align: left;")
         appendLine("        }")
         appendLine("        .header h1 {")
         appendLine("            margin: 0;")
@@ -68,7 +85,8 @@ class EmailTemplateService {
         appendLine("            border-radius: 8px;")
         appendLine("            padding: 20px;")
         appendLine("            margin-bottom: 20px;")
-        appendLine("            background-color: #fafafa;")
+        appendLine("            background-color: #ffffff;")
+        appendLine("            text-align: left;")
         appendLine("        }")
         appendLine("        .job-title {")
         appendLine("            font-size: 18px;")
@@ -125,54 +143,50 @@ class EmailTemplateService {
         appendLine("            background-color: #333333;")
         appendLine("        }")
         appendLine("        .compatibility {")
-        appendLine("            display: inline-block;")
-        appendLine("            background-color: #000000;")
-        appendLine("            color: #ffffff;")
-        appendLine("            padding: 4px 12px;")
-        appendLine("            border-radius: 4px;")
-        appendLine("            font-size: 12px;")
+        appendLine("            color: #000000;")
+        appendLine("            font-size: 14px;")
         appendLine("            font-weight: 600;")
-        appendLine("            margin-bottom: 12px;")
+        appendLine("            margin-bottom: 8px;")
         appendLine("        }")
         appendLine("        .footer {")
-        appendLine("            margin-top: 40px;")
+        appendLine("            margin-top: 20px;")
         appendLine("            padding-top: 20px;")
-        appendLine("            border-top: 1px solid #e5e5e5;")
-        appendLine("            text-align: center;")
+        appendLine("            text-align: left;")
         appendLine("            color: #666666;")
         appendLine("            font-size: 14px;")
         appendLine("        }")
         appendLine("        .footer-buttons {")
         appendLine("            margin: 20px 0;")
+        appendLine("            text-align: left;")
         appendLine("        }")
         appendLine("        .footer-button {")
         appendLine("            display: inline-block;")
         appendLine("            background-color: #ffffff;")
-        appendLine("            color: #000000;")
+        appendLine("            color: #666666;")
         appendLine("            text-decoration: none;")
         appendLine("            padding: 8px 16px;")
         appendLine("            border: 1px solid #e5e5e5;")
         appendLine("            border-radius: 6px;")
         appendLine("            font-size: 14px;")
-        appendLine("            margin: 0 8px;")
+        appendLine("            margin: 0 8px 0 0;")
         appendLine("        }")
         appendLine("        .footer-button:hover {")
         appendLine("            background-color: #f5f5f5;")
+        appendLine("            color: #333333;")
         appendLine("        }")
         appendLine("    </style>")
         appendLine("</head>")
         appendLine("<body>")
         appendLine("    <div class=\"container\">")
-        appendLine("        <div class=\"header\">")
-        appendLine("            <h1>Hey $username</h1>")
-        appendLine("        </div>")
+        appendLine("        <div class=\"brand-name\"><a href=\"https://applyfirst.app\">ApplyFirst</a></div>")
+        appendLine("        <div style=\"color: #666666; font-size: 14px; margin-bottom: 30px; text-align: left;\">${TelegramMessages.SERVICE_SHORT_DESCRIPTION}</div>")
         appendLine("        ")
         appendLine("        <h2 style=\"margin-bottom: 24px;\">🎉 Found ${jobs.size} new jobs for $searchName!</h2>")
         appendLine("        ")
 
         jobs.forEach { job ->
             appendLine("        <div class=\"job-card\">")
-            appendLine("            <div class=\"compatibility\">Compatibility: ${job.compatibilityScore}</div>")
+            appendLine("            <div class=\"compatibility\">Your compatibility: ${job.compatibilityScore}</div>")
             appendLine("            <div class=\"job-title\">${job.title}</div>")
             appendLine("            <div class=\"job-company\">${job.company}</div>")
             appendLine("            <div class=\"job-location\">📍 ${job.location}</div>")
@@ -201,8 +215,7 @@ class EmailTemplateService {
         appendLine("                <a href=\"#edit-alert-$alertId\" class=\"footer-button\">Edit alert</a>")
         appendLine("                <a href=\"#unsubscribe-$alertId\" class=\"footer-button\">Unsubscribe</a>")
         appendLine("            </div>")
-        appendLine("            <p>${TelegramMessages.BOT_SHORT_DESCRIPTION}</p>")
-        appendLine("            <p style=\"font-size: 12px; color: #999999;\">$BUSINESS_ADDRESS</p>")
+        append(createEmailFooter())
         appendLine("        </div>")
         appendLine("    </div>")
         appendLine("</body>")
@@ -211,7 +224,6 @@ class EmailTemplateService {
 
 
     private fun createPlainTextEmail(
-        username: String,
         searchName: String,
         jobs: List<ScoredJobData>,
         alertId: String
@@ -219,25 +231,38 @@ class EmailTemplateService {
         val messageBody = TelegramMessages.getJobNotificationMessage(searchName, jobs, null)
 
         return buildString {
-            appendLine("Hey $username")
+            appendLine("🎉 Found ${jobs.size} new jobs for $searchName!")
+            appendLine()
+            appendLine("ApplyFirst - Your personalised Job Search AI Agent")
             appendLine()
             appendLine(messageBody)
             appendLine()
             appendLine("---")
-            appendLine(TelegramMessages.BOT_SHORT_DESCRIPTION)
             appendLine()
             appendLine("Edit alert: #edit-alert-$alertId")
             appendLine("Unsubscribe: #unsubscribe-$alertId")
             appendLine()
+            appendLine(createPlainTextFooter())
+        }
+    }
+
+    private fun createEmailFooter(): String {
+        return buildString {
+            appendLine("            <div style=\"font-size: 12px; color: #666666; margin-top: 20px; text-align: left;\">")
+            appendLine("                <div style=\"margin-bottom: 10px;\">$EMAIL_GROUND_TEXT</div>")
+            appendLine("                <div>$BUSINESS_NAME</div>")
+            appendLine("                <div>$BUSINESS_ADDRESS</div>")
+            appendLine("            </div>")
+        }
+    }
+
+    private fun createPlainTextFooter(): String {
+        return buildString {
+            appendLine(EMAIL_GROUND_TEXT)
+            appendLine(BUSINESS_NAME)
             appendLine(BUSINESS_ADDRESS)
         }
     }
 }
 
 
-data class EmailContent(
-    val recipient: String,
-    val subject: String,
-    val htmlBody: String,
-    val textBody: String
-)
