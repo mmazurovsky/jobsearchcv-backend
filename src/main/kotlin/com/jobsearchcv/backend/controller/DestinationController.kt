@@ -3,6 +3,7 @@ package com.jobsearchcv.backend.controller
 import com.jobsearchcv.backend.domain.model.Channel
 import com.jobsearchcv.backend.domain.model.Destination
 import com.jobsearchcv.backend.repository.DestinationRepository
+import com.jobsearchcv.backend.service.JobSearchScheduler
 import com.jobsearchcv.backend.service.SupabaseUser
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
@@ -24,7 +25,8 @@ import org.springframework.web.bind.annotation.*
 @Tag(name = "Destinations", description = "Manage user notification destinations")
 @SecurityRequirement(name = "bearerAuth")
 class DestinationController(
-    private val destinationRepository: DestinationRepository
+    private val destinationRepository: DestinationRepository,
+    private val jobSearchScheduler: JobSearchScheduler
 ) {
     companion object {
         private val logger: Logger = LoggerFactory.getLogger(DestinationController::class.java)
@@ -85,6 +87,10 @@ class DestinationController(
                 request.channelValue
             )
             
+            // Check if user had any destinations before this operation
+            val userDestinationsBefore = destinationRepository.findByUserId(userId)
+            val hadDestinationsBefore = userDestinationsBefore.isNotEmpty()
+            
             val savedDestination = if (existingDestination != null) {
                 logger.info("Destination already exists for user: $userId, updating createdAt")
                 // Update the existing destination with new createdAt
@@ -99,6 +105,20 @@ class DestinationController(
                 )
                 // Save to database
                 destinationRepository.save(destination)
+            }
+            
+            // If user didn't have destinations before and this is a new destination,
+            // schedule all their approved job searches
+            if (!hadDestinationsBefore && existingDestination == null) {
+                try {
+                    logger.info("User $userId added first destination, scheduling approved job searches")
+                    runBlocking {
+                        jobSearchScheduler.scheduleAllApprovedSearchesForUser(userId)
+                    }
+                } catch (e: Exception) {
+                    logger.error("Failed to schedule approved job searches for user $userId after adding first destination", e)
+                    // Don't fail the destination creation if scheduling fails
+                }
             }
             
             val messageText = if (existingDestination != null) {

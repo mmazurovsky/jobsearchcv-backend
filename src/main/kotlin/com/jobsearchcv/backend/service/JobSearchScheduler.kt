@@ -1,6 +1,8 @@
 package com.jobsearchcv.backend.service
 
 import com.jobsearchcv.backend.domain.model.JobSearchOut
+import com.jobsearchcv.backend.repository.DestinationRepository
+import com.jobsearchcv.backend.repository.JobSearchRepository
 import com.jobsearchcv.backend.service.ScraperJobService
 import jakarta.annotation.PostConstruct
 import jakarta.annotation.PreDestroy
@@ -16,7 +18,9 @@ import java.util.concurrent.ConcurrentHashMap
 
 @Service
 class JobSearchScheduler(
-    private val scraperJobService: ScraperJobService
+    private val scraperJobService: ScraperJobService,
+    private val destinationRepository: DestinationRepository,
+    private val jobSearchRepository: JobSearchRepository
 ) {
 
     companion object {
@@ -42,13 +46,44 @@ class JobSearchScheduler(
         }
     }
 
+    /**
+     * Checks if a user has any destinations configured for receiving job notifications
+     */
+    private suspend fun hasDestinations(userId: String): Boolean {
+        return try {
+            val destinations = destinationRepository.findByUserId(userId)
+            destinations.isNotEmpty()
+        } catch (e: Exception) {
+            logger.error("Error checking destinations for user: $userId", e)
+            false
+        }
+    }
+
     suspend fun addInitialJobSearches(jobSearches: List<JobSearchOut>) {
         try {
             val approvedSearches = jobSearches.filter { it.isApproved }
+            
+            // Filter searches that have destinations
+            val searchesWithDestinations = mutableListOf<JobSearchOut>()
+            val searchesWithoutDestinations = mutableListOf<JobSearchOut>()
+            
             approvedSearches.forEach { search ->
+                if (hasDestinations(search.userId)) {
+                    searchesWithDestinations.add(search)
+                } else {
+                    searchesWithoutDestinations.add(search)
+                    logger.warn("Skipping job search {} for user {} - no destinations configured", search.id, search.userId)
+                }
+            }
+            
+            // Schedule only searches with destinations
+            searchesWithDestinations.forEach { search ->
                 addJobSearch(search)
             }
-            logger.info("Added {} initial job searches (out of {} total, {} were approved)", approvedSearches.size, jobSearches.size, approvedSearches.size)
+            
+            logger.info("Added {} initial job searches (out of {} total, {} approved, {} had destinations, {} skipped due to no destinations)", 
+                searchesWithDestinations.size, jobSearches.size, approvedSearches.size, 
+                searchesWithDestinations.size, searchesWithoutDestinations.size)
         } catch (e: Exception) {
             logger.error("Error adding initial job searches", e)
         }
@@ -59,6 +94,12 @@ class JobSearchScheduler(
             // Only add approved job searches
             if (!jobSearch.isApproved) {
                 logger.info("Skipping unapproved job search: {}", jobSearch.id)
+                return
+            }
+            
+            // Check if user has destinations configured
+            if (!hasDestinations(jobSearch.userId)) {
+                logger.warn("Skipping job search {} for user {} - no destinations configured", jobSearch.id, jobSearch.userId)
                 return
             }
             
@@ -105,6 +146,20 @@ class JobSearchScheduler(
                     scheduler.deleteJob(jobKey)
                     activeSearches.remove(jobSearch.id)
                     logger.info("Removed unapproved job search from scheduler: {}", jobSearch.id)
+                }
+                return
+            }
+            
+            // Check if user has destinations configured
+            if (!hasDestinations(jobSearch.userId)) {
+                // If it was previously scheduled, remove it since there are no destinations
+                if (jobSearch.id in activeSearches) {
+                    val jobKey = JobKey.jobKey("job-search-${jobSearch.id}", "job-searches")
+                    scheduler.deleteJob(jobKey)
+                    activeSearches.remove(jobSearch.id)
+                    logger.warn("Removed job search {} from scheduler - no destinations configured for user {}", jobSearch.id, jobSearch.userId)
+                } else {
+                    logger.warn("Skipping job search update {} for user {} - no destinations configured", jobSearch.id, jobSearch.userId)
                 }
                 return
             }
@@ -178,6 +233,50 @@ class JobSearchScheduler(
     fun getActiveSearchesCount(): Int = activeSearches.size
     
     fun getActiveSearches(): Map<String, JobSearchOut> = activeSearches.toMap()
+    
+    /**
+     * Schedules all approved job searches for a user that have destinations configured.
+     * This is called when a user adds their first destination.
+     */
+    suspend fun scheduleAllApprovedSearchesForUser(userId: String) {
+        try {
+            logger.info("Scheduling all approved job searches for user: $userId")
+            
+            // Check if user has destinations
+            if (!hasDestinations(userId)) {
+                logger.warn("User $userId has no destinations configured, skipping scheduling")
+                return
+            }
+            
+            // Get all approved job searches for the user
+            val userJobSearches = jobSearchRepository.findByUserId(userId)
+            val approvedSearches = userJobSearches.filter { it.isApproved }
+            
+            var scheduledCount = 0
+            var skippedCount = 0
+            
+            approvedSearches.forEach { jobSearch ->
+                try {
+                    // Only schedule if not already scheduled
+                    if (jobSearch.id !in activeSearches) {
+                        addJobSearch(jobSearch)
+                        scheduledCount++
+                    } else {
+                        logger.info("Job search ${jobSearch.id} is already scheduled, skipping")
+                        skippedCount++
+                    }
+                } catch (e: Exception) {
+                    logger.error("Failed to schedule job search ${jobSearch.id} for user $userId", e)
+                    skippedCount++
+                }
+            }
+            
+            logger.info("Scheduled $scheduledCount approved job searches for user $userId (skipped: $skippedCount, total approved: ${approvedSearches.size})")
+            
+        } catch (e: Exception) {
+            logger.error("Error scheduling approved job searches for user: $userId", e)
+        }
+    }
 
     class JobSearchJob : Job {
     
