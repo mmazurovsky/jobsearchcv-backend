@@ -112,8 +112,9 @@ dependencies {
     runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.5")
     runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.5")
     
-    // ── Firebase Admin SDK ─────────────────────────────────────
+    // ── Firebase Admin SDK & Cloud Storage ────────────────────
     implementation("com.google.firebase:firebase-admin:9.3.0")
+    implementation("com.google.cloud:google-cloud-storage:2.29.1")
     
     // ── OpenAPI Documentation ──────────────────────────────────
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0")

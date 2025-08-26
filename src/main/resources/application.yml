@@ -37,6 +37,11 @@ firebase:
     client-id: ${FIREBASE_CLIENT_ID:}
     # Option 2: File path (for local development)
     path: ${FIREBASE_CREDENTIALS_PATH:}
+  storage:
+    bucket: ${FIREBASE_STORAGE_BUCKET:applyfirst-b9c69.firebasestorage.app}
+    retry:
+      max-attempts: ${FIREBASE_STORAGE_MAX_RETRY_ATTEMPTS:3}
+      delay-ms: ${FIREBASE_STORAGE_RETRY_DELAY_MS:1000}
 
 
 sentry:

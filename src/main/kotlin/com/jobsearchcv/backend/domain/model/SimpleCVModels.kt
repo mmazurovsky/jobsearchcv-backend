@@ -11,8 +11,8 @@ import java.util.*
 @Document(collection = "user_cvs")
 @CompoundIndexes(
     CompoundIndex(
-        name = "user_id_created_at_idx",
-        def = "{'user_id': 1, 'created_at': -1}"
+        name = "user_id_uploaded_at_idx",
+        def = "{'user_id': 1, 'uploaded_at': -1}"
     )
 )
 data class SimpleUserCV(
@@ -31,11 +31,17 @@ data class SimpleUserCV(
     @field:Field("content_type")
     val contentType: String,
     
-    @field:Field("s3_bucket")
-    val s3Bucket: String,
+    @field:Field("original_filename")
+    val originalFilename: String? = null,
     
-    @field:Field("s3_key")
-    val s3Key: String,
+    @field:Field("storage_bucket")
+    val storageBucket: String? = null,
+    
+    @field:Field("storage_path")
+    val storagePath: String? = null,
+    
+    @field:Field("uploaded_at")
+    val uploadedAt: OffsetDateTime = OffsetDateTime.now(),
     
     @field:Field("created_at")
     val createdAt: OffsetDateTime = OffsetDateTime.now()
@@ -46,16 +52,20 @@ data class SimpleUserCV(
             linkToCv: String,
             fileSize: Long,
             contentType: String,
-            s3Bucket: String,
-            s3Key: String
+            originalFilename: String? = null,
+            storageBucket: String?,
+            storagePath: String?,
+            uploadedAt: OffsetDateTime = OffsetDateTime.now()
         ): SimpleUserCV {
             return SimpleUserCV(
                 userId = userId,
                 linkToCv = linkToCv,
                 fileSize = fileSize,
                 contentType = contentType,
-                s3Bucket = s3Bucket,
-                s3Key = s3Key
+                originalFilename = originalFilename,
+                storageBucket = storageBucket,
+                storagePath = storagePath,
+                uploadedAt = uploadedAt
             )
         }
     }
@@ -67,8 +77,10 @@ data class SimpleCVInput(
     val linkToCv: String,
     val fileSize: Long,
     val contentType: String,
-    val s3Bucket: String,
-    val s3Key: String
+    val originalFilename: String? = null,
+    val storageBucket: String?,
+    val storagePath: String?,
+    val uploadedAt: OffsetDateTime = OffsetDateTime.now()
 ) {
     fun toSimpleUserCV(): SimpleUserCV {
         return SimpleUserCV.create(
@@ -76,8 +88,10 @@ data class SimpleCVInput(
             linkToCv = linkToCv,
             fileSize = fileSize,
             contentType = contentType,
-            s3Bucket = s3Bucket,
-            s3Key = s3Key
+            originalFilename = originalFilename,
+            storageBucket = storageBucket,
+            storagePath = storagePath,
+            uploadedAt = uploadedAt
         )
     }
 }

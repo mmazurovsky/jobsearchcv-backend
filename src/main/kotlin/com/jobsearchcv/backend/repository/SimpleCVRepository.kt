@@ -33,7 +33,7 @@ class SimpleCVRepositoryImpl(
         logger.debug("Finding CVs for user: $userId")
         
         val query = Query(Criteria.where("user_id").`is`(userId))
-            .with(Sort.by(Sort.Direction.DESC, "created_at"))
+            .with(Sort.by(Sort.Direction.DESC, "uploaded_at"))
             
         return mongoTemplate.find(query, SimpleUserCV::class.java).asFlow()
     }
