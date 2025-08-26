@@ -33,7 +33,7 @@ class OpenApiConfig {
                         - Destination management for job alerts
                         - Job data processing
                         
-                        Authentication is required for most endpoints using Supabase JWT tokens.
+                        Authentication is required for most endpoints using Firebase JWT tokens.
                     """.trimIndent())
                     .contact(
                         Contact()
@@ -65,7 +65,7 @@ class OpenApiConfig {
                             .type(SecurityScheme.Type.HTTP)
                             .scheme("bearer")
                             .bearerFormat("JWT")
-                            .description("JWT token from Supabase authentication")
+                            .description("JWT token from Firebase authentication")
                     )
             )
     }

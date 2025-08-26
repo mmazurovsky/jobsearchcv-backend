@@ -35,12 +35,10 @@ logging:
     org.springframework: WARN
     org.mongodb: WARN
 
-# Supabase configuration for tests
-supabase:
-  url: https://test.supabase.co
-  anon:
-    key: test-key
-  secret: test-jwt-secret-key-for-testing-purposes-only
+# Firebase configuration for tests
+firebase:
+  project-id: test-firebase-project
+  enabled: false
 
 # Sentry configuration for tests
 sentry:
@@ -54,6 +52,9 @@ llm:
     url: https://test.api.com
   model: test-model
 
+DEEPSEEK_API_KEY: test-deepseek-key
+OPENROUTER_API_KEY: test-openrouter-key
+
 # AWS configuration for tests
 aws:
   s3:
@@ -66,3 +67,17 @@ aws:
 # CORS configuration for tests
 cors:
   allowed-origins: http://localhost:3000
+
+# Resend Email Configuration for tests  
+resend:
+  api-key: test-api-key
+  from-email: test@example.com
+  from-name: Test Name
+
+# Scraper service configuration for tests
+scraper:
+  service-url: http://localhost:9999
+
+# Environment variables for compatibility
+SCRAPER_SERVICE_URL: http://localhost:9999
+CALLBACK_URL: http://localhost:8080/api/scraper/callback

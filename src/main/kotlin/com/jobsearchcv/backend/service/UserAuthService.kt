@@ -9,7 +9,7 @@ import java.util.*
 
 @Service
 class UserAuthService(
-    private val supabaseAuthService: SupabaseAuthService
+    private val firebaseAuthService: FirebaseAuthService
 ) {
     
     companion object {
@@ -35,29 +35,29 @@ class UserAuthService(
     }
     
     /**
-     * Extracts user ID from bearer token using Supabase authentication.
+     * Extracts user ID from bearer token using Firebase authentication.
      */
     private fun extractUserIdFromBearerToken(token: String): String {
         try {
-            logger.info("Extracting user ID from Supabase bearer token: ${token.take(10)}...")
+            logger.info("Extracting user ID from Firebase bearer token: ${token.take(10)}...")
             
             val userId = parseJwtToken(token)
             
-            logger.info("Successfully extracted user ID from Supabase token: $userId")
+            logger.info("Successfully extracted user ID from Firebase token: $userId")
             return userId
             
         } catch (e: Exception) {
-            logger.error("Failed to parse Supabase bearer token: ${e.message}")
+            logger.error("Failed to parse Firebase bearer token: ${e.message}")
             throw UnauthorizedException("Invalid bearer token", e)
         }
     }
     
     /**
-     * Parses JWT token to extract user ID using SupabaseAuthService.
+     * Parses JWT token to extract user ID using FirebaseAuthService.
      */
     private fun parseJwtToken(token: String): String {
-        val supabaseUser = supabaseAuthService.validateTokenAndExtractUser(token)
-        return supabaseUser?.id ?: throw IllegalArgumentException("Invalid JWT token or unable to extract user ID")
+        val firebaseUser = firebaseAuthService.validateTokenAndExtractUser(token)
+        return firebaseUser?.uid ?: throw IllegalArgumentException("Invalid JWT token or unable to extract user ID")
     }
     
     /**

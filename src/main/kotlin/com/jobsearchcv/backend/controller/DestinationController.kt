@@ -4,7 +4,7 @@ import com.jobsearchcv.backend.domain.model.Channel
 import com.jobsearchcv.backend.domain.model.Destination
 import com.jobsearchcv.backend.repository.DestinationRepository
 import com.jobsearchcv.backend.service.JobSearchScheduler
-import com.jobsearchcv.backend.service.SupabaseUser
+import com.jobsearchcv.backend.service.FirebaseUser
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.media.Schema
@@ -52,11 +52,11 @@ class DestinationController(
             val userId = authentication.principal as String
             
             // Get user details from authentication to check if anonymous
-            val userDetails = authentication.details as? SupabaseUser
+            val userDetails = authentication.details as? FirebaseUser
             
-            // Check if user is anonymous
-            if (userDetails?.role == "anon") {
-                logger.warn("Anonymous user attempted to add destination: userId=$userId")
+            // Check if user email is not verified
+            if (userDetails?.emailVerified == false) {
+                logger.warn("User with unverified email attempted to add destination: userId=$userId")
                 return@runBlocking ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(DestinationResponse(
                         success = false,
@@ -192,11 +192,11 @@ class DestinationController(
             val userId = authentication.principal as String
             
             // Get user details from authentication to check if anonymous
-            val userDetails = authentication.details as? SupabaseUser
+            val userDetails = authentication.details as? FirebaseUser
             
-            // Check if user is anonymous
-            if (userDetails?.role == "anon") {
-                logger.warn("Anonymous user attempted to delete destination: userId=$userId")
+            // Check if user email is not verified
+            if (userDetails?.emailVerified == false) {
+                logger.warn("User with unverified email attempted to delete destination: userId=$userId")
                 return@runBlocking ResponseEntity.status(HttpStatus.FORBIDDEN).build()
             }
             
