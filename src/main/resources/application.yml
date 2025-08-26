@@ -2,6 +2,7 @@ spring:
   config:
     activate:
       on-profile: prod,local
+    import: optional:file:.env.local[.properties]
   application:
     name: jobsearchcv-backend
   data:
@@ -24,22 +25,29 @@ spring:
       request-timeout: 60000  # 60 seconds timeout for async requests
 
 
-# Supabase configuration
-supabase:
-  url: ${SUPABASE_URL:https://your-project.supabase.co}
-  anon:
-    key: ${SUPABASE_ANON_KEY:your-supabase-anon-key}
-  secret: ${SUPABASE_JWT_SECRET}
+# Firebase configuration
+firebase:
+  enabled: ${FIREBASE_ENABLED:true}
+  project-id: ${FIREBASE_PROJECT_ID:applyfirst-b9c69}
+  credentials:
+    # Option 1: Individual environment variables (recommended for deployment)
+    private-key: ${FIREBASE_PRIVATE_KEY:}
+    private-key-id: ${FIREBASE_PRIVATE_KEY_ID:}
+    client-email: ${FIREBASE_CLIENT_EMAIL:}
+    client-id: ${FIREBASE_CLIENT_ID:}
+    # Option 2: File path (for local development)
+    path: ${FIREBASE_CREDENTIALS_PATH:}
+
 
 sentry:
-  dsn: ${SENTRY_DSN}
+  dsn: ${SENTRY_DSN:}
   # Add data like request headers and IP for users,
   # see https://docs.sentry.io/platforms/java/guides/spring-boot/data-management/data-collected/ for more info
   send-default-pii: true
   # Set traces-sample-rate to 1.0 to capture 100% of transactions for tracing.
   # We recommend adjusting this value in production.
   traces-sample-rate: 1.0
-  environment: ${SENTRY_ENVIRONMENT}
+  environment: ${SENTRY_ENVIRONMENT:development}
 
 server:
   port: 8080
@@ -88,10 +96,12 @@ aws:
       delay-ms: ${AWS_S3_RETRY_DELAY_MS:1000}
     bucket:
       cvs: ${AWS_S3_CVS_BUCKET:applyfirst-cvs}
-  ses:
-    region: ${AWS_SES_REGION}
-    from-email: ${AWS_SES_FROM_EMAIL}
-    from-name: ${AWS_SES_FROM_NAME}
+
+# Resend Email Configuration
+resend:
+  api-key: ${RESEND_API_KEY}
+  from-email: ${RESEND_FROM_EMAIL:noreply@jobsearchcv.com}
+  from-name: ${RESEND_FROM_NAME:Job Search CV}
 
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}

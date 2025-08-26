@@ -15,7 +15,6 @@ interface SentJobRepository {
     fun findByUserId(userId: String): List<SentJobOut>
     fun existsByUserIdAndJobUrl(userId: String, jobUrl: String): Boolean
     fun deleteById(id: String)
-    fun findByDestination(destination: String): List<SentJobOut>
     fun countByDestinationAndSentAtAfter(destination: String, sentAtAfter: OffsetDateTime): Long
 }
 
@@ -53,11 +52,6 @@ class SentJobRepositoryImpl(
     override fun deleteById(id: String) {
         val query = Query(Criteria.where("id").`is`(id))
         mongoTemplate.remove(query, SentJobOut::class.java)
-    }
-
-    override fun findByDestination(destination: String): List<SentJobOut> {
-        val query = Query(Criteria.where("destination").`is`(destination))
-        return mongoTemplate.find(query, SentJobOut::class.java)
     }
 
     override fun countByDestinationAndSentAtAfter(destination: String, sentAtAfter: OffsetDateTime): Long {

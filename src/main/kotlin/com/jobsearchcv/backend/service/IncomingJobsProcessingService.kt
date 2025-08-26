@@ -1,26 +1,27 @@
 package com.jobsearchcv.backend.service
 
-import com.jobsearchcv.backend.TelegramMessages
-import com.jobsearchcv.backend.TelegramMessages.CREATE_ALERT_DESC
 import com.jobsearchcv.backend.domain.model.*
 import com.jobsearchcv.backend.repository.JobSearchRepository
 import com.jobsearchcv.backend.repository.SentJobRepository
+import com.jobsearchcv.backend.repository.DestinationRepository
 import io.sentry.Sentry
 import io.sentry.SentryLevel
 import kotlinx.coroutines.*
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.time.OffsetDateTime
-import kotlin.jvm.optionals.getOrNull
 
 @Service
 class IncomingJobsProcessingService(
     private val sentJobRepository: SentJobRepository,
     private val jobSearchRepository: JobSearchRepository,
     private val batchJobProcessingService: BatchJobProcessingService,
+    private val destinationRepository: DestinationRepository,
+    private val emailTemplateService: EmailTemplateService,
+    private val resendEmailService: ResendEmailService,
 ) {
     private val logger = LoggerFactory.getLogger(this::class.java)
-    
+
     companion object {
         private const val XCOM_DAILY_JOB_LIMIT = 50
         private const val XCOM_RATE_LIMIT_HOURS = 24
@@ -63,13 +64,8 @@ class IncomingJobsProcessingService(
                     return@withContext
                 }
 
-                val destination = savedJobSearch?.destination
+                val sentJobs = sentJobRepository.findByUserId(userId)
 
-                val sentJobs = if (destination != null) {
-                    sentJobRepository.findByDestination(destination)
-                } else {
-                    sentJobRepository.findByUserId(userId)
-                }
 
                 val sentJobUrls = sentJobs.map { it.jobUrl }.toSet()
                 val newJobs = scrapedJobs.filter { it.link !in sentJobUrls }
@@ -115,28 +111,17 @@ class IncomingJobsProcessingService(
                 }
 
                 // Step 8: Route jobs based on destination
-                val jobsToMarkAsSent = if (destination == "xcom_us_tech") {
-                    // Post to X.com without compatibility score filtering
-                    logger.info("Routing jobs to X.com for jobSearchId={}", jobSearchId)
-                    sendJobsToXCom(scoredJobsData, savedJobSearch)
-                } else {
-                    // Default: Send to Telegram with compatibility score filtering
-                    logger.info("Routing jobs to Telegram for jobSearchId={}", jobSearchId)
-//                    TODO: send email or tg
-                    filteredJobs // All filtered jobs are considered successfully sent to Telegram
-                }
+                val sendJobs =
+                    sendJobsToUserDestinations(filteredJobs, savedJobSearch, userId)
 
                 // Only mark jobs as sent if they were actually successfully processed
-                if (jobsToMarkAsSent.isNotEmpty()) {
-                    markJobsAsSent(jobsToMarkAsSent, userId, destination = destination)
-                }
 
                 logger.info(
                     "Successfully processed and sent {} jobs for jobSearchId={}, userId={}",
-                    jobsToMarkAsSent.size, jobSearchId, userId
+                    sendJobs.size, jobSearchId, userId
                 )
 
-                jobsToMarkAsSent.size
+                sendJobs.size
 
             } catch (e: Exception) {
                 logger.error(
@@ -163,15 +148,15 @@ class IncomingJobsProcessingService(
                 destination = "xcom_us_tech",
                 sentAtAfter = twentyFourHoursAgo
             )
-            
+
             logger.info("[JobSearch: ${jobSearch.id}] Jobs sent to X.com in last 24 hours: $jobsSentLast24Hours")
-            
+
             val remainingQuota = XCOM_DAILY_JOB_LIMIT - jobsSentLast24Hours
             if (remainingQuota <= 0) {
                 logger.warn("[JobSearch: ${jobSearch.id}] Daily limit reached for X.com. Skipping all ${jobs.size} jobs.")
                 return emptyList()
             }
-            
+
             // Take only as many jobs as we can send within the limit
             val jobsToSend = if (jobs.size > remainingQuota) {
                 logger.info("[JobSearch: ${jobSearch.id}] Limiting jobs to send from ${jobs.size} to $remainingQuota due to daily quota")
@@ -195,7 +180,86 @@ class IncomingJobsProcessingService(
         }
     }
 
-    private suspend fun markJobsAsSent(jobs: List<ScoredJobData>, userId: String, destination: String?) {
+    private suspend fun sendJobsToUserDestinations(
+        jobs: List<ScoredJobData>,
+        jobSearch: JobSearchOut?,
+        userId: String
+    ): List<ScoredJobData> {
+        val destinations = destinationRepository.findByUserId(userId)
+        if (destinations.isEmpty()) {
+            logger.warn("No destinations found for user $userId, skipping email sending")
+            return emptyList()
+        }
+
+        // Find the latest destination by createdAt
+        var latestDestination = destinations.maxByOrNull { it.createdAt }
+        if (latestDestination == null) {
+            latestDestination = destinations.firstOrNull()
+        }
+
+        if (latestDestination == null) {
+            logger.error(
+                "Destination is null, skipping email sending for user $userId, jobSearchId=${jobSearch?.id}"
+            )
+            return emptyList()
+        }
+
+        logger.info("Using destination: channel=${latestDestination.channel}, value=${latestDestination.channelValue}")
+
+        val jobsToMarkAsSent = try {
+            logger.info("Sending ${jobs.size} jobs to user destinations for userId=$userId")
+
+            // Get user destinations
+
+
+            // Check if channel is email
+            if (latestDestination.channel == "email") {
+                val recipientEmail = latestDestination.channelValue
+                val searchName = jobSearch?.jobTitle ?: "Your Job Search"
+                val alertId = jobSearch?.id ?: "unknown"
+
+                logger.info("Sending email to $recipientEmail for ${jobs.size} jobs")
+
+                // Create email content using EmailTemplateService
+                val emailContent = emailTemplateService.createJobNotificationEmail(
+                    recipient = recipientEmail,
+                    searchName = searchName,
+                    jobs = jobs,
+                    alertId = alertId
+                )
+
+                // Send email using ResendEmailService
+                val result = resendEmailService.sendEmail(emailContent)
+
+                if (result.isSuccess) {
+                    logger.info("Successfully sent email to $recipientEmail with ${jobs.size} jobs")
+                    jobs // Return all jobs as successfully sent
+                } else {
+                    logger.error("Failed to send email to $recipientEmail: ${result.exceptionOrNull()?.message}")
+                    emptyList()
+                }
+            } else {
+                logger.info("Channel '${latestDestination.channel}' is not email, skipping for now")
+                // TODO: Handle telegram or other channels in the future
+                emptyList()
+            }
+
+        } catch (e: Exception) {
+            logger.error("Error sending jobs to user destinations for userId=$userId", e)
+            emptyList()
+        }
+
+        if (jobsToMarkAsSent.isNotEmpty()) {
+            markJobsAsSent(jobsToMarkAsSent, userId, destination = latestDestination.channelValue)
+        }
+        return jobsToMarkAsSent
+    }
+
+    private suspend fun markJobsAsSent(
+        jobs: List<ScoredJobData>,
+        userId: String,
+        destination: String?
+    ) {
         try {
             val sentJobEntities = jobs.map { job ->
                 SentJobOut(

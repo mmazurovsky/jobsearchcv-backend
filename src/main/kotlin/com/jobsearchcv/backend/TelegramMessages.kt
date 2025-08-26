@@ -54,6 +54,8 @@ object TelegramMessages {
     const val SUCCESS_ALERT_PARSED = "<b>Job alert can be created!</b>"
     const val SUCCESS_UPDATED_PARSED = "<b>Job search can be updated!</b>"
 
+    const val SERVICE_SHORT_DESCRIPTION = "Your personalised Job Search AI Agent"
+
     const val BOT_SHORT_DESCRIPTION =
         "I'm your personal Job Search Agent. I find fresh jobs before anyone else"
     val BOT_DESCRIPTION = buildString {

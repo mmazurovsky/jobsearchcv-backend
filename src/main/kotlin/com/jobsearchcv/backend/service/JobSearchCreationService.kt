@@ -12,7 +12,8 @@ import org.springframework.stereotype.Service
 class JobSearchCreationService(
     private val destinationRepository: DestinationRepository,
     private val jobSearchRepository: JobSearchRepository,
-    private val scraperJobService: ScraperJobService
+    private val scraperJobService: ScraperJobService,
+    private val jobSearchScheduler: JobSearchScheduler
 ) {
     
     companion object {
@@ -87,6 +88,30 @@ class JobSearchCreationService(
             }
             
             val savedJobSearches = createdSearches + updatedSearches
+            
+            // Update scheduler for all created and updated searches
+            savedJobSearches.forEach { jobSearch ->
+                try {
+                    if (createdSearches.contains(jobSearch)) {
+                        jobSearchScheduler.addJobSearch(jobSearch)
+                    } else {
+                        jobSearchScheduler.updateJobSearch(jobSearch)
+                    }
+                } catch (e: Exception) {
+                    logger.error("Failed to update scheduler for job search: ${jobSearch.id}", e)
+                    // Don't fail the entire operation if scheduler update fails
+                }
+            }
+            
+            // Remove deleted job searches from scheduler
+            idsToDelete.forEach { id ->
+                try {
+                    jobSearchScheduler.removeJobSearch(id)
+                } catch (e: Exception) {
+                    logger.error("Failed to remove job search from scheduler: $id", e)
+                    // Don't fail the entire operation if scheduler update fails
+                }
+            }
             
             logger.info("Successfully processed job searches - created: ${createdSearches.size}, updated: ${updatedSearches.size}, deleted: ${idsToDelete.size}")
             

@@ -5,6 +5,7 @@ import org.springframework.data.annotation.Id
 import org.springframework.data.mongodb.core.index.Indexed
 import org.springframework.data.mongodb.core.mapping.Document
 import org.springframework.data.mongodb.core.mapping.Field
+import java.time.OffsetDateTime
 import java.util.*
 
 @Document(collection = "destinations")
@@ -21,7 +22,10 @@ data class Destination(
     val channel: String, // Stored as string in DB but used as enum in code
     @field:Field("channel_value") 
     @Schema(description = "Channel value (email address, telegram chat ID)", example = "user@example.com", required = true)
-    val channelValue: String
+    val channelValue: String,
+    @field:Field("created_at")
+    @Schema(description = "Timestamp when the destination was created", required = true)
+    val createdAt: OffsetDateTime = OffsetDateTime.now()
 ) {
     // Helper property to work with enum in code
     val channelEnum: Channel
@@ -33,7 +37,8 @@ data class Destination(
                 id = UUID.randomUUID().toString(),
                 userId = userId,
                 channel = channel.value,
-                channelValue = channelValue
+                channelValue = channelValue,
+                createdAt = OffsetDateTime.now()
             )
         }
     }

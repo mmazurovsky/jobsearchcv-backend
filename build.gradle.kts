@@ -38,7 +38,6 @@ sentry {
 
 val serialization = "1.9.0"
 val datetime = "0.7.1-0.6.x-compat"
-val supabase = "3.2.2"
 val ktorVersion = "3.2.2"
 val logbookVersion = "3.7.0"
 
@@ -97,7 +96,9 @@ dependencies {
     implementation(platform("software.amazon.awssdk:bom:2.25.0"))
     implementation("software.amazon.awssdk:s3")
     implementation("software.amazon.awssdk:s3-transfer-manager")
-    implementation("software.amazon.awssdk:ses")
+    
+    // ── Resend Email SDK ────────────────────────────────────────
+    implementation("com.resend:resend-java:4.5.0")
     
     // ── Document Processing ─────────────────────────────────────
     implementation("org.apache.pdfbox:pdfbox:3.0.3")
@@ -111,13 +112,13 @@ dependencies {
     runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.5")
     runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.5")
     
+    // ── Firebase Admin SDK ─────────────────────────────────────
+    implementation("com.google.firebase:firebase-admin:9.3.0")
+    
     // ── OpenAPI Documentation ──────────────────────────────────
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0")
     
     // ── Supabase ──────────────────────────────────────────────
-    implementation("io.github.jan-tennert.supabase:supabase-kt-jvm:$supabase")
-    implementation("io.github.jan-tennert.supabase:auth-kt-jvm:$supabase")
-    implementation(platform("io.github.jan-tennert.supabase:bom:$supabase"))
 
     // ── Configuration processing ────────────────────────────────
     annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")

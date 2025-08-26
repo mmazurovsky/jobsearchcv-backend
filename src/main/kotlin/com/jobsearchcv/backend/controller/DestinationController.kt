@@ -3,7 +3,8 @@ package com.jobsearchcv.backend.controller
 import com.jobsearchcv.backend.domain.model.Channel
 import com.jobsearchcv.backend.domain.model.Destination
 import com.jobsearchcv.backend.repository.DestinationRepository
-import com.jobsearchcv.backend.service.SupabaseUser
+import com.jobsearchcv.backend.service.JobSearchScheduler
+import com.jobsearchcv.backend.service.FirebaseUser
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.media.Schema
@@ -24,7 +25,8 @@ import org.springframework.web.bind.annotation.*
 @Tag(name = "Destinations", description = "Manage user notification destinations")
 @SecurityRequirement(name = "bearerAuth")
 class DestinationController(
-    private val destinationRepository: DestinationRepository
+    private val destinationRepository: DestinationRepository,
+    private val jobSearchScheduler: JobSearchScheduler
 ) {
     companion object {
         private val logger: Logger = LoggerFactory.getLogger(DestinationController::class.java)
@@ -50,11 +52,11 @@ class DestinationController(
             val userId = authentication.principal as String
             
             // Get user details from authentication to check if anonymous
-            val userDetails = authentication.details as? SupabaseUser
+            val userDetails = authentication.details as? FirebaseUser
             
-            // Check if user is anonymous
-            if (userDetails?.role == "anon") {
-                logger.warn("Anonymous user attempted to add destination: userId=$userId")
+            // Check if user email is not verified
+            if (userDetails?.emailVerified == false) {
+                logger.warn("User with unverified email attempted to add destination: userId=$userId")
                 return@runBlocking ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(DestinationResponse(
                         success = false,
@@ -85,30 +87,51 @@ class DestinationController(
                 request.channelValue
             )
             
-            if (existingDestination != null) {
-                logger.info("Destination already exists for user: $userId")
-                return@runBlocking ResponseEntity.ok(DestinationResponse(
-                    success = true,
-                    message = "Destination already exists",
-                    destination = existingDestination
-                ))
+            // Check if user had any destinations before this operation
+            val userDestinationsBefore = destinationRepository.findByUserId(userId)
+            val hadDestinationsBefore = userDestinationsBefore.isNotEmpty()
+            
+            val savedDestination = if (existingDestination != null) {
+                logger.info("Destination already exists for user: $userId, updating createdAt")
+                // Update the existing destination with new createdAt
+                val updatedDestination = existingDestination.copy(createdAt = java.time.OffsetDateTime.now())
+                destinationRepository.save(updatedDestination)
+            } else {
+                // Create new destination
+                val destination = Destination.createNew(
+                    userId = userId,
+                    channel = channel,
+                    channelValue = request.channelValue
+                )
+                // Save to database
+                destinationRepository.save(destination)
             }
             
-            // Create new destination
-            val destination = Destination.createNew(
-                userId = userId,
-                channel = channel,
-                channelValue = request.channelValue
-            )
+            // If user didn't have destinations before and this is a new destination,
+            // schedule all their approved job searches
+            if (!hadDestinationsBefore && existingDestination == null) {
+                try {
+                    logger.info("User $userId added first destination, scheduling approved job searches")
+                    runBlocking {
+                        jobSearchScheduler.scheduleAllApprovedSearchesForUser(userId)
+                    }
+                } catch (e: Exception) {
+                    logger.error("Failed to schedule approved job searches for user $userId after adding first destination", e)
+                    // Don't fail the destination creation if scheduling fails
+                }
+            }
             
-            // Save to database
-            val savedDestination = destinationRepository.save(destination)
+            val messageText = if (existingDestination != null) {
+                "Destination updated successfully"
+            } else {
+                "Destination added successfully"
+            }
             
-            logger.info("Successfully added destination: id=${savedDestination.id}, userId=$userId")
+            logger.info("Successfully processed destination: id=${savedDestination.id}, userId=$userId")
             
             return@runBlocking ResponseEntity.ok(DestinationResponse(
                 success = true,
-                message = "Destination added successfully",
+                message = messageText,
                 destination = savedDestination
             ))
             
@@ -169,11 +192,11 @@ class DestinationController(
             val userId = authentication.principal as String
             
             // Get user details from authentication to check if anonymous
-            val userDetails = authentication.details as? SupabaseUser
+            val userDetails = authentication.details as? FirebaseUser
             
-            // Check if user is anonymous
-            if (userDetails?.role == "anon") {
-                logger.warn("Anonymous user attempted to delete destination: userId=$userId")
+            // Check if user email is not verified
+            if (userDetails?.emailVerified == false) {
+                logger.warn("User with unverified email attempted to delete destination: userId=$userId")
                 return@runBlocking ResponseEntity.status(HttpStatus.FORBIDDEN).build()
             }
             

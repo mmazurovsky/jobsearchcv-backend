@@ -1,6 +1,6 @@
 package com.jobsearchcv.backend.security
 
-import com.jobsearchcv.backend.service.SupabaseAuthService
+import com.jobsearchcv.backend.service.FirebaseAuthService
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -13,7 +13,7 @@ import org.springframework.web.filter.OncePerRequestFilter
 
 @Component
 class JwtAuthenticationFilter(
-    private val supabaseAuthService: SupabaseAuthService
+    private val firebaseAuthService: FirebaseAuthService
 ) : OncePerRequestFilter() {
     
     private val log: Logger = LoggerFactory.getLogger(JwtAuthenticationFilter::class.java)
@@ -35,16 +35,16 @@ class JwtAuthenticationFilter(
             log.debug("Extracted JWT token, length: ${token.length}")
             
             try {
-                val supabaseUser = supabaseAuthService.validateTokenAndExtractUser(token)
-                if (supabaseUser != null) {
+                val firebaseUser = firebaseAuthService.validateTokenAndExtractUser(token)
+                if (firebaseUser != null) {
                     // Create authentication token with user ID as principal and user object as details
                     val authentication = UsernamePasswordAuthenticationToken(
-                        supabaseUser.id, null, emptyList()
+                        firebaseUser.uid, null, emptyList()
                     ).apply {
-                        details = supabaseUser
+                        details = firebaseUser
                     }
                     SecurityContextHolder.getContext().authentication = authentication
-                    log.debug("Set authentication for user: ${supabaseUser.id}, email: ${supabaseUser.email}")
+                    log.debug("Set authentication for user: ${firebaseUser.uid}, email: ${firebaseUser.email}")
                 } else {
                     log.debug("Token validation returned null user")
                 }

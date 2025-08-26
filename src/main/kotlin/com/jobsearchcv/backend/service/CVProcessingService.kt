@@ -83,8 +83,8 @@ class CVProcessingService(
             val LLMRequest = LLMRequest(
                 prompt = systemPrompt,
                 temperature = 0.3,
-                maxTokens = 3000,
-                model = "openai/gpt-3.5-turbo-instruct"
+                maxTokens = 12000,
+                model = "openai/gpt-4-turbo"
             )
 
             val response = openRouterClient.chat(LLMRequest)
@@ -100,10 +100,9 @@ class CVProcessingService(
 
             // Parse AI response as JSON
             val analysisResult = try {
-                parseAIResponse(response.content!!, request.userId)
+                parseAIResponse(response.content, request.userId)
             } catch (e: Exception) {
-                logger.error("Failed to parse AI response: ${e.message}", e)
-                logger.debug("AI response that failed to parse: ${response.content}")
+                logger.error("Failed to parse AI response: ${e.message}, content: ${response.content}", e)
                 return CVProcessingResult(
                     success = false,
                     analysisResult = null,
@@ -150,53 +149,69 @@ class CVProcessingService(
 
     private fun buildCVProcessingPrompt(extractedText: String): String {
         return """
-You are a senior recruiter with extensive experience in talent acquisition and CV analysis. You need to process the following CV text and extract structured information, then propose relevant job searches.
+Role and Objective
+- You are a senior recruiter highly skilled in talent acquisition and CV analysis. Your objective is to process a provided CV, extract structured data, and generate tailored job search recommendations.
 
-**STEP 1: Extract Information**
-From the CV text below, extract:
-1. Current or desired position (the job title the person is seeking or currently has)
-2. All previous positions/job titles the person has held
-3. List of skills and technologies with experience weights (0-100, where 100 = expert level)
-4. Education background
-5. Location (city, country if specified)
+Instructions
+- Begin with a concise checklist (3–7 bullets) of what you will do; keep items conceptual, not implementation-level.
+- Carefully extract information from the CV text and map it according to the data requirements below.
+- Apply logic for weight assignment, chronology, and location as described.
+- Recommend job searches using the extracted data, adhering to the prescribed business rules and requirements below.
+- Output only a valid JSON object matching the defined schema. Do not include any extra commentary or text outside the JSON object.
 
-**STEP 2: Propose Job Searches**
-Based on the extracted information, create 3-5 job search recommendations following this logic:
-- Primary search: Based on current/desired position
-- Alternative searches: Based on previous experience and transferable skills
-- Consider the person's skill level and experience when suggesting job types
-- Use appropriate job types: Full-time, Part-time, Contract, Temporary, Internship
-- Use appropriate remote types: On-site, Remote, Hybrid
-- Use appropriate time periods: 1 hour, 4 hours, 24 hours (for active job searching)
+Job Search Recommendation Specific Rules
+- Use only acceptable job types when constructing "jobTypes": Full-time, Part-time, Contract, Temporary, Internship. Default to Full-time.
+- Use only these remote types in "remoteTypes": Remote, On-site, Hybrid. Default to Remote.
+- Only use the following time periods for "timePeriod": 20 minutes, 30 minutes, 1 hour, 4 hours, 24 hours. Default to 20 minutes for the primary search, 30 minutes for the secondary search, and 4 hours for any additional searches.
 
-**IMPORTANT**: Return ONLY a valid JSON object with this exact structure:
+Sub-categories / Special Rules
+- Output 3-5 recommended_searches
+- Remote remoteTypes can be used ONLY with country
+- Hybrid and On-site remoteTypes can be used ONLY with city or state
+- For first search use same title as latest title in CV or title specified first in CV. For secondary search use title one level higher than first one. Additional titles should not contain levels in them and should be different from primary and secondary
+- Use only city, state, or country granularity for location—never more specific, never more broad.
+- At least one job search must use Hybrid remoteType and a specific city or state if the user's location is certain and sufficiently granular.
+- Skill weights: 80+ for frequently mentioned, specified earlier in CV; 40 for specified later in CV, specified only once; 60-79 for others.
+- In filterText, include "Only positions with languages: {languages that user knows based on CV}". Other filters are included only if clearly specified (e.g., 'visa sponsorship required').
+- Include skill weights in filter text at the end, write "My skills are {skills with weights}".
 
-```json
+Context
+- The input is plain CV text. Extraction accuracy for jobs, skills, location, and languages is essential.
+- Use given chronology or, if missing, use the order encountered.
+
+Planning and Verification
+- After mapping and formatting, validate the output: ensure all required fields are present, types match the schema, and handle all missing/ambiguous data per rules. Make a final schema compliance pass before output.
+
+Output Format
+- Output is concise and limited to JSON object. Return only valid JSON as described below. No additional explanations. Don't include prompt in your output.
+
+Stop Conditions
+- End when a fully valid JSON object strictly adhering to the schema and instructions is ready.
+
+JSON Schema to output:
 {
-  "current_or_desired_position": "Software Engineer",
-  "previous_positions": ["Junior Developer", "Intern"],
+  "current_or_desired_position": string | null,
+  "previous_positions": string[],
   "skills_with_weights": [
-    {"skill": "JavaScript", "weight": 85},
-    {"skill": "React", "weight": 90},
-    {"skill": "Node.js", "weight": 75}
+    {"skill": string, "weight": integer}
   ],
-  "education": ["Bachelor's in Computer Science"],
-  "location": "San Francisco, CA",
+  "location": string | null,
+  "languages": string[] | [],
   "recommended_searches": [
     {
-      "jobTitle": "Senior Software Engineer",
-      "location": "San Francisco, CA",
-      "jobTypes": ["Full-time"],
-      "remoteTypes": ["Remote", "Hybrid"],
-      "timePeriod": "4 hours",
-      "userId": 0,
-      "filterText": "React JavaScript Node.js"
+      "jobTitle": string,
+      "location": string,
+      "jobTypes": string[],
+      "remoteTypes": string[],
+      "timePeriod": string,
+      "filterText": string
     }
   ]
 }
-```
 
-**CV Text to Process:**
+Handle all missing or ambiguous data as instructed: use null for strings and empty arrays for lists.
+
+CV TEXT:
 ${extractedText}
 
 Remember: Return ONLY the JSON object, no additional text or formatting.
