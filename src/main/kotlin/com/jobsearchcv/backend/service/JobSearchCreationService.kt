@@ -48,25 +48,30 @@ class JobSearchCreationService(
             val idsToDelete = existingSearches.map { it.id }.filter { it !in incomingIds }
             
             jobSearches.forEach { jobSearchIn ->
+                logger.debug("Processing jobSearchIn: id=${jobSearchIn.id}, timePeriod=${jobSearchIn.timePeriod}, jobTypes=${jobSearchIn.jobTypes}, remoteTypes=${jobSearchIn.remoteTypes}")
+                
                 if (!existingSearchesMap.containsKey(jobSearchIn.id)) {
                     // New search
-                    searchesToCreate.add(
-                        JobSearchOut.fromJobSearchIn(jobSearchIn, userId, isApproved = isApproved)
-                    )
+                    val newSearch = JobSearchOut.fromJobSearchIn(jobSearchIn, userId, isApproved = isApproved)
+                    logger.debug("Creating new search: id=${newSearch.id}, timePeriod=${newSearch.timePeriod}, jobTypes=${newSearch.jobTypes}, remoteTypes=${newSearch.remoteTypes}")
+                    searchesToCreate.add(newSearch)
                 } else {
                     // Update existing search
                     val existing = existingSearchesMap[jobSearchIn.id]!!
-                    searchesToUpdate.add(
-                        existing.copy(
-                            jobTitle = jobSearchIn.jobTitle,
-                            location = jobSearchIn.location,
-                            jobTypes = jobSearchIn.jobTypes,
-                            remoteTypes = jobSearchIn.remoteTypes,
-                            timePeriod = jobSearchIn.timePeriod,
-                            filterText = jobSearchIn.filterText,
-                            isApproved = isApproved
-                        )
+                    logger.debug("Existing search before update: id=${existing.id}, timePeriod=${existing.timePeriod}, jobTypes=${existing.jobTypes}, remoteTypes=${existing.remoteTypes}")
+                    
+                    val updated = existing.copy(
+                        jobTitle = jobSearchIn.jobTitle,
+                        location = jobSearchIn.location,
+                        jobTypes = jobSearchIn.jobTypes,
+                        remoteTypes = jobSearchIn.remoteTypes,
+                        timePeriod = jobSearchIn.timePeriod,
+                        filterText = jobSearchIn.filterText,
+                        isApproved = isApproved
                     )
+                    
+                    logger.debug("Updated search: id=${updated.id}, timePeriod=${updated.timePeriod}, jobTypes=${updated.jobTypes}, remoteTypes=${updated.remoteTypes}")
+                    searchesToUpdate.add(updated)
                 }
             }
             
@@ -77,7 +82,11 @@ class JobSearchCreationService(
                 emptyList()
             }
             
-            val updatedSearches = searchesToUpdate.map { jobSearchRepository.save(it) }
+            val updatedSearches = searchesToUpdate.map { searchToUpdate ->
+                val saved = jobSearchRepository.save(searchToUpdate)
+                logger.debug("Saved updated search to DB: id=${saved.id}, timePeriod=${saved.timePeriod}, jobTypes=${saved.jobTypes}, remoteTypes=${saved.remoteTypes}")
+                saved
+            }
             
             // Delete searches that are no longer in the request, but preserve approved ones
             idsToDelete.forEach { id ->
@@ -196,7 +205,11 @@ class JobSearchCreationService(
                 emptyList()
             }
             
-            val updatedSearches = searchesToUpdate.map { jobSearchRepository.save(it) }
+            val updatedSearches = searchesToUpdate.map { searchToUpdate ->
+                val saved = jobSearchRepository.save(searchToUpdate)
+                logger.debug("Saved updated search to DB: id=${saved.id}, timePeriod=${saved.timePeriod}, jobTypes=${saved.jobTypes}, remoteTypes=${saved.remoteTypes}")
+                saved
+            }
             
             // Delete searches that are no longer in the request, but preserve approved ones
             idsToDelete.forEach { id ->
