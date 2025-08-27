@@ -20,29 +20,29 @@ class ResendEmailService(
     
     private val logger = LoggerFactory.getLogger(ResendEmailService::class.java)
     
-    override suspend fun sendEmail(message: String): Result<String> = withContext(Dispatchers.IO) {
-        try {
-            logger.info("Sending plain text email via Resend")
-            
-            val params = CreateEmailOptions.builder()
-                .from("$fromName <$fromEmail>")
-                .to(fromEmail) // Default to sending to self for plain text messages
-                .subject("Notification")
-                .text(message)
-                .build()
-            
-            val response: CreateEmailResponse = resendClient.emails().send(params)
-            
-            logger.info("Email sent successfully with ID: ${response.id}")
-            Result.success(response.id)
-        } catch (e: ResendException) {
-            logger.error("Failed to send email via Resend: ${e.message}", e)
-            Result.failure(e)
-        } catch (e: Exception) {
-            logger.error("Unexpected error sending email: ${e.message}", e)
-            Result.failure(e)
-        }
-    }
+//    override suspend fun sendEmail(message: String): Result<String> = withContext(Dispatchers.IO) {
+//        try {
+//            logger.info("Sending plain text email via Resend")
+//
+//            val params = CreateEmailOptions.builder()
+//                .from("$fromName <$fromEmail>")
+//                .to(fromEmail) // Default to sending to self for plain text messages
+//                .subject("Notification")
+//                .text(message)
+//                .build()
+//
+//            val response: CreateEmailResponse = resendClient.emails().send(params)
+//
+//            logger.info("Email sent successfully with ID: ${response.id}")
+//            Result.success(response.id)
+//        } catch (e: ResendException) {
+//            logger.error("Failed to send email via Resend: ${e.message}", e)
+//            Result.failure(e)
+//        } catch (e: Exception) {
+//            logger.error("Unexpected error sending email: ${e.message}", e)
+//            Result.failure(e)
+//        }
+//    }
     
     override suspend fun sendEmail(emailContent: EmailContent): Result<String> = withContext(Dispatchers.IO) {
         try {
@@ -52,8 +52,8 @@ class ResendEmailService(
                 .from("$fromName <$fromEmail>")
                 .to(emailContent.recipient)
                 .subject(emailContent.subject)
-                .html(emailContent.htmlBody)
                 .text(emailContent.textBody)
+                .html(emailContent.htmlBody)
                 .build()
             
             val response: CreateEmailResponse = resendClient.emails().send(params)
@@ -85,8 +85,8 @@ class ResendEmailService(
                         .from("$fromName <$fromEmail>")
                         .to(emailContent.recipient)
                         .subject(emailContent.subject)
-                        .html(emailContent.htmlBody)
                         .text(emailContent.textBody)
+                        .html(emailContent.htmlBody)
                         .build()
                     
                     resendClient.emails().send(params)
