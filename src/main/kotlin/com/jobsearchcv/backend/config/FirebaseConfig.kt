@@ -21,6 +21,9 @@ class FirebaseConfig {
     @Value("\${firebase.project-id:applyfirst-b9c69}")
     private lateinit var firebaseProjectId: String
     
+    @Value("\${firebase.storage.bucket:applyfirst-b9c69.firebasestorage.app}")
+    private lateinit var storageBucket: String
+    
     @Value("\${firebase.credentials.path:}")
     private var credentialsPath: String? = null
     
@@ -37,10 +40,11 @@ class FirebaseConfig {
                 val options = FirebaseOptions.builder()
                     .setCredentials(credentials)
                     .setProjectId(firebaseProjectId)
+                    .setStorageBucket(storageBucket)
                     .build()
                 
                 FirebaseApp.initializeApp(options)
-                log.info("Firebase Admin SDK initialized successfully for project: $firebaseProjectId")
+                log.info("Firebase Admin SDK initialized successfully for project: $firebaseProjectId with bucket: $storageBucket")
             } else {
                 log.info("Firebase Admin SDK already initialized")
             }

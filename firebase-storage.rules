@@ -1,0 +1,42 @@
+rules_version = '2';
+
+// Firebase Storage Security Rules for Job Search CV Application
+// These rules ensure that users can only access their own uploaded CV files
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Users can only access files in their own user directory
+    match /users/{userId}/{allPaths=**} {
+      // Allow read and write access only if:
+      // 1. User is authenticated
+      // 2. The userId in the path matches the authenticated user's UID
+      allow read, write: if request.auth != null 
+                      && request.auth.uid == userId;
+    }
+    
+    // Specifically for CV files in users/{userId}/cvs/ directory
+    match /users/{userId}/cvs/{fileName} {
+      // Allow read access for authenticated users accessing their own files
+      allow read: if request.auth != null 
+               && request.auth.uid == userId;
+      
+      // Allow write (upload) access for authenticated users to their own directory
+      // Additional validation for file uploads
+      allow write: if request.auth != null 
+                && request.auth.uid == userId
+                // Ensure file size is reasonable (max 10MB)
+                && request.resource.size <= 10 * 1024 * 1024
+                // Ensure content type is PDF, DOC, or DOCX
+                && request.resource.contentType.matches('application/(pdf|msword|vnd\\.openxmlformats-officedocument\\.wordprocessingml\\.document)');
+      
+      // Allow delete access for file owners
+      allow delete: if request.auth != null 
+                 && request.auth.uid == userId;
+    }
+    
+    // Deny all other access patterns
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

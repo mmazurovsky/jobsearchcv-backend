@@ -52,6 +52,11 @@ class JobSearchController(
             val userId = authentication.principal as String
 
             logger.info("Creating job searches request for user: $userId, count=${request.jobSearches.size}, isApproved=$isApproved")
+            
+            // Log incoming job searches for debugging
+            request.jobSearches.forEach { jobSearch ->
+                logger.debug("Incoming job search: id=${jobSearch.id}, timePeriod=${jobSearch.timePeriod}, jobTypes=${jobSearch.jobTypes}, remoteTypes=${jobSearch.remoteTypes}")
+            }
 
             // Delegate to service with isApproved parameter
             val result = jobSearchCreationService.createJobSearches(
@@ -169,6 +174,54 @@ class JobSearchController(
             logger.error("Failed to delete job search: id=$searchId", e)
             return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
         }
+    }
+
+    @PostMapping("/debug/enum-test")
+    @Operation(
+        summary = "Test enum serialization",
+        description = "Debug endpoint to test enum serialization and deserialization"
+    )
+    @ApiResponse(responseCode = "200", description = "Enum test successful")
+    fun testEnumSerialization(
+        @RequestBody request: JobSearchIn,
+        @Parameter(hidden = true) authentication: Authentication
+    ): ResponseEntity<Map<String, Any>> {
+        logger.info("Debug enum test - received request")
+        
+        val response = mutableMapOf<String, Any>()
+        
+        // Log and add to response what was received
+        response["receivedData"] = mapOf(
+            "id" to request.id,
+            "jobTitle" to request.jobTitle,
+            "location" to request.location,
+            "timePeriod" to mapOf(
+                "value" to request.timePeriod.name,
+                "displayName" to request.timePeriod.displayName,
+                "seconds" to request.timePeriod.seconds,
+                "cronExpression" to request.timePeriod.cronExpression
+            ),
+            "jobTypes" to request.jobTypes.map { mapOf("value" to it.name, "label" to it.label) },
+            "remoteTypes" to request.remoteTypes.map { mapOf("value" to it.name, "label" to it.label) },
+            "filterText" to (request.filterText ?: "null")
+        )
+        
+        // Create a JobSearchOut and verify conversion
+        val jobSearchOut = JobSearchOut.fromJobSearchIn(request, authentication.principal as String, isApproved = true)
+        
+        response["convertedData"] = mapOf(
+            "id" to jobSearchOut.id,
+            "timePeriod" to mapOf(
+                "value" to jobSearchOut.timePeriod.name,
+                "displayName" to jobSearchOut.timePeriod.displayName
+            ),
+            "jobTypes" to jobSearchOut.jobTypes.map { it.name },
+            "remoteTypes" to jobSearchOut.remoteTypes.map { it.name }
+        )
+        
+        logger.info("Debug enum test response: $response")
+        
+        return ResponseEntity.ok(response)
     }
 
     @PutMapping("/{searchId}")

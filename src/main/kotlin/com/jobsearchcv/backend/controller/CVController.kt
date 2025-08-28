@@ -2,6 +2,7 @@ package com.jobsearchcv.backend.controller
 
 import com.jobsearchcv.backend.service.SimpleCVService
 import com.jobsearchcv.backend.service.CVProcessingService
+import com.jobsearchcv.backend.service.CVListItem
 import com.jobsearchcv.backend.repository.JobSearchRepository
 import com.jobsearchcv.backend.domain.model.*
 import io.swagger.v3.oas.annotations.Operation
@@ -20,6 +21,9 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.multipart.MultipartFile
 import org.springframework.security.core.Authentication
+import org.springframework.http.HttpHeaders
+import org.springframework.http.MediaType
+import org.springframework.core.io.ByteArrayResource
 
 @RestController
 @RequestMapping("/api/cv")
@@ -156,19 +160,20 @@ class CVController(
     )
     fun getUserCVs(
         @Parameter(hidden = true) authentication: Authentication
-    ): ResponseEntity<List<CVResponse>> = runBlocking {
+    ): ResponseEntity<List<CVListResponse>> = runBlocking {
         try {
             // Extract user ID from authentication
             val userId = authentication.principal as String
 
             logger.info("Getting CVs for user: $userId")
 
-            val cvs = cvService.getCVsByUserId(userId)
+            val cvs = cvService.getCVsListByUserId(userId)
 
             val cvResponses = cvs.map { cv ->
-                CVResponse(
+                CVListResponse(
                     cvId = cv.id,
-                    linkToCv = cv.linkToCv
+                    originalFilename = cv.originalFilename,
+                    uploadedAt = cv.uploadedAt.toString()
                 )
             }
 
@@ -218,6 +223,60 @@ class CVController(
         }
     }
 
+
+    @GetMapping("/{cvId}/download")
+    @Operation(
+        summary = "Download CV file securely",
+        description = "Downloads a CV file with authentication. User can only download their own CVs."
+    )
+    @ApiResponses(
+        ApiResponse(responseCode = "200", description = "CV file downloaded successfully"),
+        ApiResponse(responseCode = "403", description = "Not authorized to access this CV"),
+        ApiResponse(responseCode = "404", description = "CV not found"),
+        ApiResponse(responseCode = "500", description = "Server error")
+    )
+    fun downloadCV(
+        @Parameter(description = "CV ID", example = "cv-123e4567-e89b-12d3-a456-426614174000")
+        @PathVariable cvId: String,
+        authentication: Authentication
+    ): ResponseEntity<ByteArrayResource> = runBlocking {
+        try {
+            val userId = authentication.principal as String
+            logger.info("Secure CV download request: cvId=$cvId, userId=$userId")
+
+            // Find the CV and verify ownership
+            val userCVs = cvService.getCVsByUserId(userId)
+            val requestedCV = userCVs.find { it.id == cvId }
+                ?: return@runBlocking ResponseEntity.notFound().build()
+
+            // Check if CV has storage path (new CVs) vs direct URL (legacy CVs)
+            if (requestedCV.storagePath != null) {
+                // New secure approach: download from Firebase Storage
+                val fileContent = cvService.downloadCVContent(requestedCV.storagePath)
+                val contentType = getContentTypeFromExtension(requestedCV.contentType)
+                val filename = extractFilenameFromPath(requestedCV.storagePath)
+                
+                val resource = ByteArrayResource(fileContent)
+                
+                logger.info("Successfully serving CV: cvId=$cvId, size=${fileContent.size}")
+                
+                return@runBlocking ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"$filename\"")
+                    .body(resource)
+            } else {
+                // Legacy approach: redirect to existing URL (less secure)
+                logger.warn("Legacy CV download for cvId=$cvId - redirecting to URL")
+                return@runBlocking ResponseEntity.status(HttpStatus.FOUND)
+                    .header(HttpHeaders.LOCATION, requestedCV.linkToCv)
+                    .build()
+            }
+
+        } catch (e: Exception) {
+            logger.error("Failed to download CV: cvId=$cvId", e)
+            return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
+        }
+    }
 
     @GetMapping("/health")
     fun healthCheck(): ResponseEntity<Map<String, String>> {
@@ -271,6 +330,24 @@ class CVController(
         } else {
             ""
         }
+    }
+
+    private fun getContentTypeFromExtension(extension: String): String {
+        return when (extension.lowercase()) {
+            "pdf" -> "application/pdf"
+            "doc" -> "application/msword"
+            "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            else -> "application/octet-stream"
+        }
+    }
+
+    private fun extractFilenameFromPath(storagePath: String): String {
+        // Extract original filename from path like: users/userId/cvs/timestamp-uuid-filename.pdf
+        val pathParts = storagePath.split("/")
+        val filename = pathParts.lastOrNull() ?: "cv.pdf"
+        // Remove timestamp and uuid prefix (format: timestamp-uuid-originalname.ext)
+        val parts = filename.split("-", limit = 3)
+        return if (parts.size >= 3) parts[2] else filename
     }
 
     /**
@@ -362,10 +439,12 @@ data class CVUploadResponse(
     val linkToCv: String
 )
 
-@Schema(description = "CV information response")
-data class CVResponse(
+@Schema(description = "CV information response for listing")
+data class CVListResponse(
     @Schema(description = "Unique identifier for the CV", example = "cv-123e4567-e89b-12d3-a456-426614174000", required = true)
     val cvId: String,
-    @Schema(description = "Direct link to access the CV file", example = "https://s3.amazonaws.com/bucket/cv-123.pdf", required = true)
-    val linkToCv: String
+    @Schema(description = "Original filename when uploaded", example = "resume.pdf", required = true)
+    val originalFilename: String,
+    @Schema(description = "When the CV was uploaded", example = "2024-01-15T10:30:00Z", required = true)
+    val uploadedAt: String
 )

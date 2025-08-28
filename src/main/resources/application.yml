@@ -37,6 +37,11 @@ firebase:
     client-id: ${FIREBASE_CLIENT_ID:}
     # Option 2: File path (for local development)
     path: ${FIREBASE_CREDENTIALS_PATH:}
+  storage:
+    bucket: ${FIREBASE_STORAGE_BUCKET:applyfirst-b9c69.firebasestorage.app}
+    retry:
+      max-attempts: ${FIREBASE_STORAGE_MAX_RETRY_ATTEMPTS:3}
+      delay-ms: ${FIREBASE_STORAGE_RETRY_DELAY_MS:1000}
 
 
 sentry:
@@ -100,8 +105,8 @@ aws:
 # Resend Email Configuration
 resend:
   api-key: ${RESEND_API_KEY}
-  from-email: ${RESEND_FROM_EMAIL:noreply@jobsearchcv.com}
-  from-name: ${RESEND_FROM_NAME:Job Search CV}
+  from-email: ${RESEND_FROM_EMAIL:notifications@applyfirst.app}
+  from-name: ${RESEND_FROM_NAME:ApplyFirst}
 
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
