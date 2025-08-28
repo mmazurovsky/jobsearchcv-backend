@@ -52,8 +52,9 @@ class ResendEmailService(
                 .from("$fromName <$fromEmail>")
                 .to(emailContent.recipient)
                 .subject(emailContent.subject)
-                .text(emailContent.textBody)
+                .text("") // Empty string to prevent Resend from auto-generating plain text
                 .html(emailContent.htmlBody)
+                .addHeader("Content-Type", "text/html")
                 .build()
             
             val response: CreateEmailResponse = resendClient.emails().send(params)
@@ -85,8 +86,9 @@ class ResendEmailService(
                         .from("$fromName <$fromEmail>")
                         .to(emailContent.recipient)
                         .subject(emailContent.subject)
-                        .text(emailContent.textBody)
+                        .text("") // Empty string to prevent Resend from auto-generating plain text
                         .html(emailContent.htmlBody)
+                        .addHeader("Content-Type", "text/html")
                         .build()
                     
                     resendClient.emails().send(params)
