@@ -116,6 +116,9 @@ dependencies {
     implementation("com.google.firebase:firebase-admin:9.3.0")
     implementation("com.google.cloud:google-cloud-storage:2.29.1")
     
+    // ── Stripe Payment Processing ──────────────────────────────
+    implementation("com.stripe:stripe-java:24.19.0")
+    
     // ── OpenAPI Documentation ──────────────────────────────────
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0")
     

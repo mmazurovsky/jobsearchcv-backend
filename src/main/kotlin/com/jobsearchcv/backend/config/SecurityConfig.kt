@@ -32,6 +32,8 @@ class SecurityConfig(
                     .requestMatchers("/api/cv/health").permitAll()
                     .requestMatchers("/api/job-data-callback").permitAll()
                     .requestMatchers("/api/test/**").permitAll() // Test endpoints for Logbook
+                    // Stripe webhook endpoint (must be public)
+                    .requestMatchers("/api/subscriptions/webhook").permitAll()
                     // OpenAPI endpoints
                     .requestMatchers("/v3/api-docs/**").permitAll()
                     .requestMatchers("/swagger-ui/**").permitAll()

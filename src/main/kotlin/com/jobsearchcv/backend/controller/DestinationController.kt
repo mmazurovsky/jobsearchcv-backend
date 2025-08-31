@@ -4,6 +4,7 @@ import com.jobsearchcv.backend.domain.model.Channel
 import com.jobsearchcv.backend.domain.model.Destination
 import com.jobsearchcv.backend.repository.DestinationRepository
 import com.jobsearchcv.backend.service.JobSearchScheduler
+import com.jobsearchcv.backend.service.SubscriptionService
 import com.jobsearchcv.backend.service.FirebaseUser
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
@@ -26,7 +27,8 @@ import org.springframework.web.bind.annotation.*
 @SecurityRequirement(name = "bearerAuth")
 class DestinationController(
     private val destinationRepository: DestinationRepository,
-    private val jobSearchScheduler: JobSearchScheduler
+    private val jobSearchScheduler: JobSearchScheduler,
+    private val subscriptionService: SubscriptionService
 ) {
     companion object {
         private val logger: Logger = LoggerFactory.getLogger(DestinationController::class.java)
@@ -105,6 +107,22 @@ class DestinationController(
                 )
                 // Save to database
                 destinationRepository.save(destination)
+            }
+            
+            // Create Stripe customer when user creates first email destination
+            // This ensures we have customer ID for future subscription management
+            if (existingDestination == null && channel == Channel.EMAIL) {
+                try {
+                    subscriptionService.ensureStripeCustomer(
+                        userId = userId,
+                        email = request.channelValue, // Email from destination
+                        name = userDetails?.displayName
+                    )
+                    logger.info("Created Stripe customer for user: $userId")
+                } catch (e: Exception) {
+                    logger.error("Failed to create Stripe customer for user: $userId", e)
+                    // Don't fail destination creation if Stripe customer creation fails
+                }
             }
             
             // If user didn't have destinations before and this is a new destination,
