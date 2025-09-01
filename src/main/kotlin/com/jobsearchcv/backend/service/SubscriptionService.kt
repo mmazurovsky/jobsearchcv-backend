@@ -1,9 +1,11 @@
 package com.jobsearchcv.backend.service
 
 import com.jobsearchcv.backend.domain.model.*
+import com.jobsearchcv.backend.repository.DestinationRepository
 import com.jobsearchcv.backend.repository.SubscriptionRepository
 import com.stripe.model.Subscription
 import com.stripe.model.checkout.Session
+import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.time.Instant
@@ -13,7 +15,10 @@ import java.time.ZoneOffset
 @Service
 class SubscriptionService(
     private val subscriptionRepository: SubscriptionRepository,
-    private val stripeService: StripeService
+    private val stripeService: StripeService,
+    private val resendEmailService: ResendEmailService,
+    private val destinationRepository: DestinationRepository,
+    private val emailTemplateService: EmailTemplateService
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
     
@@ -208,17 +213,75 @@ class SubscriptionService(
     }
     
     private fun sendTrialEndingEmail(userId: String) {
-        // TODO: Implement trial ending email notification
-        // Need to integrate with ResendEmailService (suspend function)
-        // or create separate async email service for webhook events
-        logger.info("Trial ending soon for user: $userId - email notification not yet implemented")
+        try {
+            // Get user subscription to find email
+            val subscription = getSubscription(userId)
+            if (subscription?.stripeCustomerId == null) {
+                logger.warn("No Stripe customer found for user: $userId")
+                return
+            }
+            
+            // Get email from destination (since we create customers from destinations)
+            val destinations = runBlocking {
+                destinationRepository.findByUserId(userId)
+            }
+            
+            val emailDestination = destinations.find { it.channel == "email" }
+            if (emailDestination == null) {
+                logger.warn("No email destination found for user: $userId")
+                return
+            }
+            
+            val email = emailDestination.channelValue
+            
+            runBlocking {
+                val emailContent = emailTemplateService.createTrialEndingEmail(email)
+                val result = resendEmailService.sendEmail(emailContent)
+                
+                result.fold(
+                    onSuccess = { logger.info("Trial ending email sent to user: $userId") },
+                    onFailure = { logger.error("Failed to send trial ending email to user: $userId", it) }
+                )
+            }
+        } catch (e: Exception) {
+            logger.error("Error sending trial ending email to user: $userId", e)
+        }
     }
     
     private fun sendPaymentFailedEmail(userId: String) {
-        // TODO: Implement payment failed email notification  
-        // Need to integrate with ResendEmailService (suspend function)
-        // or create separate async email service for webhook events
-        logger.warn("Payment failed for user: $userId - email notification not yet implemented")
+        try {
+            // Get user subscription to find email
+            val subscription = getSubscription(userId)
+            if (subscription?.stripeCustomerId == null) {
+                logger.warn("No Stripe customer found for user: $userId")
+                return
+            }
+            
+            // Get email from destination (since we create customers from destinations)
+            val destinations = runBlocking {
+                destinationRepository.findByUserId(userId)
+            }
+            
+            val emailDestination = destinations.find { it.channel == "email" }
+            if (emailDestination == null) {
+                logger.warn("No email destination found for user: $userId")
+                return
+            }
+            
+            val email = emailDestination.channelValue
+            
+            runBlocking {
+                val emailContent = emailTemplateService.createPaymentFailedEmail(email)
+                val result = resendEmailService.sendEmail(emailContent)
+                
+                result.fold(
+                    onSuccess = { logger.info("Payment failed email sent to user: $userId") },
+                    onFailure = { logger.error("Failed to send payment failed email to user: $userId", it) }
+                )
+            }
+        } catch (e: Exception) {
+            logger.error("Error sending payment failed email to user: $userId", e)
+        }
     }
     
     fun mapStripeStatus(stripeStatus: String): SubscriptionStatus {

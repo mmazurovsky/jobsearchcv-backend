@@ -135,6 +135,7 @@ springdoc:
 stripe:
   secret-key: ${STRIPE_SECRET_KEY}
   webhook-secret: ${STRIPE_WEBHOOK_SECRET}
+  customer-portal-url: ${STRIPE_CUSTOMER_PORTAL_URL}
   # Payment Link and Customer Portal URLs are configured in Stripe Dashboard
   # Frontend uses these directly:
   # - Payment Link: ${STRIPE_PREMIUM_CHECKOUT_URL}?client_reference_id={userId}

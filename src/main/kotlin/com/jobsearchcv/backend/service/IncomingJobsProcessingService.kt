@@ -57,9 +57,9 @@ class IncomingJobsProcessingService(
 
                 if (scrapedJobs.isEmpty()) {
                     logger.info("No job data received for jobSearchId={}", jobSearchId)
-                    // Notify user only for immediate searches when no jobs found
-                    if (isImmediateSearch) {
-//                        TODO: sendNoResults
+                    // Send no-results email for searches with 24h+ time periods
+                    if (shouldSendNoResultsEmail(isImmediateSearch, savedJobSearch)) {
+                        sendNoResultsEmail(userId, savedJobSearch, "No jobs were found matching your criteria")
                     }
                     return@withContext
                 }
@@ -77,11 +77,10 @@ class IncomingJobsProcessingService(
 
                 if (newJobs.isEmpty()) {
                     // Notify user about the reason for no results
-                    val message =
-                        "All ${scrapedJobs.size} jobs found have already been sent to you previously."
-
-                    if (isImmediateSearch) {
-//                        TODO: sendnoresults
+                    val message = "All ${scrapedJobs.size} jobs found have already been sent to you previously."
+                    
+                    if (shouldSendNoResultsEmail(isImmediateSearch, savedJobSearch)) {
+                        sendNoResultsEmail(userId, savedJobSearch, message)
                     }
                     return@withContext
                 }
@@ -101,11 +100,10 @@ class IncomingJobsProcessingService(
                 )
 
                 if (filteredJobs.isEmpty()) {
-                    val message =
-                        "I looked up jobs published recently and I didn't find good matches for you this time \uD83D\uDE14. Try again with different parameters or set up an alert to monitor freshly published jobs."
-
-                    if (isImmediateSearch) {
-//                        TODO: sendnoresults
+                    val message = "I looked up jobs published recently and I didn't find good matches for you this time \uD83D\uDE14. Try again with different parameters or set up an alert to monitor freshly published jobs."
+                    
+                    if (shouldSendNoResultsEmail(isImmediateSearch, savedJobSearch)) {
+                        sendNoResultsEmail(userId, savedJobSearch, message)
                     }
                     return@withContext
                 }
@@ -273,6 +271,48 @@ class IncomingJobsProcessingService(
 
         } catch (e: Exception) {
             logger.error("Error marking jobs as sent for user $userId", e)
+        }
+    }
+    
+    private fun shouldSendNoResultsEmail(isImmediateSearch: Boolean, jobSearch: JobSearchOut?): Boolean {
+        // Don't send emails for immediate searches
+        if (isImmediateSearch) {
+            return false
+        }
+        
+        // Only send emails for searches with 24h+ time periods
+        return jobSearch?.timePeriod?.shouldSendNoResultsEmail() ?: false
+    }
+    
+    private suspend fun sendNoResultsEmail(userId: String, jobSearch: JobSearchOut?, reason: String) {
+        try {
+            val destinations = destinationRepository.findByUserId(userId)
+            val emailDestination = destinations.find { it.channel == "email" }
+            
+            if (emailDestination == null) {
+                logger.info("No email destination found for user: $userId, skipping no-results email")
+                return
+            }
+            
+            val searchName = jobSearch?.jobTitle ?: "Your Job Search"
+            val timePeriod = jobSearch?.timePeriod?.displayName ?: "recent period"
+            
+            val emailContent = emailTemplateService.createNoResultsEmail(
+                recipient = emailDestination.channelValue,
+                searchName = searchName,
+                timePeriod = timePeriod
+            )
+            
+            val result = resendEmailService.sendEmail(emailContent)
+            
+            if (result.isSuccess) {
+                logger.info("Successfully sent no-results email to user: $userId for search: ${jobSearch?.id}")
+            } else {
+                logger.error("Failed to send no-results email to user: $userId", result.exceptionOrNull())
+            }
+            
+        } catch (e: Exception) {
+            logger.error("Error sending no-results email to user: $userId", e)
         }
     }
 }

@@ -58,4 +58,8 @@ enum class TimePeriod(
         
         fun getRecommendedLabels(): List<String> = getRecommendedOptions().map { it.displayName }
     }
+
+    fun shouldSendNoResultsEmail(): Boolean {
+        return this.seconds >= 86400 // 24 hours or longer
+    }
 } 

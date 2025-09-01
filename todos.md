@@ -3,30 +3,58 @@
 ## 🔥 High Priority (Critical Issues & Security)
 
 ### Stripe Payment Integration (HIGH RISK)
-- [ ] **CRITICAL: Implement email notifications for subscription events** - `SubscriptionService.kt:211,218`
-  - Trial ending notifications (required by Mastercard for compliance)
-  - Payment failure notifications
-  - Need to handle suspend functions in webhook context
+- [ ] **CRITICAL: Stripe Integration Testing**
+  - Comprehensive testing of webhook endpoints and payment flows
+  - Test subscription management and status transitions
+  - Verify email notifications work correctly
+  - Test webhook signature verification and idempotency
+- [ ] **CRITICAL: Fix email notification architecture** - `SubscriptionService.kt:225,237`
+  - Current runBlocking in webhook context can cause timeouts
+  - Implement proper async email queue instead of runBlocking
+  - Ensure webhook processing stays under 10 second Stripe timeout
 - [ ] **HIGH: Implement webhook event cleanup** - `SubscriptionSyncService.kt:50`
   - Clean up webhook events older than 30 days
   - Prevent database bloat
-- [ ] **HIGH: Fix email integration in subscription service**
-  - ResendEmailService is suspend function, webhooks are not
-  - Need async email queue or separate service
+- [ ] **HIGH: Webhook Security Hardening**
+  - Add rate limiting to Stripe webhook endpoint
+  - Implement request size limits for webhook payloads
+  - Add monitoring for suspicious webhook activity
 
 ### Data Model Issues  
-- [ ] **MEDIUM: Fix JobModels type inconsistency** - `JobModels.kt:152`
-  - TODO: type should be string (currently unclear)
 - [ ] **LOW: Remove unused internal_id field** - `JobProcessingModels.kt:116` 
   - Evaluate if internal_id is needed in ProcessedJobData
 
+### Testing & Quality Assurance
+- [ ] **CRITICAL: Improve test coverage**
+  - Only 2 test files out of 73 Kotlin source files (~2.7% coverage)
+  - Add tests for Stripe integration, subscription logic, webhook handling
+  - Add integration tests for email notifications
+- [ ] **HIGH: Missing Dockerfile**
+  - docker-compose.yml references Dockerfile but none exists
+  - Required for deployment and production setup
+
 ### Job Processing TODOs
-- [ ] **MEDIUM: Implement no-results notifications** - `IncomingJobsProcessingService.kt:62,84,108`
-  - Send notifications when immediate searches find no jobs
+- [ ] **MEDIUM: Create monthly job search summaries**
+  - Generate monthly digest emails with job search statistics
+  - Include search performance metrics and recommendations
+  - Send alongside regular time-period based searches
+- [ ] **MEDIUM: Display time period and location in job results emails**
+  - Add search time period info to job notification email headers
+  - Include location information in email templates
+  - Help users understand which alert triggered the email
 - [ ] **LOW: Implement X.com job posting** - `IncomingJobsProcessingService.kt:169`
   - Use X scraper to post jobs
 - [ ] **LOW: Add support for non-email channels** - `IncomingJobsProcessingService.kt:243`
   - Handle telegram and other notification channels
+
+### Error Handling & Resilience
+- [ ] **MEDIUM: Add circuit breakers for external APIs**
+  - Implement circuit breakers for DeepSeek, OpenRouter, Stripe API calls
+  - Add retry logic for failed webhook processing
+  - Implement fallback mechanisms for email delivery failures
+- [ ] **MEDIUM: Environment configuration validation**
+  - Validate required environment variables at startup
+  - Implement graceful degradation when optional services unavailable
 
 ## 💰 Subscription System (Medium Priority)
 
@@ -43,6 +71,14 @@
   - Test customer portal access flow
 
 ### Subscription Analytics & Monitoring
+- [ ] **MEDIUM: Add performance monitoring**
+  - Implement application performance metrics collection
+  - Add database query performance monitoring
+  - Set up memory/CPU usage alerts
+- [ ] **MEDIUM: Add business logic monitoring**
+  - Monitor job processing pipeline health
+  - Track failed email deliveries with alerts
+  - Implement user engagement metrics tracking
 - [ ] Add conversion rate tracking (free → premium)
 - [ ] Add churn rate metrics (canceled subscriptions) 
 - [ ] Add failed payment rate monitoring
@@ -138,6 +174,16 @@ enum class PremiumFeature {
 - [x] Subscription sync service for webhook failure recovery
 - [x] Proactive Stripe customer creation on destination creation
 - [x] No grace period implementation (immediate access loss)
+
+### Development & Documentation
+- [ ] **LOW: Development setup documentation**
+  - Create comprehensive local development setup guide
+  - Add troubleshooting guide for common development issues
+  - Document environment variable requirements
+- [ ] **LOW: API documentation improvements**
+  - Add request/response examples to OpenAPI docs
+  - Create integration testing examples for new developers
+  - Document webhook testing procedures
 
 ## 🚀 Future Enhancements (Low Priority)
 - [ ] Multiple subscription tiers (Basic, Pro, Enterprise)
