@@ -91,16 +91,6 @@ logging:
 DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:}
 OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:}
 
-aws:
-  s3:
-    access-key: ${AWS_ACCESS_KEY:}
-    secret-key: ${AWS_SECRET_KEY:}
-    region: ${AWS_REGION:us-east-1}
-    retry:
-      max-attempts: ${AWS_S3_MAX_RETRY_ATTEMPTS:3}
-      delay-ms: ${AWS_S3_RETRY_DELAY_MS:1000}
-    bucket:
-      cvs: ${AWS_S3_CVS_BUCKET:applyfirst-cvs}
 
 # Resend Email Configuration
 resend:

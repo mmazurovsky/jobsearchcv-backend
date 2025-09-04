@@ -77,12 +77,3 @@ data class CVProcessingResult(
     val errorMessage: String? = null
 )
 
-/**
- * Internal result from the S3 upload coroutine
- */
-data class S3UploadResult(
-    val success: Boolean,
-    val cvId: String,
-    val linkToCv: String,
-    val errorMessage: String? = null
-)

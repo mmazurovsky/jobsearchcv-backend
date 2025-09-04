@@ -55,14 +55,6 @@ llm:
 DEEPSEEK_API_KEY: test-deepseek-key
 OPENROUTER_API_KEY: test-openrouter-key
 
-# AWS configuration for tests
-aws:
-  s3:
-    access-key: test-access-key
-    secret-key: test-secret-key
-    region: us-east-1
-    bucket:
-      cvs: test-bucket
 
 # CORS configuration for tests
 cors:

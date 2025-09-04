@@ -48,7 +48,7 @@ class CVController(
     @PostMapping("/uploadAndCreateSearches")
     @Operation(
         summary = "Upload CV and create job searches",
-        description = "Uploads a CV file, saves it to S3, analyzes it with AI, and creates recommended job searches"
+        description = "Uploads a CV file, saves it to storage, analyzes it with AI, and creates recommended job searches"
     )
     @ApiResponses(
         ApiResponse(responseCode = "200", description = "CV uploaded and searches created successfully"),
@@ -71,8 +71,8 @@ class CVController(
             val fileExtension = validateUploadedFile(file)
 
             // Start both coroutines in parallel
-            val s3UploadDeferred = async {
-                performS3Upload(file, userId, fileExtension)
+            val uploadDeferred = async {
+                performUpload(file, userId, fileExtension)
             }
 
             val cvProcessingDeferred = async {
@@ -80,14 +80,14 @@ class CVController(
             }
 
             // Wait for both coroutines to complete
-            val s3Result = s3UploadDeferred.await()
+            val uploadResult = uploadDeferred.await()
             val processingResult = cvProcessingDeferred.await()
 
             // Check if both operations succeeded
-            if (!s3Result.success) {
-                logger.error("S3 upload failed: ${s3Result.errorMessage}")
+            if (!uploadResult.success) {
+                logger.error("Upload failed: ${uploadResult.errorMessage}")
                 return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(createErrorResponse("Failed to upload CV: ${s3Result.errorMessage}"))
+                    .body(createErrorResponse("Failed to upload CV: ${uploadResult.errorMessage}"))
             }
 
             if (!processingResult.success) {
@@ -107,7 +107,7 @@ class CVController(
                 emptyList()
             }
 
-            logger.info("Successfully uploaded CV and created searches: userId=$userId, cvId=${s3Result.cvId}, savedSearches=${savedSearches.size}")
+            logger.info("Successfully uploaded CV and created searches: userId=$userId, cvId=${uploadResult.cvId}, savedSearches=${savedSearches.size}")
 
             // Convert saved searches back to JobSearchIn format for the response
             val recommendedSearchesWithIds = savedSearches.map { saved ->
@@ -124,8 +124,8 @@ class CVController(
 
             return@runBlocking ResponseEntity.ok(
                 UploadAndCreateSearchesResponse(
-                    cvId = s3Result.cvId,
-                    linkToCv = s3Result.linkToCv,
+                    cvId = uploadResult.cvId,
+                    linkToCv = uploadResult.linkToCv,
                     recommendedSearches = recommendedSearchesWithIds,
                     analysisResult = CVAnalysisResult(
                         currentOrDesiredPosition = processingResult.analysisResult.currentOrDesiredPosition,
@@ -351,26 +351,26 @@ class CVController(
     }
 
     /**
-     * Coroutine to handle S3 upload
+     * Coroutine to handle file upload
      */
-    private suspend fun performS3Upload(file: MultipartFile, userId: String, fileExtension: String): S3UploadResult {
+    private suspend fun performUpload(file: MultipartFile, userId: String, fileExtension: String): UploadResult {
         return try {
-            logger.info("Starting S3 upload coroutine for user: $userId")
+            logger.info("Starting upload coroutine for user: $userId")
             val savedCV = cvService.uploadAndSaveCV(file, userId, fileExtension)
-            logger.info("S3 upload completed successfully: cvId=${savedCV.id}")
+            logger.info("Upload completed successfully: cvId=${savedCV.id}")
 
-            S3UploadResult(
+            UploadResult(
                 success = true,
                 cvId = savedCV.id,
                 linkToCv = savedCV.linkToCv
             )
         } catch (e: Exception) {
-            logger.error("S3 upload failed: ${e.message}", e)
-            S3UploadResult(
+            logger.error("Upload failed: ${e.message}", e)
+            UploadResult(
                 success = false,
                 cvId = "",
                 linkToCv = "",
-                errorMessage = e.message ?: "Unknown S3 upload error"
+                errorMessage = e.message ?: "Unknown upload error"
             )
         }
     }
@@ -435,7 +435,7 @@ class CVController(
 data class CVUploadResponse(
     @Schema(description = "Unique identifier for the uploaded CV", example = "cv-123e4567-e89b-12d3-a456-426614174000", required = true)
     val cvId: String,
-    @Schema(description = "Direct link to the CV file", example = "https://s3.amazonaws.com/bucket/cv-123.pdf", required = true)
+    @Schema(description = "Direct link to the CV file", example = "https://storage.googleapis.com/bucket/cv-123.pdf", required = true)
     val linkToCv: String
 )
 
@@ -447,4 +447,14 @@ data class CVListResponse(
     val originalFilename: String,
     @Schema(description = "When the CV was uploaded", example = "2024-01-15T10:30:00Z", required = true)
     val uploadedAt: String
+)
+
+/**
+ * Internal result from the upload coroutine
+ */
+data class UploadResult(
+    val success: Boolean,
+    val cvId: String,
+    val linkToCv: String,
+    val errorMessage: String? = null
 )

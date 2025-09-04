@@ -92,10 +92,6 @@ dependencies {
     implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
     implementation("io.ktor:ktor-serialization-jackson:$ktorVersion")
     
-    // ── AWS SDK v2 ───────────────────────────────────────────────
-    implementation(platform("software.amazon.awssdk:bom:2.25.0"))
-    implementation("software.amazon.awssdk:s3")
-    implementation("software.amazon.awssdk:s3-transfer-manager")
     
     // ── Resend Email SDK ────────────────────────────────────────
     implementation("com.resend:resend-java:4.5.0")
