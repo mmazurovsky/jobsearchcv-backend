@@ -1,6 +1,5 @@
 package com.jobsearchcv.backend.config
 
-import com.jobsearchcv.backend.service.JobSearchScheduler
 import com.jobsearchcv.backend.service.JobSearchService
 import com.jobsearchcv.backend.service.client.ScraperClient
 import org.slf4j.Logger
@@ -12,7 +11,6 @@ import kotlinx.coroutines.runBlocking
 
 @Component
 class ApplicationStartupListener(
-    private val jobSearchScheduler: JobSearchScheduler,
     private val jobSearchService: JobSearchService,
     private val scraperClient: ScraperClient
 ) {

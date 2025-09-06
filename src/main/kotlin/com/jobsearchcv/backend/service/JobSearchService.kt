@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service
 @Service
 class JobSearchService(
     private val jobSearchRepository: JobSearchRepository,
-    private val jobSearchScheduler: JobSearchScheduler,
+    private val subscriptionAwareSchedulingService: SubscriptionAwareSchedulingService,
     private val scraperJobService: ScraperJobService
 ) {
 
@@ -31,7 +31,7 @@ class JobSearchService(
         val search = jobSearchRepository.findByIdAndUserId(searchId, userId)
         if (search != null) {
             jobSearchRepository.deleteById(searchId)
-            jobSearchScheduler.removeJobSearch(searchId)
+            subscriptionAwareSchedulingService.removeJobSearch(searchId)
             logger.info("Deleted job search: {} for user: {}", searchId, userId)
             return true
         }
@@ -43,7 +43,7 @@ class JobSearchService(
         val allSearches = jobSearchRepository.findAll()
         logger.info("Loading {} existing job searches", allSearches.size)
         
-        // Use new bulk method
-        jobSearchScheduler.addInitialJobSearches(allSearches)
+        // Use subscription-aware bulk scheduling
+        subscriptionAwareSchedulingService.scheduleInitialJobSearches(allSearches)
     }
 } 

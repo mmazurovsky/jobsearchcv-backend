@@ -18,7 +18,7 @@ class IncomingJobsProcessingService(
     private val batchJobProcessingService: BatchJobProcessingService,
     private val destinationRepository: DestinationRepository,
     private val emailTemplateService: EmailTemplateService,
-    private val resendEmailService: ResendEmailService,
+    private val asyncEmailService: AsyncEmailService,
 ) {
     private val logger = LoggerFactory.getLogger(this::class.java)
 
@@ -226,16 +226,12 @@ class IncomingJobsProcessingService(
                     alertId = alertId
                 )
 
-                // Send email using ResendEmailService
-                val result = resendEmailService.sendEmail(emailContent)
-
-                if (result.isSuccess) {
-                    logger.info("Successfully sent email to $recipientEmail with ${jobs.size} jobs")
-                    jobs // Return all jobs as successfully sent
-                } else {
-                    logger.error("Failed to send email to $recipientEmail: ${result.exceptionOrNull()?.message}")
-                    emptyList()
-                }
+                // Send email asynchronously using AsyncEmailService - fire and forget
+                asyncEmailService.sendEmailAsync(emailContent)
+                logger.info("Queued email to $recipientEmail with ${jobs.size} jobs")
+                
+                // Return jobs as successfully sent since we're fire-and-forget
+                jobs
             } else {
                 logger.info("Channel '${latestDestination.channel}' is not email, skipping for now")
                 // TODO: Handle telegram or other channels in the future
@@ -303,13 +299,9 @@ class IncomingJobsProcessingService(
                 timePeriod = timePeriod
             )
             
-            val result = resendEmailService.sendEmail(emailContent)
-            
-            if (result.isSuccess) {
-                logger.info("Successfully sent no-results email to user: $userId for search: ${jobSearch?.id}")
-            } else {
-                logger.error("Failed to send no-results email to user: $userId", result.exceptionOrNull())
-            }
+            // Send email asynchronously - fire and forget
+            asyncEmailService.sendEmailAsync(emailContent)
+            logger.info("Queued no-results email to user: $userId for search: ${jobSearch?.id}")
             
         } catch (e: Exception) {
             logger.error("Error sending no-results email to user: $userId", e)

@@ -1,6 +1,24 @@
 # Backend TODOs
 
-## 🔥 High Priority (Critical Issues & Security)
+## 🔥 High Priority (Critical Issues & Configuration)
+
+most important next step:
+After user provides their first destination we need to trigger immediate search execution
+
+### Missing Integration 
+- [x] **COMPLETED: Welcome email sending in checkout completion**
+  - Added `sendWelcomeEmail(userId)` call to `SubscriptionService.handleCheckoutCompleted()`
+  - Updated `createWelcomeEmail()` method with proper trial messaging and premium benefits
+  - Follows job search email template conventions with mobile responsiveness
+  - Uses premium benefits from frontend subscription_benefits.dart
+- [x] **COMPLETED: Subscription-aware job search scheduling**
+  - Created `SubscriptionAwareSchedulingService` with subscription-based time period logic
+  - Updated `JobSearchScheduler` integration points for startup, new searches, and updates
+  - Added subscription change handlers in `SubscriptionService` for upgrade/downgrade scenarios
+  - Free users automatically get monthly scheduling regardless of saved time period
+  - Premium users get their originally saved time periods
+  - Automatic rescheduling when subscription status changes
+
 
 ### Stripe Payment Integration (HIGH RISK)
 - [ ] **CRITICAL: Stripe Integration Testing**
@@ -8,10 +26,15 @@
   - Test subscription management and status transitions
   - Verify email notifications work correctly
   - Test webhook signature verification and idempotency
-- [ ] **CRITICAL: Fix email notification architecture** - `SubscriptionService.kt:225,237`
-  - Current runBlocking in webhook context can cause timeouts
-  - Implement proper async email queue instead of runBlocking
-  - Ensure webhook processing stays under 10 second Stripe timeout
+- [x] **COMPLETED: Fix email notification architecture** 
+  - Replaced runBlocking with AsyncEmailService fire-and-forget pattern
+  - Updated SubscriptionService webhook handlers to use async email sending
+  - Updated SubscriptionController to use coroutines for suspend function calls
+  - Updated IncomingJobsProcessingService to use async email sending
+  - All email sending now uses fire-and-forget coroutines, preventing webhook timeouts
+  - **Architecture Protection**: Made ResendEmailService internal within AsyncEmailService file
+  - **Architecture Protection**: Made JobSearchScheduler internal within SubscriptionAwareSchedulingService file
+  - All external code now uses proper facade services with subscription-aware logic
 - [ ] **HIGH: Implement webhook event cleanup** - `SubscriptionSyncService.kt:50`
   - Clean up webhook events older than 30 days
   - Prevent database bloat
@@ -29,9 +52,6 @@
   - Only 2 test files out of 73 Kotlin source files (~2.7% coverage)
   - Add tests for Stripe integration, subscription logic, webhook handling
   - Add integration tests for email notifications
-- [ ] **HIGH: Missing Dockerfile**
-  - docker-compose.yml references Dockerfile but none exists
-  - Required for deployment and production setup
 
 ### Job Processing TODOs
 - [ ] **MEDIUM: Create monthly job search summaries**
@@ -58,12 +78,12 @@
 
 ## 💰 Subscription System (Medium Priority)
 
-### Payment Features
-- [ ] **MEDIUM: Add subscription tier restrictions to existing services**
-  - Update `JobSearchCreationService` for premium-only continuous monitoring
-  - Update `CVProcessingService` to limit analysis depth for free users
-  - Update `IncomingJobsProcessingService` for tier-based filtering
-  - Update `ResendEmailService` to limit email frequency for free users
+### Payment Features  
+- [x] **COMPLETED: Core Stripe integration infrastructure**
+  - All domain models, repositories, services, and controllers implemented
+  - Webhook handling with idempotency and error recovery
+  - Email templates for all subscription lifecycle events
+  - @RequiresPremium annotation created for access control
 
 ### Customer Portal Integration  
 - [ ] **MEDIUM: Add customer portal links to email notifications**
@@ -163,17 +183,32 @@ enum class PremiumFeature {
   - **Solution**: Add rate limiting to webhook endpoint
 
 ## 🔧 Completed Items
-- [x] Stripe dependency added to build.gradle.kts
+
+### ✅ Stripe Integration Foundation (COMPLETE)
+- [x] Stripe dependency added to build.gradle.kts  
+- [x] Stripe configuration in application.yml (secret-key, webhook-secret, customer-portal-url)
 - [x] Domain models created (UserSubscription, SubscriptionStatus, etc.)
 - [x] SubscriptionRepository with MongoDB indexes
 - [x] StripeService with webhook signature verification
-- [x] SubscriptionService with status management
+- [x] SubscriptionService with status management and premium access checking
 - [x] SubscriptionController with status and webhook endpoints
-- [x] SecurityConfig updated for webhook endpoint
-- [x] Webhook event tracking for idempotency
+- [x] SecurityConfig updated to allow webhook endpoint
+- [x] Webhook event tracking (StripeWebhookEvent) for idempotency
 - [x] Subscription sync service for webhook failure recovery
 - [x] Proactive Stripe customer creation on destination creation
 - [x] No grace period implementation (immediate access loss)
+- [x] Complete email sending implementation in webhook handlers:
+  - [x] Trial ending reminder email (handleTrialWillEnd → sendTrialEndingEmail)
+  - [x] Payment failed notification email (handlePaymentFailed → sendPaymentFailedEmail)
+  - [x] Welcome email on checkout completion (handleCheckoutCompleted → sendWelcomeEmail)
+  - [x] Mobile-responsive email templates for all subscription lifecycle events
+  - [x] Error handling and logging for email delivery
+- [x] Subscription-aware job search scheduling system:
+  - [x] `SubscriptionAwareSchedulingService` with free/premium time period logic
+  - [x] Integration with `JobSearchScheduler` for startup, creation, and updates
+  - [x] Subscription upgrade/downgrade handlers with automatic rescheduling
+  - [x] Configuration setup to handle circular dependencies
+  - [x] Free tier: Monthly scheduling override, Premium tier: Original time periods
 
 ### Development & Documentation
 - [ ] **LOW: Development setup documentation**

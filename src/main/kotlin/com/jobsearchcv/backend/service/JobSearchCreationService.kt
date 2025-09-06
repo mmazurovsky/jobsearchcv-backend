@@ -13,7 +13,7 @@ class JobSearchCreationService(
     private val destinationRepository: DestinationRepository,
     private val jobSearchRepository: JobSearchRepository,
     private val scraperJobService: ScraperJobService,
-    private val jobSearchScheduler: JobSearchScheduler
+    private val subscriptionAwareSchedulingService: SubscriptionAwareSchedulingService
 ) {
     
     companion object {
@@ -102,9 +102,9 @@ class JobSearchCreationService(
             savedJobSearches.forEach { jobSearch ->
                 try {
                     if (createdSearches.contains(jobSearch)) {
-                        jobSearchScheduler.addJobSearch(jobSearch)
+                        subscriptionAwareSchedulingService.scheduleJobSearchWithSubscriptionLogic(jobSearch)
                     } else {
-                        jobSearchScheduler.updateJobSearch(jobSearch)
+                        subscriptionAwareSchedulingService.updateJobSearch(jobSearch)
                     }
                 } catch (e: Exception) {
                     logger.error("Failed to update scheduler for job search: ${jobSearch.id}", e)
@@ -115,7 +115,7 @@ class JobSearchCreationService(
             // Remove deleted job searches from scheduler
             idsToDelete.forEach { id ->
                 try {
-                    jobSearchScheduler.removeJobSearch(id)
+                    subscriptionAwareSchedulingService.removeJobSearch(id)
                 } catch (e: Exception) {
                     logger.error("Failed to remove job search from scheduler: $id", e)
                     // Don't fail the entire operation if scheduler update fails

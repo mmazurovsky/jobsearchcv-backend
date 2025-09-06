@@ -230,22 +230,205 @@ class EmailTemplateService(
     }
 
     fun createWelcomeEmail(recipient: String): EmailContent {
-        val subject = "Welcome to ApplyFirst Premium!"
-        val htmlBody = createSystemEmailHtml(
-            title = "Welcome to Premium!",
-            content = """
-                <p style="font-size: 16px; line-height: 24px; margin-bottom: 16px;">Thank you for subscribing to ApplyFirst Premium!</p>
-                <p style="font-size: 16px; line-height: 24px; margin-bottom: 16px;">You now have access to premium features including continuous job monitoring and priority support.</p>
-                <p style="font-size: 16px; line-height: 24px; margin-bottom: 20px;">Start by creating your first job alert to get personalized job matches delivered to your inbox.</p>
-            """.trimIndent(),
-            ctaText = "Create Job Alert",
-            ctaUrl = "https://applyfirst.app"
-        )
-        val textBody = createSystemEmailText(
-            title = "Welcome to Premium!",
-            content = "Thank you for subscribing to ApplyFirst Premium! You now have access to premium features including continuous job monitoring and priority support. Start by creating your first job alert to get personalized job matches delivered to your inbox."
-        )
+        val subject = "Welcome to your ApplyFirst Premium trial! 🎉"
+        val htmlBody = createWelcomeEmailHtml()
+        val textBody = createWelcomeEmailText()
         return EmailContent(recipient, subject, htmlBody, textBody)
+    }
+
+    private fun createWelcomeEmailHtml(): String = buildString {
+        appendLine("<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">")
+        appendLine("<html xmlns=\"http://www.w3.org/1999/xhtml\">")
+        appendLine("<head>")
+        appendLine("    <meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />")
+        appendLine("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/>")
+        appendLine("    <title>Welcome to ApplyFirst Premium Trial</title>")
+        appendLine("    <style type=\"text/css\">")
+        appendLine("        /* Mobile responsive styles */")
+        appendLine("        @media only screen and (max-width: 600px) {")
+        appendLine("            table[class=\"container\"] {")
+        appendLine("                width: 100% !important;")
+        appendLine("                min-width: 320px !important;")
+        appendLine("            }")
+        appendLine("            td[class=\"mobile-padding\"] {")
+        appendLine("                padding: 15px !important;")
+        appendLine("            }")
+        appendLine("            td[class=\"mobile-title\"] {")
+        appendLine("                font-size: 20px !important;")
+        appendLine("                line-height: 26px !important;")
+        appendLine("            }")
+        appendLine("            td[class=\"mobile-text\"] {")
+        appendLine("                font-size: 14px !important;")
+        appendLine("                line-height: 20px !important;")
+        appendLine("            }")
+        appendLine("            td[class=\"mobile-button\"] {")
+        appendLine("                padding: 10px 18px !important;")
+        appendLine("            }")
+        appendLine("        }")
+        appendLine("        /* Prevent iOS auto-linking */")
+        appendLine("        .appleLinks a {")
+        appendLine("            color: inherit !important;")
+        appendLine("            text-decoration: none !important;")
+        appendLine("        }")
+        appendLine("    </style>")
+        appendLine("</head>")
+        appendLine("<body style=\"margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; color: #000000; background-color: #ffffff; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;\">")
+        appendLine("    <table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\" style=\"background-color: #ffffff;\">")
+        appendLine("        <tr>")
+        appendLine("            <td align=\"center\">")
+        appendLine("                <table class=\"container\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\" style=\"max-width: 600px; background-color: #ffffff;\">")
+        
+        // Header (mobile responsive)
+        appendLine("                    <tr>")
+        appendLine("                        <td class=\"mobile-padding\" style=\"padding: 20px;\">")
+        appendLine("                            <table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\">")
+        appendLine("                                <tr>")
+        appendLine("                                    <td style=\"font-size: 20px; font-weight: bold; padding-bottom: 8px;\">")
+        appendLine("                                        <a href=\"https://applyfirst.app\" style=\"color: #000000; text-decoration: none;\">ApplyFirst</a>")
+        appendLine("                                    </td>")
+        appendLine("                                </tr>")
+        appendLine("                                <tr>")
+        appendLine("                                    <td class=\"mobile-text\" style=\"font-size: 14px; color: #666666; padding-bottom: 30px;\">Your personalised Job Search AI Agent</td>")
+        appendLine("                                </tr>")
+        appendLine("                                <tr>")
+        appendLine("                                    <td class=\"mobile-title\" style=\"font-size: 24px; font-weight: bold; padding-bottom: 24px;\">🎉 Welcome to your 3-day Premium trial!</td>")
+        appendLine("                                </tr>")
+        appendLine("                            </table>")
+        appendLine("                        </td>")
+        appendLine("                    </tr>")
+        
+        // Main content card (mobile responsive)
+        appendLine("                    <tr>")
+        appendLine("                        <td class=\"mobile-padding\" style=\"padding: 0 20px 20px 20px;\">")
+        appendLine("                            <table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\" style=\"border: 1px solid #e5e5e5; background-color: #ffffff;\">")
+        appendLine("                                <tr>")
+        appendLine("                                    <td class=\"mobile-padding\" style=\"padding: 20px;\">")
+        appendLine("                                        <table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\">")
+        
+        // Trial info
+        appendLine("                                            <tr>")
+        appendLine("                                                <td class=\"mobile-text\" style=\"font-size: 16px; line-height: 24px; color: #000000; padding-bottom: 20px;\">")
+        appendLine("                                                    Your <strong>3-day free trial</strong> has started! You now have access to all Premium features with no charges until your trial ends.")
+        appendLine("                                                </td>")
+        appendLine("                                            </tr>")
+        
+        // Premium features header
+        appendLine("                                            <tr>")
+        appendLine("                                                <td class=\"mobile-text\" style=\"font-size: 16px; font-weight: bold; color: #000000; padding-bottom: 12px;\">")
+        appendLine("                                                    What's included in Premium:")
+        appendLine("                                                </td>")
+        appendLine("                                            </tr>")
+        
+        // Feature list (mobile responsive)
+        val premiumFeatures = listOf(
+            "🔄 Continuous real-time monitoring of job boards and career pages",
+            "📊 Deep analysis of your strengths and weaknesses against each posting", 
+            "📧 Email alerts with your specified frequency",
+            "⭐ See your compatibility score for each job",
+            "✅ All free features: one-time search, filtering, fewer applicants info"
+        )
+        
+        premiumFeatures.forEach { feature ->
+            appendLine("                                            <tr>")
+            appendLine("                                                <td class=\"mobile-text\" style=\"font-size: 14px; color: #666666; padding-bottom: 8px; line-height: 20px;\">$feature</td>")
+            appendLine("                                            </tr>")
+        }
+        
+        // Trial terms (mobile responsive)
+        appendLine("                                            <tr>")
+        appendLine("                                                <td class=\"mobile-text\" style=\"font-size: 14px; color: #000000; padding: 20px 0 12px 0; border-top: 1px solid #e5e5e5;\">")
+        appendLine("                                                    <strong>After your 3-day trial:</strong>")
+        appendLine("                                                </td>")
+        appendLine("                                            </tr>")
+        appendLine("                                            <tr>")
+        appendLine("                                                <td class=\"mobile-text\" style=\"font-size: 14px; color: #666666; padding-bottom: 8px;\">• Your subscription will automatically continue at <strong style=\"color: #059862;\">$14/month</strong></td>")
+        appendLine("                                            </tr>")
+        appendLine("                                            <tr>")
+        appendLine("                                                <td class=\"mobile-text\" style=\"font-size: 14px; color: #666666; padding-bottom: 16px;\">• Cancel anytime before trial ends to avoid charges</td>")
+        appendLine("                                            </tr>")
+        
+        // CTA button (mobile responsive)
+        appendLine("                                            <tr>")
+        appendLine("                                                <td style=\"padding-top: 12px;\">")
+        appendLine("                                                    <table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\">")
+        appendLine("                                                        <tr>")
+        appendLine("                                                            <td align=\"center\">")
+        appendLine("                                                                <table cellpadding=\"0\" cellspacing=\"0\" border=\"0\">")
+        appendLine("                                                                    <tr>")
+        appendLine("                                                                        <td class=\"mobile-button\" style=\"background-color: #000000; padding: 12px 24px; border-radius: 3px;\">")
+        appendLine("                                                                            <a href=\"https://applyfirst.app\" style=\"color: #ffffff; text-decoration: none; font-size: 16px; font-weight: bold; display: block;\">Start Your Job Search →</a>")
+        appendLine("                                                                        </td>")
+        appendLine("                                                                    </tr>")
+        appendLine("                                                                </table>")
+        appendLine("                                                            </td>")
+        appendLine("                                                        </tr>")
+        appendLine("                                                    </table>")
+        appendLine("                                                </td>")
+        appendLine("                                            </tr>")
+        appendLine("                                        </table>")
+        appendLine("                                    </td>")
+        appendLine("                                </tr>")
+        appendLine("                            </table>")
+        appendLine("                        </td>")
+        appendLine("                    </tr>")
+        
+        // Footer (mobile responsive)
+        appendLine("                    <tr>")
+        appendLine("                        <td class=\"mobile-padding\" style=\"padding: 20px;\">")
+        appendLine("                            <table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\">")
+        appendLine("                                <tr>")
+        appendLine("                                    <td style=\"padding-bottom: 20px; text-align: center;\">")
+        appendLine("                                        <table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin: 0 auto;\">")
+        appendLine("                                            <tr>")
+        appendLine("                                                <td style=\"background-color: #ffffff; border: 1px solid #e5e5e5; padding: 8px 16px; border-radius: 3px;\">")
+        appendLine("                                                    <a href=\"$customerPortalUrl\" style=\"color: #666666; text-decoration: none; font-size: 14px;\">Manage Subscription</a>")
+        appendLine("                                                </td>")
+        appendLine("                                            </tr>")
+        appendLine("                                        </table>")
+        appendLine("                                    </td>")
+        appendLine("                                </tr>")
+        appendLine("                                <tr>")
+        appendLine("                                    <td class=\"mobile-text appleLinks\" style=\"font-size: 12px; color: #666666; line-height: 18px; text-align: center;\">")
+        appendLine("                                        $EMAIL_GROUND_TEXT<br/>")
+        appendLine("                                        $BUSINESS_NAME<br/>")
+        appendLine("                                        $BUSINESS_ADDRESS")
+        appendLine("                                    </td>")
+        appendLine("                                </tr>")
+        appendLine("                            </table>")
+        appendLine("                        </td>")
+        appendLine("                    </tr>")
+        appendLine("                </table>")
+        appendLine("            </td>")
+        appendLine("        </tr>")
+        appendLine("    </table>")
+        appendLine("</body>")
+        appendLine("</html>")
+    }
+
+    private fun createWelcomeEmailText(): String {
+        return buildString {
+            appendLine("🎉 Welcome to your 3-day ApplyFirst Premium trial!")
+            appendLine()
+            appendLine("Your 3-day free trial has started! You now have access to all Premium features with no charges until your trial ends.")
+            appendLine()
+            appendLine("What's included in Premium:")
+            appendLine("• Continuous real-time monitoring of job boards and career pages")
+            appendLine("• Deep analysis of your strengths and weaknesses against each posting")
+            appendLine("• Email alerts with your specified frequency")
+            appendLine("• See your compatibility score for each job")
+            appendLine("• All free features: one-time search, filtering, fewer applicants info")
+            appendLine()
+            appendLine("After your 3-day trial:")
+            appendLine("• Your subscription will automatically continue at $14/month")
+            appendLine("• Cancel anytime before trial ends to avoid charges")
+            appendLine()
+            appendLine("Start your job search: https://applyfirst.app")
+            appendLine("Manage subscription: $customerPortalUrl")
+            appendLine()
+            appendLine("---")
+            appendLine()
+            appendLine(createPlainTextFooter())
+        }
     }
 
     fun createNoResultsEmail(recipient: String, searchName: String, timePeriod: String): EmailContent {

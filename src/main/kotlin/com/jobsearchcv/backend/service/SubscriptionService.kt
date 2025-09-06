@@ -16,10 +16,17 @@ import java.time.ZoneOffset
 class SubscriptionService(
     private val subscriptionRepository: SubscriptionRepository,
     private val stripeService: StripeService,
-    private val resendEmailService: ResendEmailService,
     private val destinationRepository: DestinationRepository,
-    private val emailTemplateService: EmailTemplateService
+    private val emailTemplateService: EmailTemplateService,
+    private val asyncEmailService: AsyncEmailService
 ) {
+    
+    // Late initialization to avoid circular dependency
+    private lateinit var subscriptionAwareSchedulingService: SubscriptionAwareSchedulingService
+    
+    fun setSubscriptionAwareSchedulingService(service: SubscriptionAwareSchedulingService) {
+        this.subscriptionAwareSchedulingService = service
+    }
     private val logger = LoggerFactory.getLogger(javaClass)
     
     fun getSubscription(userId: String): UserSubscription? {
@@ -65,7 +72,7 @@ class SubscriptionService(
         }
     }
     
-    fun handleCheckoutCompleted(userId: String, session: Session) {
+    suspend fun handleCheckoutCompleted(userId: String, session: Session) {
         logger.info("Handling checkout completed for user: $userId, session: ${session.id}")
         
         val subscription = UserSubscription(
@@ -79,6 +86,9 @@ class SubscriptionService(
         )
         
         createOrUpdateSubscription(subscription)
+        
+        // Send welcome email for trial start (async - doesn't block webhook response)
+        sendWelcomeEmail(userId)
     }
     
     fun handleSubscriptionCreated(stripeSubscription: Subscription) {
@@ -108,6 +118,9 @@ class SubscriptionService(
         val existing = subscriptionRepository.findByStripeSubscriptionId(stripeSubscription.id)
         
         if (existing != null) {
+            // Check premium access before and after update
+            val oldHadPremium = checkPremiumAccess(existing.userId)
+            
             val updated = existing.copy(
                 status = mapStripeStatus(stripeSubscription.status),
                 currentPeriodEnd = epochToOffsetDateTime(stripeSubscription.currentPeriodEnd),
@@ -115,6 +128,13 @@ class SubscriptionService(
                 updatedAt = OffsetDateTime.now()
             )
             subscriptionRepository.save(updated)
+            
+            // Check premium access after update
+            val newHasPremium = checkPremiumAccess(existing.userId)
+            
+            // Handle subscription status changes that affect scheduling
+            handleSubscriptionStatusChange(existing.userId, oldHadPremium, newHasPremium, stripeSubscription.status)
+            
             logger.info("Updated subscription: ${stripeSubscription.id}")
         } else {
             logger.warn("No subscription found with ID: ${stripeSubscription.id}")
@@ -127,11 +147,20 @@ class SubscriptionService(
         val existing = subscriptionRepository.findByStripeSubscriptionId(stripeSubscription.id)
         
         if (existing != null) {
+            // Check if user had premium access before deletion
+            val hadPremium = checkPremiumAccess(existing.userId)
+            
             val updated = existing.copy(
                 status = SubscriptionStatus.CANCELED,
                 updatedAt = OffsetDateTime.now()
             )
             subscriptionRepository.save(updated)
+            
+            // If user had premium access, they now lost it - reschedule to free tier
+            if (hadPremium) {
+                handleSubscriptionDowngrade(existing.userId)
+            }
+            
             logger.info("Marked subscription as canceled: ${stripeSubscription.id}")
         } else {
             logger.warn("No subscription found with ID: ${stripeSubscription.id}")
@@ -189,7 +218,7 @@ class SubscriptionService(
         return customer.id
     }
     
-    fun handleTrialWillEnd(stripeSubscription: Subscription) {
+    suspend fun handleTrialWillEnd(stripeSubscription: Subscription) {
         logger.info("Handling trial will end for subscription: ${stripeSubscription.id}")
         
         val userSubscription = subscriptionRepository.findByStripeSubscriptionId(stripeSubscription.id)
@@ -200,7 +229,7 @@ class SubscriptionService(
         }
     }
     
-    fun handlePaymentFailed(invoice: com.stripe.model.Invoice) {
+    suspend fun handlePaymentFailed(invoice: com.stripe.model.Invoice) {
         logger.warn("Handling payment failed for invoice: ${invoice.id}")
         
         val subscriptionId = invoice.subscription
@@ -212,75 +241,72 @@ class SubscriptionService(
         }
     }
     
-    private fun sendTrialEndingEmail(userId: String) {
+    private suspend fun sendTrialEndingEmail(userId: String) {
         try {
-            // Get user subscription to find email
-            val subscription = getSubscription(userId)
-            if (subscription?.stripeCustomerId == null) {
-                logger.warn("No Stripe customer found for user: $userId")
-                return
-            }
-            
             // Get email from destination (since we create customers from destinations)
-            val destinations = runBlocking {
-                destinationRepository.findByUserId(userId)
-            }
-            
+            val destinations = destinationRepository.findByUserId(userId)
             val emailDestination = destinations.find { it.channel == "email" }
+            
             if (emailDestination == null) {
-                logger.warn("No email destination found for user: $userId")
+                logger.warn("No email destination found for trial ending email to user: $userId")
                 return
             }
             
             val email = emailDestination.channelValue
+            val emailContent = emailTemplateService.createTrialEndingEmail(email)
             
-            runBlocking {
-                val emailContent = emailTemplateService.createTrialEndingEmail(email)
-                val result = resendEmailService.sendEmail(emailContent)
-                
-                result.fold(
-                    onSuccess = { logger.info("Trial ending email sent to user: $userId") },
-                    onFailure = { logger.error("Failed to send trial ending email to user: $userId", it) }
-                )
-            }
+            // Send email asynchronously - doesn't block webhook response
+            asyncEmailService.sendEmailWithRetry(emailContent, maxRetries = 2)
+            logger.info("Queued trial ending email for user: $userId")
+            
         } catch (e: Exception) {
-            logger.error("Error sending trial ending email to user: $userId", e)
+            logger.error("Error queuing trial ending email for user: $userId", e)
         }
     }
     
-    private fun sendPaymentFailedEmail(userId: String) {
+    private suspend fun sendPaymentFailedEmail(userId: String) {
         try {
-            // Get user subscription to find email
-            val subscription = getSubscription(userId)
-            if (subscription?.stripeCustomerId == null) {
-                logger.warn("No Stripe customer found for user: $userId")
-                return
-            }
-            
             // Get email from destination (since we create customers from destinations)
-            val destinations = runBlocking {
-                destinationRepository.findByUserId(userId)
-            }
-            
+            val destinations = destinationRepository.findByUserId(userId)
             val emailDestination = destinations.find { it.channel == "email" }
+            
             if (emailDestination == null) {
-                logger.warn("No email destination found for user: $userId")
+                logger.warn("No email destination found for payment failed email to user: $userId")
                 return
             }
             
             val email = emailDestination.channelValue
+            val emailContent = emailTemplateService.createPaymentFailedEmail(email)
             
-            runBlocking {
-                val emailContent = emailTemplateService.createPaymentFailedEmail(email)
-                val result = resendEmailService.sendEmail(emailContent)
-                
-                result.fold(
-                    onSuccess = { logger.info("Payment failed email sent to user: $userId") },
-                    onFailure = { logger.error("Failed to send payment failed email to user: $userId", it) }
-                )
-            }
+            // Send email asynchronously - doesn't block webhook response
+            asyncEmailService.sendEmailWithRetry(emailContent, maxRetries = 3)
+            logger.info("Queued payment failed email for user: $userId")
+            
         } catch (e: Exception) {
-            logger.error("Error sending payment failed email to user: $userId", e)
+            logger.error("Error queuing payment failed email for user: $userId", e)
+        }
+    }
+    
+    private suspend fun sendWelcomeEmail(userId: String) {
+        try {
+            // Get email from destination (same pattern as other email methods)
+            val destinations = destinationRepository.findByUserId(userId)
+            val emailDestination = destinations.find { it.channel == "email" }
+            
+            if (emailDestination == null) {
+                logger.warn("No email destination found for welcome email to user: $userId")
+                return
+            }
+            
+            val email = emailDestination.channelValue
+            val emailContent = emailTemplateService.createWelcomeEmail(email)
+            
+            // Send email asynchronously - doesn't block webhook response
+            asyncEmailService.sendEmailAsync(emailContent)
+            logger.info("Queued welcome email for user: $userId")
+            
+        } catch (e: Exception) {
+            logger.error("Error queuing welcome email for user: $userId", e)
         }
     }
     
@@ -300,5 +326,74 @@ class SubscriptionService(
     
     private fun epochToOffsetDateTime(epochSeconds: Long): OffsetDateTime {
         return OffsetDateTime.ofInstant(Instant.ofEpochSecond(epochSeconds), ZoneOffset.UTC)
+    }
+    
+    /**
+     * Handles subscription status changes that affect premium access and rescheduling
+     */
+    private fun handleSubscriptionStatusChange(
+        userId: String,
+        oldHadPremium: Boolean,
+        newHasPremium: Boolean,
+        stripeStatus: String
+    ) {
+        try {
+            if (oldHadPremium != newHasPremium) {
+                if (newHasPremium && !oldHadPremium) {
+                    // User gained premium access - upgrade scheduling
+                    logger.info("User {} gained premium access (status: {})", userId, stripeStatus)
+                    handleSubscriptionUpgrade(userId)
+                } else if (!newHasPremium && oldHadPremium) {
+                    // User lost premium access - downgrade scheduling
+                    logger.info("User {} lost premium access (status: {})", userId, stripeStatus)
+                    handleSubscriptionDowngrade(userId)
+                }
+            } else {
+                logger.debug("No premium access change for user {}: oldHadPremium={}, newHasPremium={}", 
+                    userId, oldHadPremium, newHasPremium)
+            }
+        } catch (e: Exception) {
+            logger.error("Error handling subscription status change for user: {}", userId, e)
+        }
+    }
+    
+    /**
+     * Handles subscription upgrade - reschedules all user searches with their original time periods
+     */
+    fun handleSubscriptionUpgrade(userId: String) {
+        try {
+            logger.info("Handling subscription upgrade for user: {}", userId)
+            
+            if (::subscriptionAwareSchedulingService.isInitialized) {
+                runBlocking {
+                    subscriptionAwareSchedulingService.rescheduleAllSearchesForUser(userId)
+                }
+                logger.info("Successfully rescheduled all searches for upgraded user: {}", userId)
+            } else {
+                logger.warn("SubscriptionAwareSchedulingService not initialized, cannot reschedule searches for user: {}", userId)
+            }
+        } catch (e: Exception) {
+            logger.error("Failed to handle subscription upgrade for user: {}", userId, e)
+        }
+    }
+    
+    /**
+     * Handles subscription downgrade - reschedules all user searches to monthly periods
+     */
+    fun handleSubscriptionDowngrade(userId: String) {
+        try {
+            logger.info("Handling subscription downgrade for user: {}", userId)
+            
+            if (::subscriptionAwareSchedulingService.isInitialized) {
+                runBlocking {
+                    subscriptionAwareSchedulingService.rescheduleAllSearchesForUser(userId)
+                }
+                logger.info("Successfully rescheduled all searches for downgraded user: {}", userId)
+            } else {
+                logger.warn("SubscriptionAwareSchedulingService not initialized, cannot reschedule searches for user: {}", userId)
+            }
+        } catch (e: Exception) {
+            logger.error("Failed to handle subscription downgrade for user: {}", userId, e)
+        }
     }
 }

@@ -11,6 +11,9 @@ import com.stripe.model.checkout.Session
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.servlet.http.HttpServletRequest
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
@@ -94,7 +97,10 @@ class SubscriptionController(
                 val session = event.dataObjectDeserializer.`object`.get() as Session
                 val userId = session.clientReferenceId
                 if (userId != null) {
-                    subscriptionService.handleCheckoutCompleted(userId, session)
+                    // Use coroutine for async email sending - fire and forget
+                    CoroutineScope(Dispatchers.IO).launch {
+                        subscriptionService.handleCheckoutCompleted(userId, session)
+                    }
                     logger.info("Checkout completed for user: $userId")
                 } else {
                     throw IllegalArgumentException("No client_reference_id in checkout session")
@@ -118,7 +124,10 @@ class SubscriptionController(
             
             "customer.subscription.trial_will_end" -> {
                 val subscription = event.dataObjectDeserializer.`object`.get() as Subscription
-                subscriptionService.handleTrialWillEnd(subscription)
+                // Use coroutine for async email sending - fire and forget
+                CoroutineScope(Dispatchers.IO).launch {
+                    subscriptionService.handleTrialWillEnd(subscription)
+                }
             }
             
             "invoice.payment_succeeded" -> {
@@ -128,7 +137,10 @@ class SubscriptionController(
             
             "invoice.payment_failed" -> {
                 val invoice = event.dataObjectDeserializer.`object`.get() as com.stripe.model.Invoice
-                subscriptionService.handlePaymentFailed(invoice)
+                // Use coroutine for async email sending - fire and forget
+                CoroutineScope(Dispatchers.IO).launch {
+                    subscriptionService.handlePaymentFailed(invoice)
+                }
             }
             
             else -> {

@@ -4,7 +4,7 @@ import com.jobsearchcv.backend.domain.model.*
 import com.jobsearchcv.backend.repository.JobSearchRepository
 import com.jobsearchcv.backend.service.JobSearchCreationException
 import com.jobsearchcv.backend.service.JobSearchCreationService
-import com.jobsearchcv.backend.service.JobSearchScheduler
+import com.jobsearchcv.backend.service.SubscriptionAwareSchedulingService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.media.Schema
@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.*
 class JobSearchController(
     private val jobSearchCreationService: JobSearchCreationService,
     private val jobSearchRepository: JobSearchRepository,
-    private val jobSearchScheduler: JobSearchScheduler
+    private val subscriptionAwareSchedulingService: SubscriptionAwareSchedulingService
 ) {
     companion object {
         private val logger: Logger = LoggerFactory.getLogger(JobSearchController::class.java)
@@ -273,7 +273,7 @@ class JobSearchController(
             
             // Update scheduler if job search approval status or other parameters changed
             try {
-                jobSearchScheduler.updateJobSearch(savedJobSearch)
+                subscriptionAwareSchedulingService.updateJobSearch(savedJobSearch)
                 logger.info("Successfully updated job search and scheduler: id=$searchId")
             } catch (e: Exception) {
                 logger.error("Failed to update scheduler for job search: id=$searchId", e)
