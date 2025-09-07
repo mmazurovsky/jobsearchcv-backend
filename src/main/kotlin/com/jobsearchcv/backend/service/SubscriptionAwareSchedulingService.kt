@@ -150,12 +150,23 @@ internal class InternalJobSearchScheduler(
                 logger.info("Executing scheduled job search: {}", searchId)
 
                 runBlocking {
-                    val jobSearch = scheduler.activeSearches[searchId]
-                    if (jobSearch != null) {
-                        scheduler.scraperJobService.triggerScraperJobAndLog(jobSearch)
-                    } else {
-                        logger.warn("Job search not found in active searches: {}", searchId)
+                    // Validate job search is still active and subscribed from database
+                    val currentJobSearch = scheduler.jobSearchRepository.findById(searchId)
+                    
+                    if (currentJobSearch == null) {
+                        logger.warn("Skipping execution - job search {} no longer exists", searchId)
+                        return@runBlocking
                     }
+                    
+                    if (!currentJobSearch.isApproved || !currentJobSearch.isSubscribed) {
+                        logger.warn("Skipping execution - job search {} is no longer active or subscribed (approved: {}, subscribed: {})", 
+                            searchId, currentJobSearch.isApproved, currentJobSearch.isSubscribed)
+                        return@runBlocking
+                    }
+
+                    // Check if still in active searches (for legacy compatibility)
+                    val jobSearch = scheduler.activeSearches[searchId] ?: currentJobSearch
+                    scheduler.scraperJobService.triggerScraperJobAndLog(jobSearch)
                 }
 
                 logger.info("Initiated scheduled job search: {}", searchId)
@@ -201,12 +212,31 @@ class SubscriptionAwareSchedulingService(
     }
 
     /**
+     * Checks if a job search should be scheduled based on approval and subscription status
+     */
+    private fun shouldScheduleJobSearch(jobSearch: JobSearchOut): Boolean {
+        return jobSearch.isApproved && jobSearch.isSubscribed
+    }
+
+    /**
      * Schedules a job search with subscription-aware time period logic
      * - Free users: Force monthly scheduling regardless of saved time period
      * - Premium users: Use their originally saved time period
+     * - Only schedules if both isApproved and isSubscribed are true
      */
     suspend fun scheduleJobSearchWithSubscriptionLogic(jobSearch: JobSearchOut) {
         try {
+            // Check if job search should be scheduled
+            if (!shouldScheduleJobSearch(jobSearch)) {
+                logger.info(
+                    "Skipping scheduling for job search {} - isApproved: {}, isSubscribed: {}",
+                    jobSearch.id,
+                    jobSearch.isApproved,
+                    jobSearch.isSubscribed
+                )
+                return
+            }
+
             val effectiveTimePeriod = getEffectiveTimePeriod(jobSearch.userId, jobSearch.timePeriod)
             val adjustedJobSearch = jobSearch.copy(timePeriod = effectiveTimePeriod)
 
@@ -293,19 +323,19 @@ class SubscriptionAwareSchedulingService(
         try {
             logger.info("Rescheduling all job searches for user: {}", userId)
 
-            // Get all user's searches from database
+            // Get all user's searches from database that should be scheduled
             val userSearches = jobSearchRepository.findByUserId(userId)
-            val approvedSearches = userSearches.filter { it.isApproved }
+            val schedulableSearches = userSearches.filter { shouldScheduleJobSearch(it) }
 
-            if (approvedSearches.isEmpty()) {
-                logger.info("No approved searches to reschedule for user: {}", userId)
+            if (schedulableSearches.isEmpty()) {
+                logger.info("No schedulable searches to reschedule for user: {}", userId)
                 return
             }
 
             var rescheduledCount = 0
             var errorCount = 0
 
-            approvedSearches.forEach { jobSearch ->
+            schedulableSearches.forEach { jobSearch ->
                 try {
                     // Remove existing scheduled job first to avoid conflicts
                     internalJobSearchScheduler.removeJobSearch(jobSearch.id)
@@ -330,7 +360,7 @@ class SubscriptionAwareSchedulingService(
             )
 
             if (errorCount > 0) {
-                throw RuntimeException("Failed to reschedule $errorCount out of ${approvedSearches.size} searches for user: $userId")
+                throw RuntimeException("Failed to reschedule $errorCount out of ${schedulableSearches.size} searches for user: $userId")
             }
 
         } catch (e: Exception) {
@@ -411,17 +441,17 @@ class SubscriptionAwareSchedulingService(
     }
 
     /**
-     * Schedules all approved job searches for a specific user when they add their first destination
+     * Schedules all approved and subscribed job searches for a specific user when they add their first destination
      * Replaces direct JobSearchScheduler.scheduleAllApprovedSearchesForUser calls
      */
     suspend fun scheduleAllApprovedSearchesForUser(userId: String) {
-        logger.info("Scheduling all approved job searches for user: {}", userId)
+        logger.info("Scheduling all approved and subscribed job searches for user: {}", userId)
 
-        val userSearches = jobSearchRepository.findByUserIdAndIsApproved(userId, true)
-        logger.info("Found {} approved job searches for user: {}", userSearches.size, userId)
+        val userSearches = jobSearchRepository.findByUserIdAndIsApprovedAndIsSubscribed(userId, true, true)
+        logger.info("Found {} approved and subscribed job searches for user: {}", userSearches.size, userId)
 
         if (userSearches.isEmpty()) {
-            logger.info("No approved job searches to schedule for user: {}", userId)
+            logger.info("No approved and subscribed job searches to schedule for user: {}", userId)
             return
         }
 

@@ -4,7 +4,9 @@ import com.jobsearchcv.backend.domain.model.*
 import com.jobsearchcv.backend.repository.JobSearchRepository
 import com.jobsearchcv.backend.service.JobSearchCreationException
 import com.jobsearchcv.backend.service.JobSearchCreationService
+import com.jobsearchcv.backend.service.JobSearchService
 import com.jobsearchcv.backend.service.SubscriptionAwareSchedulingService
+import com.jobsearchcv.backend.service.UnsubscribeResult
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.media.Schema
@@ -27,7 +29,8 @@ import org.springframework.web.bind.annotation.*
 class JobSearchController(
     private val jobSearchCreationService: JobSearchCreationService,
     private val jobSearchRepository: JobSearchRepository,
-    private val subscriptionAwareSchedulingService: SubscriptionAwareSchedulingService
+    private val subscriptionAwareSchedulingService: SubscriptionAwareSchedulingService,
+    private val jobSearchService: JobSearchService
 ) {
     companion object {
         private val logger: Logger = LoggerFactory.getLogger(JobSearchController::class.java)
@@ -266,7 +269,8 @@ class JobSearchController(
                 remoteTypes = request.remoteTypes ?: existingJobSearch.remoteTypes,
                 timePeriod = request.timePeriod ?: existingJobSearch.timePeriod,
                 filterText = request.filterText,
-                isApproved = request.isApproved ?: existingJobSearch.isApproved
+                isApproved = request.isApproved ?: existingJobSearch.isApproved,
+                isSubscribed = request.isSubscribed ?: existingJobSearch.isSubscribed
             )
             
             val savedJobSearch = jobSearchRepository.save(updatedJobSearch)
@@ -288,6 +292,127 @@ class JobSearchController(
             return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
         }
     }
+
+    @PutMapping("/unsubscribe/all")
+    @Operation(
+        summary = "Unsubscribe from all job searches",
+        description = "Sets isSubscribed=false for all user's job searches and removes them from scheduler"
+    )
+    @ApiResponses(
+        ApiResponse(responseCode = "200", description = "Successfully unsubscribed from all job searches"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    )
+    fun unsubscribeFromAllSearches(
+        @Parameter(hidden = true) authentication: Authentication
+    ): ResponseEntity<Map<String, Any>> = runBlocking {
+        try {
+            val userId = authentication.principal as String
+            val result = jobSearchService.unsubscribeFromAllSearches(userId)
+            
+            val response = mapOf(
+                "success" to result.success,
+                "message" to result.message,
+                "affectedCount" to result.affectedCount
+            )
+            
+            return@runBlocking ResponseEntity.ok(response)
+        } catch (e: Exception) {
+            logger.error("Failed to unsubscribe user from all searches", e)
+            val response = mapOf(
+                "success" to false,
+                "message" to "Internal server error"
+            )
+            return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response)
+        }
+    }
+
+    @PutMapping("/unsubscribe/{searchId}")
+    @Operation(
+        summary = "Unsubscribe from specific job search",
+        description = "Sets isSubscribed=false for a specific job search and removes it from scheduler"
+    )
+    @ApiResponses(
+        ApiResponse(responseCode = "200", description = "Successfully unsubscribed from job search"),
+        ApiResponse(responseCode = "404", description = "Job search not found"),
+        ApiResponse(responseCode = "403", description = "Forbidden - not the owner"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    )
+    fun unsubscribeFromSearch(
+        @Parameter(description = "Job search ID") @PathVariable searchId: String,
+        @Parameter(hidden = true) authentication: Authentication
+    ): ResponseEntity<Map<String, Any>> = runBlocking {
+        try {
+            val userId = authentication.principal as String
+            val result = jobSearchService.unsubscribeFromSearch(userId, searchId)
+            
+            val response = mapOf(
+                "success" to result.success,
+                "message" to result.message,
+                "affectedCount" to result.affectedCount
+            )
+            
+            val status = if (result.success) {
+                HttpStatus.OK
+            } else if (result.message.contains("not found") || result.message.contains("does not belong")) {
+                HttpStatus.NOT_FOUND
+            } else {
+                HttpStatus.BAD_REQUEST
+            }
+            
+            return@runBlocking ResponseEntity.status(status).body(response)
+        } catch (e: Exception) {
+            logger.error("Failed to unsubscribe user from search: $searchId", e)
+            val response = mapOf(
+                "success" to false,
+                "message" to "Internal server error"
+            )
+            return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response)
+        }
+    }
+
+    @PutMapping("/resubscribe/{searchId}")
+    @Operation(
+        summary = "Resubscribe to specific job search",
+        description = "Sets isSubscribed=true for a specific job search and adds it back to scheduler if approved"
+    )
+    @ApiResponses(
+        ApiResponse(responseCode = "200", description = "Successfully resubscribed to job search"),
+        ApiResponse(responseCode = "404", description = "Job search not found"),
+        ApiResponse(responseCode = "403", description = "Forbidden - not the owner"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    )
+    fun resubscribeToSearch(
+        @Parameter(description = "Job search ID") @PathVariable searchId: String,
+        @Parameter(hidden = true) authentication: Authentication
+    ): ResponseEntity<Map<String, Any>> = runBlocking {
+        try {
+            val userId = authentication.principal as String
+            val result = jobSearchService.resubscribeToSearch(userId, searchId)
+            
+            val response = mapOf(
+                "success" to result.success,
+                "message" to result.message,
+                "affectedCount" to result.affectedCount
+            )
+            
+            val status = if (result.success) {
+                HttpStatus.OK
+            } else if (result.message.contains("not found") || result.message.contains("does not belong")) {
+                HttpStatus.NOT_FOUND
+            } else {
+                HttpStatus.BAD_REQUEST
+            }
+            
+            return@runBlocking ResponseEntity.status(status).body(response)
+        } catch (e: Exception) {
+            logger.error("Failed to resubscribe user to search: $searchId", e)
+            val response = mapOf(
+                "success" to false,
+                "message" to "Internal server error"
+            )
+            return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response)
+        }
+    }
 }
 
 // Request DTOs
@@ -306,5 +431,7 @@ data class UpdateJobSearchRequest(
     @Schema(description = "Additional filter text for job descriptions", example = "Spring Boot", required = false)
     val filterText: String? = null,
     @Schema(description = "Whether the job search is approved for scheduling", required = false)
-    val isApproved: Boolean? = null
+    val isApproved: Boolean? = null,
+    @Schema(description = "Whether user is subscribed to receive notifications for this job search", required = false)
+    val isSubscribed: Boolean? = null
 )

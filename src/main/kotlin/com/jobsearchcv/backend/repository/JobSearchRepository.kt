@@ -13,11 +13,15 @@ interface JobSearchRepository {
     fun findAll(): List<JobSearchOut>
     fun findByUserId(userId: String): List<JobSearchOut>
     fun findByUserIdAndIsApproved(userId: String, isApproved: Boolean): List<JobSearchOut>
+    fun findByUserIdAndIsSubscribed(userId: String, isSubscribed: Boolean): List<JobSearchOut>
+    fun findByUserIdAndIsApprovedAndIsSubscribed(userId: String, isApproved: Boolean, isSubscribed: Boolean): List<JobSearchOut>
     fun findByIdAndUserId(id: String, userId: String): JobSearchOut?
     fun deleteById(id: String)
     fun deleteByIdAndUserId(id: String, userId: String): Long
     fun countByUserId(userId: String): Long
     fun existsById(id: String): Boolean
+    fun updateIsSubscribedByUserId(userId: String, isSubscribed: Boolean): Long
+    fun updateIsSubscribedById(id: String, isSubscribed: Boolean): Long
 }
 
 @Repository
@@ -75,5 +79,29 @@ class JobSearchRepositoryImpl(
     override fun existsById(id: String): Boolean {
         val query = Query(Criteria.where("id").`is`(id))
         return mongoTemplate.exists(query, JobSearchOut::class.java)
+    }
+
+    override fun findByUserIdAndIsSubscribed(userId: String, isSubscribed: Boolean): List<JobSearchOut> {
+        val query = Query(Criteria.where("user_id").`is`(userId).and("is_subscribed").`is`(isSubscribed))
+        return mongoTemplate.find(query, JobSearchOut::class.java)
+    }
+
+    override fun findByUserIdAndIsApprovedAndIsSubscribed(userId: String, isApproved: Boolean, isSubscribed: Boolean): List<JobSearchOut> {
+        val query = Query(Criteria.where("user_id").`is`(userId).and("is_approved").`is`(isApproved).and("is_subscribed").`is`(isSubscribed))
+        return mongoTemplate.find(query, JobSearchOut::class.java)
+    }
+
+    override fun updateIsSubscribedByUserId(userId: String, isSubscribed: Boolean): Long {
+        val query = Query(Criteria.where("user_id").`is`(userId))
+        val update = org.springframework.data.mongodb.core.query.Update().set("is_subscribed", isSubscribed)
+        val result = mongoTemplate.updateMulti(query, update, JobSearchOut::class.java)
+        return result.modifiedCount
+    }
+
+    override fun updateIsSubscribedById(id: String, isSubscribed: Boolean): Long {
+        val query = Query(Criteria.where("id").`is`(id))
+        val update = org.springframework.data.mongodb.core.query.Update().set("is_subscribed", isSubscribed)
+        val result = mongoTemplate.updateFirst(query, update, JobSearchOut::class.java)
+        return result.modifiedCount
     }
 }
