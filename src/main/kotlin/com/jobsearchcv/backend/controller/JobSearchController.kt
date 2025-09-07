@@ -6,7 +6,6 @@ import com.jobsearchcv.backend.service.JobSearchCreationException
 import com.jobsearchcv.backend.service.JobSearchCreationService
 import com.jobsearchcv.backend.service.JobSearchService
 import com.jobsearchcv.backend.service.SubscriptionAwareSchedulingService
-import com.jobsearchcv.backend.service.UnsubscribeResult
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.media.Schema
@@ -293,7 +292,7 @@ class JobSearchController(
         }
     }
 
-    @PutMapping("/unsubscribe/all")
+    @PutMapping("/unsubscribeFromEmails/all")
     @Operation(
         summary = "Unsubscribe from all job searches",
         description = "Sets isSubscribed=false for all user's job searches and removes them from scheduler"
@@ -326,89 +325,54 @@ class JobSearchController(
         }
     }
 
-    @PutMapping("/unsubscribe/{searchId}")
+    @PutMapping("/changeEmailSubscriptions")
     @Operation(
-        summary = "Unsubscribe from specific job search",
-        description = "Sets isSubscribed=false for a specific job search and removes it from scheduler"
+        summary = "Change email notifications for multiple job searches",
+        description = "Updates isSubscribed status for multiple job searches and manages scheduler accordingly"
     )
     @ApiResponses(
-        ApiResponse(responseCode = "200", description = "Successfully unsubscribed from job search"),
-        ApiResponse(responseCode = "404", description = "Job search not found"),
-        ApiResponse(responseCode = "403", description = "Forbidden - not the owner"),
+        ApiResponse(responseCode = "200", description = "Email notifications updated successfully"),
+        ApiResponse(responseCode = "400", description = "Invalid request or some job searches don't belong to user"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     )
-    fun unsubscribeFromSearch(
-        @Parameter(description = "Job search ID") @PathVariable searchId: String,
+    fun changeEmailNotifications(
+        @RequestBody request: ChangeEmailNotificationsRequest,
         @Parameter(hidden = true) authentication: Authentication
-    ): ResponseEntity<Map<String, Any>> = runBlocking {
+    ): ResponseEntity<ChangeEmailNotificationsResponse> = runBlocking {
         try {
             val userId = authentication.principal as String
-            val result = jobSearchService.unsubscribeFromSearch(userId, searchId)
+            logger.info("Changing email notifications for user: $userId, count=${request.jobSearches.size}")
             
-            val response = mapOf(
-                "success" to result.success,
-                "message" to result.message,
-                "affectedCount" to result.affectedCount
+            // Convert request to pairs
+            val changes = request.jobSearches.map { it.id to it.isSubscribed }
+            
+            // Delegate to service
+            val result = jobSearchService.changeEmailNotifications(userId, changes)
+            
+            val response = ChangeEmailNotificationsResponse(
+                message = result.message,
+                success = result.success,
+                successCount = result.successCount,
+                failureCount = result.failureCount,
+                failures = result.failures
             )
             
             val status = if (result.success) {
                 HttpStatus.OK
-            } else if (result.message.contains("not found") || result.message.contains("does not belong")) {
-                HttpStatus.NOT_FOUND
+            } else if (result.message.contains("do not belong to the user")) {
+                HttpStatus.BAD_REQUEST
             } else {
                 HttpStatus.BAD_REQUEST
             }
             
             return@runBlocking ResponseEntity.status(status).body(response)
         } catch (e: Exception) {
-            logger.error("Failed to unsubscribe user from search: $searchId", e)
-            val response = mapOf(
-                "success" to false,
-                "message" to "Internal server error"
-            )
-            return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response)
-        }
-    }
-
-    @PutMapping("/resubscribe/{searchId}")
-    @Operation(
-        summary = "Resubscribe to specific job search",
-        description = "Sets isSubscribed=true for a specific job search and adds it back to scheduler if approved"
-    )
-    @ApiResponses(
-        ApiResponse(responseCode = "200", description = "Successfully resubscribed to job search"),
-        ApiResponse(responseCode = "404", description = "Job search not found"),
-        ApiResponse(responseCode = "403", description = "Forbidden - not the owner"),
-        ApiResponse(responseCode = "500", description = "Internal server error")
-    )
-    fun resubscribeToSearch(
-        @Parameter(description = "Job search ID") @PathVariable searchId: String,
-        @Parameter(hidden = true) authentication: Authentication
-    ): ResponseEntity<Map<String, Any>> = runBlocking {
-        try {
-            val userId = authentication.principal as String
-            val result = jobSearchService.resubscribeToSearch(userId, searchId)
-            
-            val response = mapOf(
-                "success" to result.success,
-                "message" to result.message,
-                "affectedCount" to result.affectedCount
-            )
-            
-            val status = if (result.success) {
-                HttpStatus.OK
-            } else if (result.message.contains("not found") || result.message.contains("does not belong")) {
-                HttpStatus.NOT_FOUND
-            } else {
-                HttpStatus.BAD_REQUEST
-            }
-            
-            return@runBlocking ResponseEntity.status(status).body(response)
-        } catch (e: Exception) {
-            logger.error("Failed to resubscribe user to search: $searchId", e)
-            val response = mapOf(
-                "success" to false,
-                "message" to "Internal server error"
+            logger.error("Failed to change email notifications for user", e)
+            val response = ChangeEmailNotificationsResponse(
+                message = "Internal server error",
+                success = false,
+                successCount = 0,
+                failureCount = 0
             )
             return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response)
         }
@@ -416,6 +380,34 @@ class JobSearchController(
 }
 
 // Request DTOs
+@Schema(description = "Request to change email notifications for multiple job searches")
+data class ChangeEmailNotificationsRequest(
+    @Schema(description = "List of job search notification changes", required = true)
+    val jobSearches: List<JobSearchNotificationChange>
+)
+
+@Schema(description = "Job search notification change")
+data class JobSearchNotificationChange(
+    @Schema(description = "Job search ID", example = "search-123", required = true)
+    val id: String,
+    @Schema(description = "Whether to subscribe to email notifications", example = "true", required = true)
+    val isSubscribed: Boolean
+)
+
+@Schema(description = "Response for email notification changes")
+data class ChangeEmailNotificationsResponse(
+    @Schema(description = "Operation result message", required = true)
+    val message: String,
+    @Schema(description = "Whether all operations were successful", required = true)
+    val success: Boolean,
+    @Schema(description = "Number of job searches successfully updated", required = true)
+    val successCount: Int,
+    @Schema(description = "Number of job searches that failed to update", required = true)
+    val failureCount: Int,
+    @Schema(description = "Details of any failures", required = false)
+    val failures: List<String>? = null
+)
+
 @Schema(description = "Request to update a job search")
 data class UpdateJobSearchRequest(
     @Schema(description = "Job title to search for", example = "Software Engineer", required = false)
