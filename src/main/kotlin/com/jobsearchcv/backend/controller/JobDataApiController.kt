@@ -39,7 +39,8 @@ class JobDataApiController(
                 incomingJobsProcessingService.processIncomingJobData(
                     jobSearchId = request.jobSearchId,
                     scrapedJobs = request.jobs,
-                    userId = request.userId
+                    userId = request.userId,
+                    searchName = request.searchName
                 )
                 logger.info("Completed async job data processing for jobSearchId={}", request.jobSearchId)
             } catch (e: Exception) {

@@ -67,21 +67,11 @@ class JobSearchController(
                 isApproved = isApproved
             )
 
-            val immediateSearchSummaries = result.immediateSearchTriggerResults.map {
-                ImmediateSearchSummary(
-                    originalJobSearchId = it.originalJobSearchId,
-                    immediateSearchId = it.immediateSearchId,
-                    success = it.success,
-                    errorMessage = it.errorMessage
-                )
-            }
-
             return@runBlocking ResponseEntity.ok(
                 CreateJobSearchesResponse(
                     message = result.message,
                     jobSearchIds = result.jobSearchIds,
-                    destinationId = result.destinationId,
-                    immediateSearchResults = immediateSearchSummaries
+                    destinationId = result.destinationId
                 )
             )
 
@@ -92,17 +82,17 @@ class JobSearchController(
                     CreateJobSearchesResponse(
                         e.message ?: "Job search creation failed",
                         emptyList(),
-                        ""
+                        null
                     )
                 )
         } catch (e: IllegalArgumentException) {
             logger.warn("Invalid request: ${e.message}")
             return@runBlocking ResponseEntity.badRequest()
-                .body(CreateJobSearchesResponse(e.message ?: "Invalid request", emptyList(), ""))
+                .body(CreateJobSearchesResponse(e.message ?: "Invalid request", emptyList(), null))
         } catch (e: Exception) {
             logger.error("Unexpected error creating job searches: ${e.message}", e)
             return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(CreateJobSearchesResponse("Internal server error", emptyList(), ""))
+                .body(CreateJobSearchesResponse("Internal server error", emptyList(), null))
         }
     }
 

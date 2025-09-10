@@ -54,7 +54,7 @@ object TelegramMessages {
     const val SUCCESS_ALERT_PARSED = "<b>Job alert can be created!</b>"
     const val SUCCESS_UPDATED_PARSED = "<b>Job search can be updated!</b>"
 
-    const val SERVICE_SHORT_DESCRIPTION = "Your personalised Job Search AI Agent"
+//    const val SERVICE_SHORT_DESCRIPTION = "Your personalised Job Search AI Agent"
 
     const val BOT_SHORT_DESCRIPTION =
         "I'm your personal Job Search Agent. I find fresh jobs before anyone else"
@@ -183,20 +183,12 @@ object TelegramMessages {
     fun getCreateAlertInstructions(): String = buildString {
         appendLine(HEADER_CREATE_ALERT)
         appendLine()
-        append(getJobSearchFormattingInstructions(isImmediateSearch = false))
+        append(getJobSearchFormattingInstructions())
         appendLine()
         appendLine(NOTE_RECURRING_ALERT)
         appendLine(NOTE_DESCRIBE_IN_FULL)
     }
 
-    fun getImmediateSearchInstructions(): String = buildString {
-        appendLine(HEADER_IMMEDIATE_SEARCH)
-        appendLine()
-        append(getJobSearchFormattingInstructions(isImmediateSearch = true))
-        appendLine()
-        appendLine(NOTE_ONE_TIME_SEARCH)
-        appendLine(NOTE_DESCRIBE_IN_FULL)
-    }
 
     // === Confirmation Messages ===
     fun getAlertCreationConfirmation(jobSearch: JobSearchIn): String = buildString {
@@ -446,13 +438,13 @@ object TelegramMessages {
     fun getRetryJobSearchMessage(): String = buildString {
         appendLine("📝 <b>Let's modify your job search.</b>")
         appendLine()
-        append(getJobSearchFormattingInstructions(isImmediateSearch = true))
+        append(getJobSearchFormattingInstructions())
     }
 
     fun getRetryJobAlertMessage(): String = buildString {
         appendLine("📝 <b>Let's modify your job alert.</b>")
         appendLine()
-        append(getJobSearchFormattingInstructions(isImmediateSearch = false))
+        append(getJobSearchFormattingInstructions())
     }
 
     fun getStructuredApproachMessage(): String = buildString {
@@ -466,8 +458,7 @@ object TelegramMessages {
     }
 
     fun getParseErrorMessage(
-        parseResult: JobSearchParseResult,
-        isImmediateSearch: Boolean
+        parseResult: JobSearchParseResult
     ): String = buildString {
         appendLine("❌ <b>${parseResult.errorMessage}</b>")
         appendLine()
@@ -478,15 +469,9 @@ object TelegramMessages {
         appendLine(INSTRUCTION_RETRY_DESCRIPTION)
         appendLine()
         appendLine(HEADER_EXAMPLES)
-        if (isImmediateSearch) {
-            appendLine("Senior Software Engineer in San Francisco, full-time, remote, $150k+ salary, no on-call")
-            appendLine("Data Scientist role in Berlin, contract work, doesn't require German language, avoid startups")
-            appendLine("Product Manager in New York, full-time, on-site, visa support required")
-        } else {
-            appendLine("Senior Software Engineer in San Francisco, full-time, remote, check new jobs every 30 mins, $150k+ salary, no on-call")
-            appendLine("Data Scientist role in Berlin, contract work, check new jobs once an hour, doesn't require German language, avoid startups")
-            appendLine("Product Manager in New York, full-time, on-site, check new jobs once in 4 hours, visa support required")
-        }
+        appendLine("Senior Software Engineer in San Francisco, full-time, remote, check new jobs every 30 mins, $150k+ salary, no on-call")
+        appendLine("Data Scientist role in Berlin, contract work, check new jobs once an hour, doesn't require German language, avoid startups")
+        appendLine("Product Manager in New York, full-time, on-site, check new jobs once in 4 hours, visa support required")
 
         appendLine()
         appendLine("Or use $CMD_CANCEL to stop.")
@@ -538,24 +523,18 @@ object TelegramMessages {
     }
 
 
-    fun getJobSearchFormattingInstructions(isImmediateSearch: Boolean): String = buildString {
+    fun getJobSearchFormattingInstructions(): String = buildString {
         appendLine("<b>Please provide your job search criteria in natural language.</b>")
         appendLine()
         append(getJobSearchFields())
-        if (!isImmediateSearch) {
-            appendLine(
-                "<b>6. Search Frequency.</b> Available options: ${
-                    TimePeriod.getRecommendedLabels().joinToString(", ")
-                }"
-            )
-        }
+        appendLine(
+            "<b>6. Search Frequency.</b> Available options: ${
+                TimePeriod.getRecommendedLabels().joinToString(", ")
+            }"
+        )
         appendLine()
         appendLine("<b>Example of a complete search:</b>")
-        if (isImmediateSearch) {
-            appendLine("Senior Python Engineer in San Francisco, full-time, remote, no startups, no requirement to speak any language other than English, no requirement to know Angular")
-        } else {
-            appendLine("Senior Python Engineer in San Francisco, full-time, remote, check new jobs every 20 minutes, no startups, no requirement to speak any language other than English, no requirement to know Angular")
-        }
+        appendLine("Senior Python Engineer in San Francisco, full-time, remote, check new jobs every 20 minutes, no startups, no requirement to speak any language other than English, no requirement to know Angular")
     }
 
     fun getStaticJobDescription(job: ProcessedJobData): String {
@@ -655,7 +634,7 @@ object TelegramMessages {
         append(existingAlert.toMessage())
 
         appendLine()
-        append(getJobSearchFormattingInstructions(isImmediateSearch = false))
+        append(getJobSearchFormattingInstructions())
         appendLine()
         appendLine("⚠\uFE0F <b>Please provide the full edited job search description including all parameters: the ones that change and the ones that stay the same</b>")
         appendLine()
@@ -695,7 +674,7 @@ object TelegramMessages {
     fun getEditRetryMessage(): String = buildString {
         appendLine("📝 <b>Let's modify your job search criteria.</b>")
         appendLine()
-        append(getJobSearchFormattingInstructions(isImmediateSearch = false))
+        append(getJobSearchFormattingInstructions())
     }
 
     fun getEditMaxAttemptsMessage(): String = buildString {
@@ -703,15 +682,14 @@ object TelegramMessages {
         appendLine()
         appendLine("Please ensure you follow the format guidelines:")
         appendLine()
-        append(getJobSearchFormattingInstructions(isImmediateSearch = false))
+        append(getJobSearchFormattingInstructions())
         appendLine()
         appendLine("Use $CMD_CANCEL to abort this operation or try again later.")
     }
 
     fun getEditParseErrorMessage(
         parseResult: JobSearchParseResult,
-        retryCount: Int,
-        isImmediateSearch: Boolean,
+        retryCount: Int
     ): String =
         buildString {
             appendLine("❌ <b>Unable to parse your job search criteria.</b> (Attempt $retryCount/3)")
@@ -722,7 +700,7 @@ object TelegramMessages {
             }
             appendLine("Please try again with a clearer description:")
             appendLine()
-            append(getJobSearchFormattingInstructions(isImmediateSearch = isImmediateSearch))
+            append(getJobSearchFormattingInstructions())
             appendLine()
             appendLine("Use $CMD_CANCEL to abort this operation.")
         }

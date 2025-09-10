@@ -5,6 +5,7 @@ import com.jobsearchcv.backend.domain.model.Destination
 import com.jobsearchcv.backend.repository.DestinationRepository
 import com.jobsearchcv.backend.service.SubscriptionAwareSchedulingService
 import com.jobsearchcv.backend.service.SubscriptionService
+import com.jobsearchcv.backend.service.MonthlyOverviewService
 import com.jobsearchcv.backend.service.FirebaseUser
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
@@ -28,7 +29,8 @@ import org.springframework.web.bind.annotation.*
 class DestinationController(
     private val destinationRepository: DestinationRepository,
     private val subscriptionAwareSchedulingService: SubscriptionAwareSchedulingService,
-    private val subscriptionService: SubscriptionService
+    private val subscriptionService: SubscriptionService,
+    private val monthlyOverviewService: MonthlyOverviewService
 ) {
     companion object {
         private val logger: Logger = LoggerFactory.getLogger(DestinationController::class.java)
@@ -131,7 +133,20 @@ class DestinationController(
                 try {
                     logger.info("User $userId added first destination, scheduling approved job searches")
                     runBlocking {
-                        subscriptionAwareSchedulingService.scheduleAllApprovedSearchesForUser(userId)
+                        subscriptionAwareSchedulingService.scheduleAllApprovedSubscribedSearchesForUser(userId)
+                    }
+                    
+                    // If this is the first EMAIL destination, also trigger monthly overview
+                    if (channel == Channel.EMAIL) {
+                        logger.info("User $userId added first email destination, triggering monthly overview")
+                        try {
+                            runBlocking {
+                                monthlyOverviewService.triggerMonthlyOverviewForUser(userId)
+                            }
+                        } catch (e: Exception) {
+                            logger.error("Failed to trigger monthly overview for user $userId", e)
+                            // Don't fail the destination creation if monthly overview fails
+                        }
                     }
                 } catch (e: Exception) {
                     logger.error("Failed to schedule approved job searches for user $userId after adding first destination", e)

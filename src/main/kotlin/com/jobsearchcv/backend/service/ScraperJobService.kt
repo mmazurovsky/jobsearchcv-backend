@@ -23,6 +23,10 @@ class ScraperJobService(
     private val semaphore = Semaphore(4) // Limit to 4 concurrent jobs like main_project
 
     suspend fun triggerScraperJobAndLog(jobSearch: JobSearchOut) {
+        triggerScraperJobWithSearchName(jobSearch, jobSearch.timePeriod.displayName, null)
+    }
+
+    suspend fun triggerScraperJobWithSearchName(jobSearch: JobSearchOut, timePeriod: String, searchName: String?) {
         semaphore.withPermit {
             // Build callback URL
             val callbackUrl = callbackUrl.trimEnd('/') + "/api/job-data-callback"
@@ -33,11 +37,12 @@ class ScraperJobService(
                             location = jobSearch.location,
                             jobTypes = jobSearch.jobTypes.map { it.label },
                             remoteTypes = jobSearch.remoteTypes.map { it.label },
-                            timePeriod = jobSearch.timePeriod.displayName,
+                            timePeriod = timePeriod,
                             filterText = jobSearch.filterText,
                             callbackUrl = callbackUrl,
                             jobSearchId = jobSearch.id,
-                            userId = jobSearch.userId
+                            userId = jobSearch.userId,
+                            searchName = searchName
                     )
 
             try {
@@ -45,7 +50,8 @@ class ScraperJobService(
                 val logDataWithStatus =
                         jobSearch.toLogString() +
                                 ("callback_url" to callbackUrl) +
-                                ("status_code" to response.statusCode)
+                                ("status_code" to response.statusCode) +
+                                ("search_name" to searchName)
 
                 if (!response.isSuccessful) {
                     val logDataWithResponse = logDataWithStatus + ("response_text" to response.body)

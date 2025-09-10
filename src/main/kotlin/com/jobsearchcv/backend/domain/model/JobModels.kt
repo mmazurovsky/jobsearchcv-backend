@@ -154,7 +154,8 @@ data class SearchJobsParams(
     @JsonProperty("filter_text") val filterText: String? = null,
     @JsonProperty("callback_url") val callbackUrl: String,
     @JsonProperty("job_search_id") val jobSearchId: String? = null,
-    @JsonProperty("user_id") val userId: String? = null
+    @JsonProperty("user_id") val userId: String? = null,
+    @JsonProperty("search_name") val searchName: String? = null
 )
 
 /**

@@ -7,8 +7,6 @@ import com.jobsearchcv.backend.repository.JobSearchRepository
 import jakarta.annotation.PostConstruct
 import jakarta.annotation.PreDestroy
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import org.quartz.*
 import org.quartz.impl.StdSchedulerFactory
 import org.slf4j.Logger
@@ -444,7 +442,7 @@ class SubscriptionAwareSchedulingService(
      * Schedules all approved and subscribed job searches for a specific user when they add their first destination
      * Replaces direct JobSearchScheduler.scheduleAllApprovedSearchesForUser calls
      */
-    suspend fun scheduleAllApprovedSearchesForUser(userId: String) {
+    suspend fun scheduleAllApprovedSubscribedSearchesForUser(userId: String) {
         logger.info("Scheduling all approved and subscribed job searches for user: {}", userId)
 
         val userSearches = jobSearchRepository.findByUserIdAndIsApprovedAndIsSubscribed(userId, true, true)

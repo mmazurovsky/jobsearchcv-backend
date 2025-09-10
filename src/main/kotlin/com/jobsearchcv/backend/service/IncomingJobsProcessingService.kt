@@ -30,36 +30,32 @@ class IncomingJobsProcessingService(
     suspend fun processIncomingJobData(
         jobSearchId: String,
         scrapedJobs: List<ScrapedJobData>,
-        userId: String
+        userId: String,
+        searchName: String? = null
     ) {
         return withContext(Dispatchers.IO) {
             try {
-                // Step 1: Determine if this is an immediate search and fetch job search
-                var isImmediateSearch = false
-                var savedJobSearch: JobSearchOut? = null
-
-                if (jobSearchId.startsWith("temp-")) {
-                    isImmediateSearch = true
-                    logger.info("Processing job data for temp job for user $userId, searchId=$jobSearchId")
-                } else {
-                    savedJobSearch = jobSearchRepository.findById(jobSearchId)
-                    if (savedJobSearch == null) {
-                        logger.error("Job search not found: {}", jobSearchId)
-                        Sentry.captureMessage(
-                            "Job search not found: $jobSearchId",
-                            SentryLevel.ERROR
-                        )
-                        return@withContext
-                    } else {
-                        logger.info("Processing job data for alert searchId={}", jobSearchId)
-                    }
+                // Step 1: Fetch job search
+                val savedJobSearch = jobSearchRepository.findById(jobSearchId)
+                if (savedJobSearch == null) {
+                    logger.error("Job search not found: {}", jobSearchId)
+                    Sentry.captureMessage(
+                        "Job search not found: $jobSearchId",
+                        SentryLevel.ERROR
+                    )
+                    return@withContext
                 }
+                logger.info("Processing job data for alert searchId={}", jobSearchId)
 
                 if (scrapedJobs.isEmpty()) {
                     logger.info("No job data received for jobSearchId={}", jobSearchId)
                     // Send no-results email for searches with 24h+ time periods
-                    if (shouldSendNoResultsEmail(isImmediateSearch, savedJobSearch)) {
-                        sendNoResultsEmail(userId, savedJobSearch, "No jobs were found matching your criteria")
+                    if (shouldSendNoResultsEmail(savedJobSearch)) {
+                        sendNoResultsEmail(
+                            userId,
+                            savedJobSearch,
+                            "No jobs were found matching your criteria"
+                        )
                     }
                     return@withContext
                 }
@@ -77,9 +73,10 @@ class IncomingJobsProcessingService(
 
                 if (newJobs.isEmpty()) {
                     // Notify user about the reason for no results
-                    val message = "All ${scrapedJobs.size} jobs found have already been sent to you previously."
-                    
-                    if (shouldSendNoResultsEmail(isImmediateSearch, savedJobSearch)) {
+                    val message =
+                        "All ${scrapedJobs.size} jobs found have already been sent to you previously."
+
+                    if (shouldSendNoResultsEmail(savedJobSearch)) {
                         sendNoResultsEmail(userId, savedJobSearch, message)
                     }
                     return@withContext
@@ -100,9 +97,10 @@ class IncomingJobsProcessingService(
                 )
 
                 if (filteredJobs.isEmpty()) {
-                    val message = "I looked up jobs published recently and I didn't find good matches for you this time \uD83D\uDE14. Try again with different parameters or set up an alert to monitor freshly published jobs."
-                    
-                    if (shouldSendNoResultsEmail(isImmediateSearch, savedJobSearch)) {
+                    val message =
+                        "I looked up jobs published recently and I didn't find good matches for you this time \uD83D\uDE14. Try again with different parameters or set up an alert to monitor freshly published jobs."
+
+                    if (shouldSendNoResultsEmail(savedJobSearch)) {
                         sendNoResultsEmail(userId, savedJobSearch, message)
                     }
                     return@withContext
@@ -110,7 +108,7 @@ class IncomingJobsProcessingService(
 
                 // Step 8: Route jobs based on destination
                 val sendJobs =
-                    sendJobsToUserDestinations(filteredJobs, savedJobSearch, userId)
+                    sendJobsToUserDestinations(filteredJobs, savedJobSearch, userId, searchName)
 
                 // Only mark jobs as sent if they were actually successfully processed
 
@@ -181,7 +179,8 @@ class IncomingJobsProcessingService(
     private suspend fun sendJobsToUserDestinations(
         jobs: List<ScoredJobData>,
         jobSearch: JobSearchOut?,
-        userId: String
+        userId: String,
+        specialSearchName: String? = null
     ): List<ScoredJobData> {
         val destinations = destinationRepository.findByUserId(userId)
         if (destinations.isEmpty()) {
@@ -213,23 +212,36 @@ class IncomingJobsProcessingService(
             // Check if channel is email
             if (latestDestination.channel == "email") {
                 val recipientEmail = latestDestination.channelValue
-                val searchName = jobSearch?.jobTitle ?: "Your Job Search"
+                val location = jobSearch?.location
+                val stringBuilder = StringBuilder()
+                val jobTitle = jobSearch?.jobTitle ?: "Your Job Search"
+                stringBuilder.append(jobTitle)
+                if (location != null) {
+                    stringBuilder.append(" in $location")
+                }
+                val interval = specialSearchName ?: jobSearch?.timePeriod?.displayName
+                if (interval != null) {
+                    stringBuilder.append(" in last ${interval}")
+                }
+
+                val displaySearchName = stringBuilder.toString()
                 val alertId = jobSearch?.id ?: "unknown"
 
-                logger.info("Sending email to $recipientEmail for ${jobs.size} jobs")
+                logger.info("Sending email to $recipientEmail for ${jobs.size} jobs, searchName=$specialSearchName")
 
                 // Create email content using EmailTemplateService
                 val emailContent = emailTemplateService.createJobNotificationEmail(
                     recipient = recipientEmail,
-                    searchName = searchName,
+                    searchName = displaySearchName,
                     jobs = jobs,
-                    alertId = alertId
+                    alertId = alertId,
+                    specialMessage = if (specialSearchName == "Monthly Overview") "This is an overview of jobs posted in the last month, you receive it only one time after job search is created \uD83D\uDE0A" else null
                 )
 
                 // Send email asynchronously using AsyncEmailService - fire and forget
                 asyncEmailService.sendEmailAsync(emailContent)
                 logger.info("Queued email to $recipientEmail with ${jobs.size} jobs")
-                
+
                 // Return jobs as successfully sent since we're fire-and-forget
                 jobs
             } else {
@@ -269,40 +281,39 @@ class IncomingJobsProcessingService(
             logger.error("Error marking jobs as sent for user $userId", e)
         }
     }
-    
-    private fun shouldSendNoResultsEmail(isImmediateSearch: Boolean, jobSearch: JobSearchOut?): Boolean {
-        // Don't send emails for immediate searches
-        if (isImmediateSearch) {
-            return false
-        }
-        
+
+    private fun shouldSendNoResultsEmail(jobSearch: JobSearchOut?): Boolean {
         // Only send emails for searches with 24h+ time periods
         return jobSearch?.timePeriod?.shouldSendNoResultsEmail() ?: false
     }
-    
-    private suspend fun sendNoResultsEmail(userId: String, jobSearch: JobSearchOut?, reason: String) {
+
+    private suspend fun sendNoResultsEmail(
+        userId: String,
+        jobSearch: JobSearchOut?,
+        reason: String
+    ) {
         try {
             val destinations = destinationRepository.findByUserId(userId)
             val emailDestination = destinations.find { it.channel == "email" }
-            
+
             if (emailDestination == null) {
                 logger.info("No email destination found for user: $userId, skipping no-results email")
                 return
             }
-            
+
             val searchName = jobSearch?.jobTitle ?: "Your Job Search"
             val timePeriod = jobSearch?.timePeriod?.displayName ?: "recent period"
-            
+
             val emailContent = emailTemplateService.createNoResultsEmail(
                 recipient = emailDestination.channelValue,
                 searchName = searchName,
                 timePeriod = timePeriod
             )
-            
+
             // Send email asynchronously - fire and forget
             asyncEmailService.sendEmailAsync(emailContent)
             logger.info("Queued no-results email to user: $userId for search: ${jobSearch?.id}")
-            
+
         } catch (e: Exception) {
             logger.error("Error sending no-results email to user: $userId", e)
         }

@@ -8,25 +8,30 @@ import org.springframework.stereotype.Service
 
 @Service
 class EmailTemplateService(
-    @Value("\${stripe.customer-portal-url}") private val customerPortalUrl: String
+    @Value("\${stripe.customer-portal-url}") private val customerPortalUrl: String,
+    @Value("\${WEBSITE_URL}") private val websiteUrl: String
 ) {
 
     companion object {
         const val BUSINESS_NAME = "Antkowiak Services GbR"
         const val BUSINESS_ADDRESS = "73262 Germany, Reichenbach an der Fils, Katherinenstr. 4"
-        const val EMAIL_GROUND_TEXT = "You're receiving this email because you have an active job alert created at applyfirst.app"
+    }
+
+    private fun getEmailGroundText(): String {
+        return "You're receiving this email because you have an active job alert created at $websiteUrl"
     }
 
     fun createJobNotificationEmail(
         recipient: String,
         searchName: String,
         jobs: List<ScoredJobData>,
-        alertId: String
+        alertId: String,
+        specialMessage: String? = null
     ): EmailContent {
-        val subject = "🎉 Found ${jobs.size} new jobs for $searchName!"
+        val subject = "New jobs: $searchName"
 
-        val htmlBody = createHtmlEmail(searchName, jobs, alertId)
-        val textBody = createPlainTextEmail(searchName, jobs, alertId)
+        val htmlBody = createHtmlEmail(searchName, jobs, alertId, specialMessage)
+        val textBody = createPlainTextEmail(searchName, jobs, alertId, specialMessage)
 
         return EmailContent(recipient, subject, htmlBody, textBody)
     }
@@ -34,7 +39,8 @@ class EmailTemplateService(
     private fun createHtmlEmail(
         searchName: String,
         jobs: List<ScoredJobData>,
-        alertId: String
+        alertId: String,
+        specialMessage: String? = null
     ): String = buildString {
         appendLine("<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">")
         appendLine("<html xmlns=\"http://www.w3.org/1999/xhtml\">")
@@ -53,16 +59,13 @@ class EmailTemplateService(
         appendLine("                        <td style=\"padding: 20px;\">")
         appendLine("                            <table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\">")
         appendLine("                                <tr>")
-        appendLine("                                    <td style=\"font-size: 20px; font-weight: bold; padding-bottom: 8px;\">")
-        appendLine("                                        <a href=\"https://applyfirst.app\" style=\"color: #000000; text-decoration: none;\">ApplyFirst</a>")
-        appendLine("                                    </td>")
-        appendLine("                                </tr>")
-        appendLine("                                <tr>")
-        appendLine("                                    <td style=\"font-size: 14px; color: #666666; padding-bottom: 30px;\">${TelegramMessages.SERVICE_SHORT_DESCRIPTION}</td>")
-        appendLine("                                </tr>")
-        appendLine("                                <tr>")
         appendLine("                                    <td style=\"font-size: 24px; font-weight: bold; padding-bottom: 24px;\">🎉 Found ${jobs.size} new jobs for $searchName!</td>")
         appendLine("                                </tr>")
+        if (specialMessage != null) {
+            appendLine("                                <tr>")
+            appendLine("                                    <td style=\"font-size: 16px; color: #059862; font-weight: bold; padding-bottom: 20px; background-color: #f8f9fa; padding: 12px; border-left: 4px solid #059862;\">$specialMessage</td>")
+            appendLine("                                </tr>")
+        }
         appendLine("                            </table>")
         appendLine("                        </td>")
         appendLine("                    </tr>")
@@ -138,11 +141,22 @@ class EmailTemplateService(
         appendLine("                                        <table cellpadding=\"0\" cellspacing=\"0\" border=\"0\">")
         appendLine("                                            <tr>")
         appendLine("                                                <td style=\"background-color: #ffffff; border: 1px solid #e5e5e5; padding: 8px 16px;\">")
-        appendLine("                                                    <a href=\"#edit-alert-$alertId\" style=\"color: #666666; text-decoration: none; font-size: 14px;\">Edit alert</a>")
+        appendLine("                                                    <a href=\"$websiteUrl\" style=\"color: #666666; text-decoration: none; font-size: 14px;\">ApplyFirst</a>")
         appendLine("                                                </td>")
         appendLine("                                                <td width=\"8\">&nbsp;</td>")
         appendLine("                                                <td style=\"background-color: #ffffff; border: 1px solid #e5e5e5; padding: 8px 16px;\">")
-        appendLine("                                                    <a href=\"#unsubscribe-$alertId\" style=\"color: #666666; text-decoration: none; font-size: 14px;\">Unsubscribe</a>")
+        appendLine("                                                    <a href=\"$websiteUrl/editJobSearch/$alertId\" style=\"color: #666666; text-decoration: none; font-size: 14px;\">Edit alert</a>")
+        appendLine("                                                </td>")
+        appendLine("                                            </tr>")
+        appendLine("                                        </table>")
+        appendLine("                                    </td>")
+        appendLine("                                </tr>")
+        appendLine("                                <tr>")
+        appendLine("                                    <td style=\"padding-bottom: 20px;\">")
+        appendLine("                                        <table cellpadding=\"0\" cellspacing=\"0\" border=\"0\">")
+        appendLine("                                            <tr>")
+        appendLine("                                                <td style=\"background-color: #ffffff; border: 1px solid #e5e5e5; padding: 8px 16px;\">")
+        appendLine("                                                    <a href=\"$websiteUrl/changeEmailSubscriptions\" style=\"color: #666666; text-decoration: none; font-size: 14px;\">Unsubscribe</a>")
         appendLine("                                                </td>")
         appendLine("                                            </tr>")
         appendLine("                                        </table>")
@@ -150,7 +164,7 @@ class EmailTemplateService(
         appendLine("                                </tr>")
         appendLine("                                <tr>")
         appendLine("                                    <td style=\"font-size: 12px; color: #666666; line-height: 18px;\">")
-        appendLine("                                        $EMAIL_GROUND_TEXT<br/>")
+        appendLine("                                        ${getEmailGroundText()}<br/>")
         appendLine("                                        $BUSINESS_NAME<br/>")
         appendLine("                                        $BUSINESS_ADDRESS")
         appendLine("                                    </td>")
@@ -166,25 +180,31 @@ class EmailTemplateService(
         appendLine("</html>")
     }
 
-
     private fun createPlainTextEmail(
         searchName: String,
         jobs: List<ScoredJobData>,
-        alertId: String
+        alertId: String,
+        specialMessage: String? = null
     ): String {
         val messageBody = TelegramMessages.getJobNotificationMessage(searchName, jobs, null)
 
         return buildString {
             appendLine("🎉 Found ${jobs.size} new jobs for $searchName!")
             appendLine()
+            if (specialMessage != null) {
+                appendLine(specialMessage)
+                appendLine()
+            }
             appendLine("ApplyFirst - Your personalised Job Search AI Agent")
             appendLine()
             appendLine(messageBody)
             appendLine()
             appendLine("---")
             appendLine()
-            appendLine("Edit alert: #edit-alert-$alertId")
-            appendLine("Unsubscribe: #unsubscribe-$alertId")
+            appendLine("ApplyFirst: $websiteUrl")
+            appendLine("Edit alert: $websiteUrl/editJobSearch/$alertId")
+            appendLine()
+            appendLine("Unsubscribe: $websiteUrl/changeEmailSubscriptions")
             appendLine()
             appendLine(createPlainTextFooter())
         }
@@ -283,11 +303,6 @@ class EmailTemplateService(
         appendLine("                        <td class=\"mobile-padding\" style=\"padding: 20px;\">")
         appendLine("                            <table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\">")
         appendLine("                                <tr>")
-        appendLine("                                    <td style=\"font-size: 20px; font-weight: bold; padding-bottom: 8px;\">")
-        appendLine("                                        <a href=\"https://applyfirst.app\" style=\"color: #000000; text-decoration: none;\">ApplyFirst</a>")
-        appendLine("                                    </td>")
-        appendLine("                                </tr>")
-        appendLine("                                <tr>")
         appendLine("                                    <td class=\"mobile-text\" style=\"font-size: 14px; color: #666666; padding-bottom: 30px;\">Your personalised Job Search AI Agent</td>")
         appendLine("                                </tr>")
         appendLine("                                <tr>")
@@ -356,7 +371,7 @@ class EmailTemplateService(
         appendLine("                                                                <table cellpadding=\"0\" cellspacing=\"0\" border=\"0\">")
         appendLine("                                                                    <tr>")
         appendLine("                                                                        <td class=\"mobile-button\" style=\"background-color: #000000; padding: 12px 24px; border-radius: 3px;\">")
-        appendLine("                                                                            <a href=\"https://applyfirst.app\" style=\"color: #ffffff; text-decoration: none; font-size: 16px; font-weight: bold; display: block;\">Start Your Job Search →</a>")
+        appendLine("                                                                            <a href=\"$websiteUrl\" style=\"color: #ffffff; text-decoration: none; font-size: 16px; font-weight: bold; display: block;\">Start Your Job Search →</a>")
         appendLine("                                                                        </td>")
         appendLine("                                                                    </tr>")
         appendLine("                                                                </table>")
@@ -389,7 +404,7 @@ class EmailTemplateService(
         appendLine("                                </tr>")
         appendLine("                                <tr>")
         appendLine("                                    <td class=\"mobile-text appleLinks\" style=\"font-size: 12px; color: #666666; line-height: 18px; text-align: center;\">")
-        appendLine("                                        $EMAIL_GROUND_TEXT<br/>")
+        appendLine("                                        ${getEmailGroundText()}<br/>")
         appendLine("                                        $BUSINESS_NAME<br/>")
         appendLine("                                        $BUSINESS_ADDRESS")
         appendLine("                                    </td>")
@@ -422,7 +437,7 @@ class EmailTemplateService(
             appendLine("• Your subscription will automatically continue at $14/month")
             appendLine("• Cancel anytime before trial ends to avoid charges")
             appendLine()
-            appendLine("Start your job search: https://applyfirst.app")
+            appendLine("Start your job search: $websiteUrl")
             appendLine("Manage subscription: $customerPortalUrl")
             appendLine()
             appendLine("---")
@@ -446,7 +461,7 @@ class EmailTemplateService(
                 <p style="font-size: 16px; line-height: 24px; margin-bottom: 20px;">Try adjusting your search criteria or check back later for new opportunities.</p>
             """.trimIndent(),
             ctaText = "Edit Job Alert",
-            ctaUrl = "https://applyfirst.app"
+            ctaUrl = websiteUrl
         )
         val textBody = createSystemEmailText(
             title = "No new jobs found",
@@ -477,14 +492,6 @@ class EmailTemplateService(
         appendLine("                    <tr>")
         appendLine("                        <td style=\"padding: 20px;\">")
         appendLine("                            <table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\">")
-        appendLine("                                <tr>")
-        appendLine("                                    <td style=\"font-size: 20px; font-weight: bold; padding-bottom: 8px;\">")
-        appendLine("                                        <a href=\"https://applyfirst.app\" style=\"color: #000000; text-decoration: none;\">ApplyFirst</a>")
-        appendLine("                                    </td>")
-        appendLine("                                </tr>")
-        appendLine("                                <tr>")
-        appendLine("                                    <td style=\"font-size: 14px; color: #666666; padding-bottom: 30px;\">${TelegramMessages.SERVICE_SHORT_DESCRIPTION}</td>")
-        appendLine("                                </tr>")
         appendLine("                                <tr>")
         appendLine("                                    <td style=\"font-size: 24px; font-weight: bold; padding-bottom: 24px;\">$title</td>")
         appendLine("                                </tr>")
@@ -518,7 +525,7 @@ class EmailTemplateService(
         appendLine("                            <table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\">")
         appendLine("                                <tr>")
         appendLine("                                    <td style=\"font-size: 12px; color: #666666; line-height: 18px;\">")
-        appendLine("                                        $EMAIL_GROUND_TEXT<br/>")
+        appendLine("                                        ${getEmailGroundText()}<br/>")
         appendLine("                                        $BUSINESS_NAME<br/>")
         appendLine("                                        $BUSINESS_ADDRESS")
         appendLine("                                    </td>")
@@ -550,7 +557,7 @@ class EmailTemplateService(
 
     private fun createPlainTextFooter(): String {
         return buildString {
-            appendLine(EMAIL_GROUND_TEXT)
+            appendLine(getEmailGroundText())
             appendLine(BUSINESS_NAME)
             appendLine(BUSINESS_ADDRESS)
         }

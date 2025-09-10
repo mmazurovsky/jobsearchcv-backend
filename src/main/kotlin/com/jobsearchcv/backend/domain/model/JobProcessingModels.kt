@@ -138,7 +138,9 @@ data class JobDataCallbackRequest(
     @Schema(description = "User ID who owns the job search", required = true)
     val userId: String,
     @Schema(description = "List of scraped job data", required = true)
-    val jobs: List<ScrapedJobData>
+    val jobs: List<ScrapedJobData>,
+    @param:Schema(description = "Optional search name for special searches like monthly overview", required = false)
+    val searchName: String? = null
 )
 
 @Schema(description = "Response for job data callback")
