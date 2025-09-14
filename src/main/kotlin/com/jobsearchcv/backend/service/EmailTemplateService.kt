@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service
 @Service
 class EmailTemplateService(
     @Value("\${stripe.customer-portal-url}") private val customerPortalUrl: String,
-    @Value("\${WEBSITE_URL}") private val websiteUrl: String
+    private val urlService: UrlService
 ) {
 
     companion object {
@@ -18,7 +18,7 @@ class EmailTemplateService(
     }
 
     private fun getEmailGroundText(): String {
-        return "You're receiving this email because you have an active job alert created at $websiteUrl"
+        return "You're receiving this email because you have an active job alert created at ApplyFirst"
     }
 
     fun createJobNotificationEmail(
@@ -141,11 +141,11 @@ class EmailTemplateService(
         appendLine("                                        <table cellpadding=\"0\" cellspacing=\"0\" border=\"0\">")
         appendLine("                                            <tr>")
         appendLine("                                                <td style=\"background-color: #ffffff; border: 1px solid #e5e5e5; padding: 8px 16px;\">")
-        appendLine("                                                    <a href=\"$websiteUrl\" style=\"color: #666666; text-decoration: none; font-size: 14px;\">ApplyFirst</a>")
+        appendLine("                                                    <a href=\"${urlService.getWebsiteUrl()}\" style=\"color: #666666; text-decoration: none; font-size: 14px;\">ApplyFirst</a>")
         appendLine("                                                </td>")
         appendLine("                                                <td width=\"8\">&nbsp;</td>")
         appendLine("                                                <td style=\"background-color: #ffffff; border: 1px solid #e5e5e5; padding: 8px 16px;\">")
-        appendLine("                                                    <a href=\"$websiteUrl/editJobSearch/$alertId\" style=\"color: #666666; text-decoration: none; font-size: 14px;\">Edit alert</a>")
+        appendLine("                                                    <a href=\"${urlService.getEditJobSearchUrl(alertId)}\" style=\"color: #666666; text-decoration: none; font-size: 14px;\">Edit alert</a>")
         appendLine("                                                </td>")
         appendLine("                                            </tr>")
         appendLine("                                        </table>")
@@ -156,7 +156,7 @@ class EmailTemplateService(
         appendLine("                                        <table cellpadding=\"0\" cellspacing=\"0\" border=\"0\">")
         appendLine("                                            <tr>")
         appendLine("                                                <td style=\"background-color: #ffffff; border: 1px solid #e5e5e5; padding: 8px 16px;\">")
-        appendLine("                                                    <a href=\"$websiteUrl/changeEmailSubscriptions\" style=\"color: #666666; text-decoration: none; font-size: 14px;\">Unsubscribe</a>")
+        appendLine("                                                    <a href=\"${urlService.getUnsubscribeUrl()}\" style=\"color: #666666; text-decoration: none; font-size: 14px;\">Unsubscribe</a>")
         appendLine("                                                </td>")
         appendLine("                                            </tr>")
         appendLine("                                        </table>")
@@ -201,10 +201,10 @@ class EmailTemplateService(
             appendLine()
             appendLine("---")
             appendLine()
-            appendLine("ApplyFirst: $websiteUrl")
-            appendLine("Edit alert: $websiteUrl/editJobSearch/$alertId")
+            appendLine("ApplyFirst: ${urlService.getWebsiteUrl()}")
+            appendLine("Edit alert: ${urlService.getEditJobSearchUrl(alertId)}")
             appendLine()
-            appendLine("Unsubscribe: $websiteUrl/changeEmailSubscriptions")
+            appendLine("Unsubscribe: ${urlService.getUnsubscribeUrl()}")
             appendLine()
             appendLine(createPlainTextFooter())
         }
@@ -371,7 +371,7 @@ class EmailTemplateService(
         appendLine("                                                                <table cellpadding=\"0\" cellspacing=\"0\" border=\"0\">")
         appendLine("                                                                    <tr>")
         appendLine("                                                                        <td class=\"mobile-button\" style=\"background-color: #000000; padding: 12px 24px; border-radius: 3px;\">")
-        appendLine("                                                                            <a href=\"$websiteUrl\" style=\"color: #ffffff; text-decoration: none; font-size: 16px; font-weight: bold; display: block;\">Start Your Job Search →</a>")
+        appendLine("                                                                            <a href=\"${urlService.getWebsiteUrl()}\" style=\"color: #ffffff; text-decoration: none; font-size: 16px; font-weight: bold; display: block;\">Start Your Job Search →</a>")
         appendLine("                                                                        </td>")
         appendLine("                                                                    </tr>")
         appendLine("                                                                </table>")
@@ -437,7 +437,7 @@ class EmailTemplateService(
             appendLine("• Your subscription will automatically continue at $14/month")
             appendLine("• Cancel anytime before trial ends to avoid charges")
             appendLine()
-            appendLine("Start your job search: $websiteUrl")
+            appendLine("Start your job search: ${urlService.getWebsiteUrl()}")
             appendLine("Manage subscription: $customerPortalUrl")
             appendLine()
             appendLine("---")
@@ -461,7 +461,7 @@ class EmailTemplateService(
                 <p style="font-size: 16px; line-height: 24px; margin-bottom: 20px;">Try adjusting your search criteria or check back later for new opportunities.</p>
             """.trimIndent(),
             ctaText = "Edit Job Alert",
-            ctaUrl = websiteUrl
+            ctaUrl = urlService.getWebsiteUrl()
         )
         val textBody = createSystemEmailText(
             title = "No new jobs found",

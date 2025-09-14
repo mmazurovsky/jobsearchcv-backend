@@ -34,6 +34,8 @@ class SecurityConfig(
                     .requestMatchers("/api/test/**").permitAll() // Test endpoints for Logbook
                     // Stripe webhook endpoint (must be public)
                     .requestMatchers("/api/subscriptions/webhook").permitAll()
+                    // Admin endpoints (authenticated via admin secret)
+                    .requestMatchers("/api/admin/**").permitAll()
                     // OpenAPI endpoints
                     .requestMatchers("/v3/api-docs/**").permitAll()
                     .requestMatchers("/swagger-ui/**").permitAll()
