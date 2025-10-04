@@ -95,7 +95,7 @@ OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:}
 # Resend Email Configuration
 resend:
   api-key: ${RESEND_API_KEY}
-  from-email: ${RESEND_FROM_EMAIL:notifications@applyfirst.app}
+  from-email: ${RESEND_FROM_EMAIL}
   from-name: ${RESEND_FROM_NAME:ApplyFirst}
 
 # Application URLs and contact information

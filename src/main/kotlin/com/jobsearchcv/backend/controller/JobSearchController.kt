@@ -317,7 +317,7 @@ class JobSearchController(
 
     @PutMapping("/changeEmailSubscriptions")
     @Operation(
-        summary = "Change email notifications for multiple job searches",
+        summary = "Change email alerts for multiple job searches",
         description = "Updates isSubscribed status for multiple job searches and manages scheduler accordingly"
     )
     @ApiResponses(
@@ -325,7 +325,7 @@ class JobSearchController(
         ApiResponse(responseCode = "400", description = "Invalid request or some job searches don't belong to user"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     )
-    fun changeEmailNotifications(
+    fun changeEmailSubscriptions(
         @RequestBody request: ChangeEmailNotificationsRequest,
         @Parameter(hidden = true) authentication: Authentication
     ): ResponseEntity<ChangeEmailNotificationsResponse> = runBlocking {
