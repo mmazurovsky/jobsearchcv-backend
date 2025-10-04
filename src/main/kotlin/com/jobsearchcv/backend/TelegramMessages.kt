@@ -1,7 +1,6 @@
 package com.jobsearchcv.backend
 
 import com.jobsearchcv.backend.domain.model.*
-import com.jobsearchcv.backend.service.JobSearchParseResult
 
 /**
  * Centralized class for all application messages and string templates.
@@ -457,26 +456,6 @@ object TelegramMessages {
         appendLine("Use $CMD_CANCEL if you want to stop.")
     }
 
-    fun getParseErrorMessage(
-        parseResult: JobSearchParseResult
-    ): String = buildString {
-        appendLine("❌ <b>${parseResult.errorMessage}</b>")
-        appendLine()
-        if (parseResult.missingFields.isNotEmpty()) {
-            appendLine("<b>Missing information:</b> ${parseResult.missingFields.joinToString(", ")}")
-            appendLine()
-        }
-        appendLine(INSTRUCTION_RETRY_DESCRIPTION)
-        appendLine()
-        appendLine(HEADER_EXAMPLES)
-        appendLine("Senior Software Engineer in San Francisco, full-time, remote, check new jobs every 30 mins, $150k+ salary, no on-call")
-        appendLine("Data Scientist role in Berlin, contract work, check new jobs once an hour, doesn't require German language, avoid startups")
-        appendLine("Product Manager in New York, full-time, on-site, check new jobs once in 4 hours, visa support required")
-
-        appendLine()
-        appendLine("Or use $CMD_CANCEL to stop.")
-    }
-
     // === Common Confirmation Responses ===
     fun getConfirmationInstruction(actionType: String): String = when (actionType) {
         "create" -> "Please respond with <b>yes</b> to create the alert, <b>no</b> to edit description again, or $CMD_CANCEL to abort."
@@ -686,25 +665,6 @@ object TelegramMessages {
         appendLine()
         appendLine("Use $CMD_CANCEL to abort this operation or try again later.")
     }
-
-    fun getEditParseErrorMessage(
-        parseResult: JobSearchParseResult,
-        retryCount: Int
-    ): String =
-        buildString {
-            appendLine("❌ <b>Unable to parse your job search criteria.</b> (Attempt $retryCount/3)")
-            appendLine()
-            if (parseResult.errorMessage?.isNotBlank() ?: false) {
-                appendLine("<b>Error:</b> ${parseResult.errorMessage}")
-                appendLine()
-            }
-            appendLine("Please try again with a clearer description:")
-            appendLine()
-            append(getJobSearchFormattingInstructions())
-            appendLine()
-            appendLine("Use $CMD_CANCEL to abort this operation.")
-        }
-
 // === Support Messages ===
 
     fun getSupportInitialMessage(): String = buildString {

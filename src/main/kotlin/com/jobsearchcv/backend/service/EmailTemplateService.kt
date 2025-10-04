@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service
 @Service
 class EmailTemplateService(
     @Value("\${stripe.customer-portal-url}") private val customerPortalUrl: String,
+    @Value("\${stripe.checkout-url}") private val stripeCheckoutUrl: String,
     private val urlService: UrlService
 ) {
 
@@ -26,12 +27,14 @@ class EmailTemplateService(
         searchName: String,
         jobs: List<ScoredJobData>,
         alertId: String,
-        specialMessage: String? = null
+        specialMessage: String? = null,
+        userId: String,
+        isFreeTier: Boolean = false
     ): EmailContent {
         val subject = "New jobs: $searchName"
 
-        val htmlBody = createHtmlEmail(searchName, jobs, alertId, specialMessage)
-        val textBody = createPlainTextEmail(searchName, jobs, alertId, specialMessage)
+        val htmlBody = createHtmlEmail(searchName, jobs, alertId, specialMessage, userId, isFreeTier)
+        val textBody = createPlainTextEmail(searchName, jobs, alertId, specialMessage, userId, isFreeTier)
 
         return EmailContent(recipient, subject, htmlBody, textBody)
     }
@@ -40,7 +43,9 @@ class EmailTemplateService(
         searchName: String,
         jobs: List<ScoredJobData>,
         alertId: String,
-        specialMessage: String? = null
+        specialMessage: String? = null,
+        userId: String,
+        isFreeTier: Boolean
     ): String = buildString {
         appendLine("<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">")
         appendLine("<html xmlns=\"http://www.w3.org/1999/xhtml\">")
@@ -132,6 +137,40 @@ class EmailTemplateService(
             appendLine("                    </tr>")
         }
 
+        // Add upgrade message for free tier users
+        if (isFreeTier) {
+            val upgradeUrl = "$stripeCheckoutUrl?client_reference_id=$userId"
+            appendLine("                    <!-- Upgrade Message -->")
+            appendLine("                    <tr>")
+            appendLine("                        <td style=\"padding: 20px; padding-top: 0;\">")
+            appendLine("                            <table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\" style=\"background-color: #f8f9fa; border: 1px solid #e5e5e5; border-radius: 4px;\">")
+            appendLine("                                <tr>")
+            appendLine("                                    <td style=\"padding: 20px;\">")
+            appendLine("                                        <table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\">")
+            appendLine("                                            <tr>")
+            appendLine("                                                <td style=\"font-size: 16px; color: #333333; line-height: 24px; padding-bottom: 16px;\">")
+            appendLine("                                                    Users on the Free plan only receive job overviews once a month. Premium users receive alerts at their specified frequency (every 5 minutes to daily). <strong>Upgrade to Premium to get your new job faster.</strong>")
+            appendLine("                                                </td>")
+            appendLine("                                            </tr>")
+            appendLine("                                            <tr>")
+            appendLine("                                                <td>")
+            appendLine("                                                    <table cellpadding=\"0\" cellspacing=\"0\" border=\"0\">")
+            appendLine("                                                        <tr>")
+            appendLine("                                                            <td style=\"background-color: #032DB3; padding: 12px 24px; border-radius: 3px;\">")
+            appendLine("                                                                <a href=\"$upgradeUrl\" style=\"color: #ffffff; text-decoration: none; font-size: 16px; font-weight: bold;\">Upgrade to Premium</a>")
+            appendLine("                                                            </td>")
+            appendLine("                                                        </tr>")
+            appendLine("                                                    </table>")
+            appendLine("                                                </td>")
+            appendLine("                                            </tr>")
+            appendLine("                                        </table>")
+            appendLine("                                    </td>")
+            appendLine("                                </tr>")
+            appendLine("                            </table>")
+            appendLine("                        </td>")
+            appendLine("                    </tr>")
+        }
+
         appendLine("                    <!-- Footer -->")
         appendLine("                    <tr>")
         appendLine("                        <td style=\"padding: 20px;\">")
@@ -184,7 +223,9 @@ class EmailTemplateService(
         searchName: String,
         jobs: List<ScoredJobData>,
         alertId: String,
-        specialMessage: String? = null
+        specialMessage: String? = null,
+        userId: String,
+        isFreeTier: Boolean = false
     ): String {
         val messageBody = TelegramMessages.getJobNotificationMessage(searchName, jobs, null)
 
@@ -199,6 +240,18 @@ class EmailTemplateService(
             appendLine()
             appendLine(messageBody)
             appendLine()
+
+            // Add upgrade message for free tier users
+            if (isFreeTier) {
+                val upgradeUrl = "$stripeCheckoutUrl?client_reference_id=$userId"
+                appendLine("---")
+                appendLine()
+                appendLine("Users on the Free plan only receive job overviews once a month. Premium users receive alerts at their specified frequency (every 5 minutes to daily). Upgrade to Premium to get your new job faster.")
+                appendLine()
+                appendLine("Upgrade to Premium: $upgradeUrl")
+                appendLine()
+            }
+
             appendLine("---")
             appendLine()
             appendLine("ApplyFirst: ${urlService.getWebsiteUrl()}")

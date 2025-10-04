@@ -19,6 +19,7 @@ class IncomingJobsProcessingService(
     private val destinationRepository: DestinationRepository,
     private val emailTemplateService: EmailTemplateService,
     private val asyncEmailService: AsyncEmailService,
+    private val subscriptionService: SubscriptionService,
 ) {
     private val logger = LoggerFactory.getLogger(this::class.java)
 
@@ -230,12 +231,15 @@ class IncomingJobsProcessingService(
                 logger.info("Sending email to $recipientEmail for ${jobs.size} jobs, searchName=$specialSearchName")
 
                 // Create email content using EmailTemplateService
+                val hasPremiumAccess = subscriptionService.checkPremiumAccess(userId)
                 val emailContent = emailTemplateService.createJobNotificationEmail(
                     recipient = recipientEmail,
                     searchName = displaySearchName,
                     jobs = jobs,
                     alertId = alertId,
-                    specialMessage = if (specialSearchName == "Monthly Overview") "This is an overview of jobs posted in the last month, you receive it only one time after job search is created \uD83D\uDE0A" else null
+                    specialMessage = if (specialSearchName == "Monthly Overview") "This is an overview of jobs posted in the last month, you receive it only one time after job search is created \uD83D\uDE0A" else null,
+                    userId = userId,
+                    isFreeTier = !hasPremiumAccess
                 )
 
                 // Send email asynchronously using AsyncEmailService - fire and forget
