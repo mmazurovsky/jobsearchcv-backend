@@ -39,12 +39,11 @@ class DestinationController(
     @PostMapping
     @Operation(
         summary = "Add a new destination",
-        description = "Creates a new notification destination for the authenticated user. Anonymous users cannot add destinations."
+        description = "Creates a new notification destination for the authenticated user."
     )
     @ApiResponses(
         ApiResponse(responseCode = "200", description = "Destination created successfully"),
         ApiResponse(responseCode = "400", description = "Invalid request or channel"),
-        ApiResponse(responseCode = "403", description = "Anonymous users cannot add destinations"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     )
     fun addDestination(
@@ -54,23 +53,12 @@ class DestinationController(
         try {
             // Extract user ID from authentication
             val userId = authentication.principal as String
-            
-            // Get user details from authentication to check if anonymous
+
+            // Get user details from authentication
             val userDetails = authentication.details as? FirebaseUser
-            
-            // Check if user email is not verified
-            if (userDetails?.emailVerified == false) {
-                logger.warn("User with unverified email attempted to add destination: userId=$userId")
-                return@runBlocking ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(DestinationResponse(
-                        success = false,
-                        message = "Anonymous users cannot add destinations",
-                        destination = null
-                    ))
-            }
-            
+
             logger.info("Adding destination for user: $userId, channel: ${request.channel}")
-            
+
             // Validate channel
             val channel = try {
                 Channel.fromString(request.channel)
@@ -213,7 +201,7 @@ class DestinationController(
     )
     @ApiResponses(
         ApiResponse(responseCode = "204", description = "Destination deleted successfully"),
-        ApiResponse(responseCode = "403", description = "Forbidden - anonymous users or not the owner"),
+        ApiResponse(responseCode = "403", description = "Forbidden - not the owner"),
         ApiResponse(responseCode = "404", description = "Destination not found"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     )
@@ -223,16 +211,7 @@ class DestinationController(
     ): ResponseEntity<Void> = runBlocking {
         try {
             val userId = authentication.principal as String
-            
-            // Get user details from authentication to check if anonymous
-            val userDetails = authentication.details as? FirebaseUser
-            
-            // Check if user email is not verified
-            if (userDetails?.emailVerified == false) {
-                logger.warn("User with unverified email attempted to delete destination: userId=$userId")
-                return@runBlocking ResponseEntity.status(HttpStatus.FORBIDDEN).build()
-            }
-            
+
             logger.info("Deleting destination: id=$destinationId, userId=$userId")
             
             // Check if destination exists and belongs to user
