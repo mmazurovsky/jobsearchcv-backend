@@ -22,6 +22,7 @@ class JobDataConverter {
             description = enrichedJob.description,
             applicants = enrichedJob.applicants,
             techstack = enrichedJob.techstack,
+            tags = enrichedJob.tags,
             salary = enrichedJob.salary,
             processedAt = OffsetDateTime.now(),
         )
@@ -61,6 +62,7 @@ class JobDataConverter {
     fun toEnrichedJobData(
         translatedJob: TranslatedJobData,
         techstack: List<String>,
+        tags: List<String>,
         salary: String?
     ): EnrichedJobData {
         return EnrichedJobData(
@@ -77,6 +79,7 @@ class JobDataConverter {
             jobSearchId = translatedJob.jobSearchId,
             keywords = translatedJob.keywords,
             techstack = techstack,
+            tags = tags,
             salary = salary,
         )
     }
@@ -103,6 +106,7 @@ class JobDataConverter {
             jobSearchId = enrichedJob.jobSearchId,
             keywords = enrichedJob.keywords,
             techstack = enrichedJob.techstack,
+            tags = enrichedJob.tags,
             salary = enrichedJob.salary,
             compatibilityScore = compatibilityScore,
             filterReason = filterReason,

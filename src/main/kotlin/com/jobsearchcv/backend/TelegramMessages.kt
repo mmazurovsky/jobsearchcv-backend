@@ -536,6 +536,15 @@ object TelegramMessages {
                     }
                 }"
             )
+            if (job.tags.isNotEmpty()) {
+                appendLine(
+                    "\uD83D\uDCCC ${
+                        job.tags.joinToString(", ") { tag ->
+                            tag.trim()
+                        }
+                    }"
+                )
+            }
             appendLine("🔗 ${job.link}")
         }
     }
@@ -584,6 +593,15 @@ object TelegramMessages {
                         }
                     }"
                 )
+                if (job.tags.isNotEmpty()) {
+                    appendLine(
+                        "\uD83D\uDCCC ${
+                            job.tags.joinToString(", ") { tag ->
+                                tag.trim()
+                            }
+                        }"
+                    )
+                }
                 appendLine("🔗 ${job.link}")
                 appendLine()
             }

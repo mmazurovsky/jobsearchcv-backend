@@ -65,6 +65,7 @@ class ProcessedJobRepositoryImpl(
                     .set("description", job.description)
                     .set("applicants", job.applicants)
                     .set("techstack", job.techstack)
+                    .set("tags", job.tags)
                     .set("salary", job.salary)
                     .set("processed_at", job.processedAt)
 

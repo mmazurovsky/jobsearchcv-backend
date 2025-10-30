@@ -79,6 +79,7 @@ data class EnrichedJobData(
     
     // LLM enrichment results
     val techstack: List<String>,
+    val tags: List<String> = emptyList(),
     val salary: String?
 )
 
@@ -103,6 +104,7 @@ data class ScoredJobData(
     
     // LLM enrichment results
     val techstack: List<String>,
+    val tags: List<String> = emptyList(),
     val salary: String?,
     
     // LLM scoring results
@@ -123,6 +125,7 @@ data class ProcessedJobData(
     val applicants: String,
     // LLM processing results
     @field:Field("techstack") val techstack: List<String>,
+    @field:Field("tags") val tags: List<String> = emptyList(),
     val salary: String?,
     @field:Field("processed_at") val processedAt: OffsetDateTime
 )

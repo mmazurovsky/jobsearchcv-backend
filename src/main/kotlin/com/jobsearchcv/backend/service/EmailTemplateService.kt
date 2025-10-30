@@ -110,12 +110,20 @@ class EmailTemplateService(
             appendLine("                                                <td style=\"font-size: 14px; color: #666666; padding-bottom: 8px;\">⌛ ${job.createdAgo}</td>")
             appendLine("                                            </tr>")
             if (job.techstack.isNotEmpty()) {
-                val tags = job.techstack.map { tech ->
+                val techTags = job.techstack.map { tech ->
                     val tag = tech.replace(".", "").replace("/", "").replace(" ", "").lowercase()
                     "#$tag"
                 }.joinToString("&nbsp;&nbsp;&nbsp;")
                 appendLine("                                            <tr>")
-                appendLine("                                                <td style=\"font-size: 12px; color: #666666; padding: 12px 0; line-height: 20px;\">$tags</td>")
+                appendLine("                                                <td style=\"font-size: 12px; color: #666666; padding: 12px 0; line-height: 20px;\">$techTags</td>")
+                appendLine("                                            </tr>")
+            }
+            if (job.tags.isNotEmpty()) {
+                val tagPills = job.tags.joinToString("&nbsp;&nbsp;&nbsp;") { tag ->
+                    tag.trim()
+                }
+                appendLine("                                            <tr>")
+                appendLine("                                                <td style=\"font-size: 12px; color: #666666; padding-bottom: 12px; line-height: 20px;\">$tagPills</td>")
                 appendLine("                                            </tr>")
             }
             appendLine("                                            <tr>")
@@ -616,5 +624,4 @@ class EmailTemplateService(
         }
     }
 }
-
 

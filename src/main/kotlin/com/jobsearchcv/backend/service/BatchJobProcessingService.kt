@@ -23,6 +23,7 @@ data class BatchEnrichmentRequest(
 data class BatchEnrichmentResult(
     @JsonProperty("job_id") val jobId: String,
     @JsonProperty("techstack") val techstack: List<String>,
+    @JsonProperty("tags") val tags: List<String> = emptyList(),
     @JsonProperty("salary") val salary: String?
 )
 
@@ -32,6 +33,7 @@ data class BatchCompatibilityRequest(
     val description: String,
     val company: String,
     val techstack: List<String>,
+    val tags: List<String>,
     val salary: String?,
     val applicants: String?
 )
@@ -188,6 +190,7 @@ class BatchJobProcessingService(
                 jobDataConverter.toEnrichedJobData(
                     translatedJob = job,
                     techstack = enrichment?.techstack ?: emptyList(),
+                    tags = enrichment?.tags ?: emptyList(),
                     salary = enrichment?.salary
                 )
             }
@@ -198,6 +201,7 @@ class BatchJobProcessingService(
                 jobDataConverter.toEnrichedJobData(
                     translatedJob = job,
                     techstack = emptyList(),
+                    tags = emptyList(),
                     salary = null
                 )
             }
@@ -337,14 +341,16 @@ class BatchJobProcessingService(
                 description = job.description.take(jobDescriptionMaxLength),
                 company = job.company,
                 techstack = job.techstack,
+                tags = job.tags,
                 salary = job.salary,
                 applicants = job.applicants,
             )
 
             // Estimate tokens for this job
             val techstackText = request.techstack.joinToString(", ")
+            val tagsText = request.tags.joinToString(", ")
             val jobContent =
-                "${request.title} ${request.description} ${request.company} $techstackText ${request.salary ?: ""}"
+                "${request.title} ${request.description} ${request.company} $techstackText $tagsText ${request.salary ?: ""}"
             val jobTokens = (jobContent.length * estimatedTokensPerChar).toInt()
 
             // Check if adding this job would exceed limits
@@ -405,6 +411,7 @@ class BatchJobProcessingService(
                     BatchEnrichmentResult(
                         jobId = request.jobId,
                         techstack = emptyList(),
+                        tags = emptyList(),
                         salary = null
                     )
                 }
@@ -419,6 +426,7 @@ class BatchJobProcessingService(
                 BatchEnrichmentResult(
                     jobId = request.jobId,
                     techstack = emptyList(),
+                    tags = emptyList(),
                     salary = null
                 )
             }
@@ -506,18 +514,21 @@ $jobsText
 
 For each job, identify:
 1. TECHSTACK: List of technologies, programming languages, frameworks, tools mentioned in title and description, ordered by importance (most important first)
-2. SALARY: Any salary information like ranges, fixed amounts, hourly/daily rates (null if not mentioned)
+2. TAGS: Relevant tags like communication language with level needed, seniority level, travel expectations, standby/on-call requirements, soft skills, certifications, visa requirements, or other important non-technical details
+3. SALARY: Any salary information like ranges, fixed amounts, hourly/daily rates (null if not mentioned)
 
 Return ONLY a valid JSON array with this exact structure (no markdown, no extra text):
 [
   {
     "job_id": "job-123",
     "techstack": ["Python", "React", "AWS", "Docker"],
+    "tags": ["English C1", "German B1", "Senior", "Requires 80% travel"],
     "salary": "80k-100k"
   },
   {
     "job_id": "job-456", 
     "techstack": ["Java", "Spring Boot", "Kubernetes"],
+    "tags": ["Native German", "Requires standby on weekends"],
     "salary": null
   }
 ]
@@ -525,6 +536,7 @@ Return ONLY a valid JSON array with this exact structure (no markdown, no extra 
 REQUIREMENTS:
 - job_id: string matching the Job ID from the input above
 - techstack: array of technology/skill strings from job title and job description
+- tags: array of non-tech requirement strings such as communication languages, seniority, travel, standby, visa, soft skills
 - salary: string with salary info or null if not mentioned
 - NO markdown formatting in response
 - NO additional text or explanations"""
@@ -558,7 +570,7 @@ REQUIREMENTS:
                 criteriaLines.add("Location: ${search.location}")
             }
             if (!search.filterText.isNullOrBlank()) {
-                criteriaLines.add("Additional Requirements: ${search.filterText}")
+                criteriaLines.add("Filter text: ${search.filterText}")
             }
         }
 
@@ -574,12 +586,18 @@ REQUIREMENTS:
             } else {
                 "Not specified"
             }
+            val tagsText = if (job.tags.isNotEmpty()) {
+                job.tags.joinToString(", ")
+            } else {
+                "Not specified"
+            }
 
             """
 Job ID: ${job.jobId}
 Title: ${job.title}
 Company: ${job.company}
 Techstack: $techstackText
+Tags: $tagsText
 Salary: ${job.salary ?: "Not specified"}
 Description: ${job.description}
 Applicants: ${job.applicants}
@@ -594,19 +612,19 @@ SEARCH CRITERIA:
 $searchCriteria
 
 EVALUATION PRIORITY (in order of importance):
-1. TITLE & KEYWORDS MATCH: Job title similarity to provided keywords
+1. TITLE & KEYWORDS MATCH: Job title similarity to provided keywords, seniority level match
 2. TECHSTACK & KEYWORDS MATCH: Job techstack similarity to provided keywords  
 3. REMOTE WORK TYPE: Match between job's remote policy and required remote type
 4. JOB TYPE: Match between job type (full-time, contract, etc.) and requirements
 5. NUMBER OF APPLICANTS: Filter out jobs with more than 70 applicants
 6. DESCRIPTION KEYWORDS: How well job description matches search keywords
 7. SALARY: Match for salary if specified in requirements
-8. ADDITIONAL REQUIREMENTS: Alignment with filter requirements
+8. TAGS & FILTER TEXT: Tags (languages, seniority, travel, standby) should be compared to filter text, if some tags imply the job should be filtered out according to filter text, do so
 
 SCORING GUIDELINES:
-- 90-100: Perfect match (title + techstack + all requirements met)
-- 70-89: Strong match (partial title/techstack match, most requirements met)
-- 50-69: Good match (some title/techstack/description match, some requirements met)
+- 90-100: Perfect match (title + techstack + tags are not conflicting with filter text at all)
+- 70-89: Strong match (partial title/techstack match, tags are not conflicting with filter text at all)
+- 50-69: Good match (some title/techstack/description match, most of tags are not conflicting with filter text)
 - 30-49: Weak match (weak alignment overall)
 - 0-29: Poor/no match (no significant alignment)
 
@@ -656,6 +674,7 @@ REQUIREMENTS:
                 resultsMap[request.jobId] ?: BatchEnrichmentResult(
                     jobId = request.jobId,
                     techstack = emptyList(),
+                    tags = emptyList(),
                     salary = null
                 )
             }
@@ -669,6 +688,7 @@ REQUIREMENTS:
                 BatchEnrichmentResult(
                     jobId = request.jobId,
                     techstack = emptyList(),
+                    tags = emptyList(),
                     salary = null
                 )
             }
