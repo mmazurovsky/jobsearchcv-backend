@@ -67,7 +67,10 @@ data class JobSearchOut(
     val isApproved: Boolean = false,
     @field:Field("destination")
     @Schema(description = "Destination channel for sending job results (e.g., 'xcom_us_tech', 'email', 'telegram')", required = false)
-    val destination: String? = null
+    val destination: String? = null,
+    @Indexed(unique = false) @field:Field("is_subscribed")
+    @Schema(description = "Whether user is subscribed to receive email notifications for this job search", required = true)
+    val isSubscribed: Boolean = true
 ) {
     fun toLogString(): String {
         return "id=$id, title=$jobTitle, location=$location, " +
@@ -104,7 +107,8 @@ data class JobSearchOut(
                 filterText = input.filterText,
                 createdAt = OffsetDateTime.now(),
                 destination = destinationId,
-                isApproved = isApproved
+                isApproved = isApproved,
+                isSubscribed = true
             )
         }
 
@@ -123,7 +127,8 @@ data class JobSearchOut(
                 filterText = input.filterText,
                 createdAt = OffsetDateTime.now(),
                 destination = destinationId,
-                isApproved = false
+                isApproved = false,
+                isSubscribed = true
             )
         }
     }
@@ -149,8 +154,8 @@ data class SearchJobsParams(
     @JsonProperty("filter_text") val filterText: String? = null,
     @JsonProperty("callback_url") val callbackUrl: String,
     @JsonProperty("job_search_id") val jobSearchId: String? = null,
-//    TODO: type should be string
-    @JsonProperty("user_id") val userId: String? = null
+    @JsonProperty("user_id") val userId: String? = null,
+    @JsonProperty("search_name") val searchName: String? = null
 )
 
 /**

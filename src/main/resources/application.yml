@@ -43,7 +43,6 @@ firebase:
       max-attempts: ${FIREBASE_STORAGE_MAX_RETRY_ATTEMPTS:3}
       delay-ms: ${FIREBASE_STORAGE_RETRY_DELAY_MS:1000}
 
-
 sentry:
   dsn: ${SENTRY_DSN:}
   # Add data like request headers and IP for users,
@@ -91,22 +90,19 @@ logging:
 DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:}
 OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:}
 
-aws:
-  s3:
-    access-key: ${AWS_ACCESS_KEY:}
-    secret-key: ${AWS_SECRET_KEY:}
-    region: ${AWS_REGION:us-east-1}
-    retry:
-      max-attempts: ${AWS_S3_MAX_RETRY_ATTEMPTS:3}
-      delay-ms: ${AWS_S3_RETRY_DELAY_MS:1000}
-    bucket:
-      cvs: ${AWS_S3_CVS_BUCKET:applyfirst-cvs}
 
 # Resend Email Configuration
 resend:
   api-key: ${RESEND_API_KEY}
-  from-email: ${RESEND_FROM_EMAIL:notifications@applyfirst.app}
+  from-email: ${RESEND_FROM_EMAIL}
   from-name: ${RESEND_FROM_NAME:ApplyFirst}
+
+# Application URLs and contact information
+app:
+  website:
+    url: ${WEBSITE_URL}
+  support:
+    email: ${SUPPORT_EMAIL}
 
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
@@ -130,6 +126,17 @@ springdoc:
     disable-swagger-default-url: true
   packages-to-scan: com.jobsearchcv.backend.controller
   paths-to-match: /api/**
+
+# Stripe configuration
+stripe:
+  secret-key: ${STRIPE_SECRET_KEY}
+  webhook-secret: ${STRIPE_WEBHOOK_SECRET}
+  customer-portal-url: ${STRIPE_CUSTOMER_PORTAL_URL}
+  checkout-url: ${STRIPE_CHECKOUT_URL}
+  # Payment Link and Customer Portal URLs are configured in Stripe Dashboard
+  # Frontend uses these directly:
+  # - Payment Link: ${STRIPE_CHECKOUT_URL}?client_reference_id={userId}
+  # - Customer Portal: ${STRIPE_CUSTOMER_PORTAL_URL}
 
 
 

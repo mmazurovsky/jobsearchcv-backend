@@ -170,6 +170,9 @@ Sub-categories / Special Rules
 - Hybrid and On-site remoteTypes can be used ONLY with city or state
 - For first search use same title as latest title in CV or title specified first in CV. For secondary search use title one level higher than first one. Additional titles should not contain levels in them and should be different from primary and secondary
 - Use only city, state, or country granularity for location—never more specific, never more broad.
+- jobTitle must contain only ONE job title, never combine multiple roles.
+  Good examples: "Frontend Software Developer", "Product Manager", "Data Scientist"
+  Bad examples: "Software Developer and Scrum Master", "Frontend or Backend Developer", "Developer/Designer"
 - At least one job search must use Hybrid remoteType and a specific city or state if the user's location is certain and sufficiently granular.
 - Skill weights: 80+ for frequently mentioned, specified earlier in CV; 40 for specified later in CV, specified only once; 60-79 for others.
 - In filterText, include "Only positions with languages: {languages that user knows based on CV}". Other filters are included only if clearly specified (e.g., 'visa sponsorship required').

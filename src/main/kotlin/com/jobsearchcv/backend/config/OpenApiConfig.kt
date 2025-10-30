@@ -1,5 +1,6 @@
 package com.jobsearchcv.backend.config
 
+import com.jobsearchcv.backend.service.UrlService
 import io.swagger.v3.oas.models.Components
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.info.Contact
@@ -13,7 +14,9 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 @Configuration
-class OpenApiConfig {
+class OpenApiConfig(
+    private val urlService: UrlService
+) {
 
     @Value("\${spring.application.name:Job Search CV Backend}")
     private lateinit var applicationName: String
@@ -38,22 +41,12 @@ class OpenApiConfig {
                     .contact(
                         Contact()
                             .name("API Support")
-                            .email("support@jobsearchcv.com")
+                            .email(urlService.getSupportEmail())
                     )
                     .license(
                         License()
                             .name("Proprietary")
                     )
-            )
-            .servers(
-                listOf(
-                    Server()
-                        .url("http://localhost:8080")
-                        .description("Local development server"),
-                    Server()
-                        .url("https://api.jobsearchcv.com")
-                        .description("Production server")
-                )
             )
             .addSecurityItem(SecurityRequirement().addList(securitySchemeName))
             .components(

@@ -92,10 +92,6 @@ dependencies {
     implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
     implementation("io.ktor:ktor-serialization-jackson:$ktorVersion")
     
-    // ── AWS SDK v2 ───────────────────────────────────────────────
-    implementation(platform("software.amazon.awssdk:bom:2.25.0"))
-    implementation("software.amazon.awssdk:s3")
-    implementation("software.amazon.awssdk:s3-transfer-manager")
     
     // ── Resend Email SDK ────────────────────────────────────────
     implementation("com.resend:resend-java:4.5.0")
@@ -115,6 +111,9 @@ dependencies {
     // ── Firebase Admin SDK & Cloud Storage ────────────────────
     implementation("com.google.firebase:firebase-admin:9.3.0")
     implementation("com.google.cloud:google-cloud-storage:2.29.1")
+    
+    // ── Stripe Payment Processing ──────────────────────────────
+    implementation("com.stripe:stripe-java:24.19.0")
     
     // ── OpenAPI Documentation ──────────────────────────────────
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0")

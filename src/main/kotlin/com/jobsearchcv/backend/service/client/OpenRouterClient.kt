@@ -1,6 +1,7 @@
 package com.jobsearchcv.backend.service.client
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.jobsearchcv.backend.service.UrlService
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -19,6 +20,7 @@ import java.time.Duration
 class OpenRouterClient(
     @Value("\${OPENROUTER_API_KEY}")
     private val openRouterApiKey: String,
+    private val urlService: UrlService
 ) {
 
     companion object {
@@ -174,7 +176,7 @@ class OpenRouterClient(
             .header("Authorization", "Bearer $openRouterApiKey")
             .header("Accept", "application/json")
             .header("User-Agent", "JobSearchCV/1.0")
-            .header("HTTP-Referer", "https://jobsearchcv.com") // Optional but recommended by OpenRouter
+            .header("HTTP-Referer", urlService.getWebsiteUrl()) // Optional but recommended by OpenRouter
             .header("X-Title", "JobSearchCV Backend") // Optional metadata for OpenRouter
             .timeout(Duration.ofSeconds(REQUEST_TIMEOUT_SECONDS))
             .POST(HttpRequest.BodyPublishers.ofString(requestBody))

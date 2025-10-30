@@ -3,7 +3,9 @@ package com.jobsearchcv.backend.controller
 import com.jobsearchcv.backend.domain.model.Channel
 import com.jobsearchcv.backend.domain.model.Destination
 import com.jobsearchcv.backend.repository.DestinationRepository
-import com.jobsearchcv.backend.service.JobSearchScheduler
+import com.jobsearchcv.backend.service.SubscriptionAwareSchedulingService
+import com.jobsearchcv.backend.service.SubscriptionService
+import com.jobsearchcv.backend.service.MonthlyOverviewService
 import com.jobsearchcv.backend.service.FirebaseUser
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
@@ -26,7 +28,9 @@ import org.springframework.web.bind.annotation.*
 @SecurityRequirement(name = "bearerAuth")
 class DestinationController(
     private val destinationRepository: DestinationRepository,
-    private val jobSearchScheduler: JobSearchScheduler
+    private val subscriptionAwareSchedulingService: SubscriptionAwareSchedulingService,
+    private val subscriptionService: SubscriptionService,
+    private val monthlyOverviewService: MonthlyOverviewService
 ) {
     companion object {
         private val logger: Logger = LoggerFactory.getLogger(DestinationController::class.java)
@@ -34,13 +38,12 @@ class DestinationController(
 
     @PostMapping
     @Operation(
-        summary = "Add a new destination",
-        description = "Creates a new notification destination for the authenticated user. Anonymous users cannot add destinations."
+        summary = "Set user destination",
+        description = "Sets the notification destination for the authenticated user. Only one destination per user is allowed. Any existing destinations will be replaced."
     )
     @ApiResponses(
-        ApiResponse(responseCode = "200", description = "Destination created successfully"),
+        ApiResponse(responseCode = "200", description = "Destination set successfully"),
         ApiResponse(responseCode = "400", description = "Invalid request or channel"),
-        ApiResponse(responseCode = "403", description = "Anonymous users cannot add destinations"),
         ApiResponse(responseCode = "500", description = "Internal server error")
     )
     fun addDestination(
@@ -50,23 +53,12 @@ class DestinationController(
         try {
             // Extract user ID from authentication
             val userId = authentication.principal as String
-            
-            // Get user details from authentication to check if anonymous
+
+            // Get user details from authentication
             val userDetails = authentication.details as? FirebaseUser
-            
-            // Check if user email is not verified
-            if (userDetails?.emailVerified == false) {
-                logger.warn("User with unverified email attempted to add destination: userId=$userId")
-                return@runBlocking ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(DestinationResponse(
-                        success = false,
-                        message = "Anonymous users cannot add destinations",
-                        destination = null
-                    ))
-            }
-            
-            logger.info("Adding destination for user: $userId, channel: ${request.channel}")
-            
+
+            logger.info("Setting destination for user: $userId, channel: ${request.channel}")
+
             // Validate channel
             val channel = try {
                 Channel.fromString(request.channel)
@@ -79,64 +71,99 @@ class DestinationController(
                         destination = null
                     ))
             }
-            
-            // Check if destination already exists
-            val existingDestination = destinationRepository.findByUserIdAndChannelAndChannelValue(
-                userId, 
-                channel.value, 
-                request.channelValue
-            )
-            
-            // Check if user had any destinations before this operation
-            val userDestinationsBefore = destinationRepository.findByUserId(userId)
-            val hadDestinationsBefore = userDestinationsBefore.isNotEmpty()
-            
-            val savedDestination = if (existingDestination != null) {
-                logger.info("Destination already exists for user: $userId, updating createdAt")
-                // Update the existing destination with new createdAt
-                val updatedDestination = existingDestination.copy(createdAt = java.time.OffsetDateTime.now())
-                destinationRepository.save(updatedDestination)
-            } else {
-                // Create new destination
-                val destination = Destination.createNew(
-                    userId = userId,
-                    channel = channel,
-                    channelValue = request.channelValue
-                )
-                // Save to database
-                destinationRepository.save(destination)
+
+            // Get existing destinations
+            val existingDestinations = destinationRepository.findByUserId(userId)
+            val hadDestinationsBefore = existingDestinations.isNotEmpty()
+
+            // Check if the new destination is the same as existing one
+            val existingDestination = existingDestinations.find {
+                it.channel == channel.value && it.channelValue == request.channelValue
             }
-            
-            // If user didn't have destinations before and this is a new destination,
-            // schedule all their approved job searches
-            if (!hadDestinationsBefore && existingDestination == null) {
-                try {
-                    logger.info("User $userId added first destination, scheduling approved job searches")
-                    runBlocking {
-                        jobSearchScheduler.scheduleAllApprovedSearchesForUser(userId)
-                    }
-                } catch (e: Exception) {
-                    logger.error("Failed to schedule approved job searches for user $userId after adding first destination", e)
-                    // Don't fail the destination creation if scheduling fails
+
+            if (existingDestination != null) {
+                // Same destination already exists, just return it
+                logger.info("Destination already exists for user: $userId, returning existing destination")
+                return@runBlocking ResponseEntity.ok(DestinationResponse(
+                    success = true,
+                    message = "Destination already set",
+                    destination = existingDestination
+                ))
+            }
+
+            // Delete ALL existing destinations for this user (enforce single destination per user)
+            if (existingDestinations.isNotEmpty()) {
+                logger.info("Deleting ${existingDestinations.size} existing destination(s) for user: $userId")
+                existingDestinations.forEach { dest ->
+                    destinationRepository.deleteById(dest.id)
                 }
             }
-            
-            val messageText = if (existingDestination != null) {
+
+            // Create new destination
+            val destination = Destination.createNew(
+                userId = userId,
+                channel = channel,
+                channelValue = request.channelValue
+            )
+            val savedDestination = destinationRepository.save(destination)
+
+            // Create Stripe customer when user creates first email destination
+            // This ensures we have customer ID for future subscription management
+            if (!hadDestinationsBefore && channel == Channel.EMAIL) {
+                try {
+                    subscriptionService.ensureStripeCustomer(
+                        userId = userId,
+                        email = request.channelValue, // Email from destination
+                        name = userDetails?.displayName
+                    )
+                    logger.info("Created Stripe customer for user: $userId")
+                } catch (e: Exception) {
+                    logger.error("Failed to create Stripe customer for user: $userId", e)
+                    // Don't fail destination creation if Stripe customer creation fails
+                }
+            }
+
+            // Always reschedule all approved job searches when destination changes
+            // This ensures all searches use the new destination
+            try {
+                logger.info("Destination changed for user $userId, rescheduling approved job searches")
+                runBlocking {
+                    subscriptionAwareSchedulingService.scheduleAllApprovedSubscribedSearchesForUser(userId)
+                }
+
+                // If this is the first EMAIL destination, also trigger monthly overview
+                if (!hadDestinationsBefore && channel == Channel.EMAIL) {
+                    logger.info("User $userId added first email destination, triggering monthly overview")
+                    try {
+                        runBlocking {
+                            monthlyOverviewService.triggerMonthlyOverviewForUser(userId)
+                        }
+                    } catch (e: Exception) {
+                        logger.error("Failed to trigger monthly overview for user $userId", e)
+                        // Don't fail the destination creation if monthly overview fails
+                    }
+                }
+            } catch (e: Exception) {
+                logger.error("Failed to reschedule approved job searches for user $userId after destination change", e)
+                // Don't fail the destination creation if scheduling fails
+            }
+
+            val messageText = if (hadDestinationsBefore) {
                 "Destination updated successfully"
             } else {
-                "Destination added successfully"
+                "Destination set successfully"
             }
-            
-            logger.info("Successfully processed destination: id=${savedDestination.id}, userId=$userId")
-            
+
+            logger.info("Successfully set destination: id=${savedDestination.id}, userId=$userId")
+
             return@runBlocking ResponseEntity.ok(DestinationResponse(
                 success = true,
                 message = messageText,
                 destination = savedDestination
             ))
-            
+
         } catch (e: Exception) {
-            logger.error("Failed to add destination", e)
+            logger.error("Failed to set destination", e)
             return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(DestinationResponse(
                     success = false,
@@ -173,63 +200,10 @@ class DestinationController(
         }
     }
 
-    @DeleteMapping("/{destinationId}")
-    @Operation(
-        summary = "Delete a destination",
-        description = "Deletes a notification destination. Only the owner can delete their destinations."
-    )
-    @ApiResponses(
-        ApiResponse(responseCode = "204", description = "Destination deleted successfully"),
-        ApiResponse(responseCode = "403", description = "Forbidden - anonymous users or not the owner"),
-        ApiResponse(responseCode = "404", description = "Destination not found"),
-        ApiResponse(responseCode = "500", description = "Internal server error")
-    )
-    fun deleteDestination(
-        @Parameter(description = "Destination ID") @PathVariable destinationId: String,
-        @Parameter(hidden = true) authentication: Authentication
-    ): ResponseEntity<Void> = runBlocking {
-        try {
-            val userId = authentication.principal as String
-            
-            // Get user details from authentication to check if anonymous
-            val userDetails = authentication.details as? FirebaseUser
-            
-            // Check if user email is not verified
-            if (userDetails?.emailVerified == false) {
-                logger.warn("User with unverified email attempted to delete destination: userId=$userId")
-                return@runBlocking ResponseEntity.status(HttpStatus.FORBIDDEN).build()
-            }
-            
-            logger.info("Deleting destination: id=$destinationId, userId=$userId")
-            
-            // Check if destination exists and belongs to user
-            val destination = destinationRepository.findById(destinationId).orElse(null)
-            
-            if (destination == null) {
-                logger.warn("Destination not found: id=$destinationId")
-                return@runBlocking ResponseEntity.notFound().build()
-            }
-            
-            if (destination.userId != userId) {
-                logger.warn("User $userId attempted to delete destination belonging to another user")
-                return@runBlocking ResponseEntity.status(HttpStatus.FORBIDDEN).build()
-            }
-            
-            // Delete destination
-            destinationRepository.deleteById(destinationId)
-            
-            logger.info("Successfully deleted destination: id=$destinationId")
-            return@runBlocking ResponseEntity.noContent().build()
-            
-        } catch (e: Exception) {
-            logger.error("Failed to delete destination: id=$destinationId", e)
-            return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
-        }
-    }
 }
 
 // Request/Response DTOs
-@Schema(description = "Request to add a new destination")
+@Schema(description = "Request to set/update destination")
 data class AddDestinationRequest(
     @Schema(description = "Channel type (email, telegram)", example = "email", required = true)
     val channel: String,
