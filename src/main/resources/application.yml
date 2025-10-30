@@ -43,7 +43,6 @@ firebase:
       max-attempts: ${FIREBASE_STORAGE_MAX_RETRY_ATTEMPTS:3}
       delay-ms: ${FIREBASE_STORAGE_RETRY_DELAY_MS:1000}
 
-
 sentry:
   dsn: ${SENTRY_DSN:}
   # Add data like request headers and IP for users,

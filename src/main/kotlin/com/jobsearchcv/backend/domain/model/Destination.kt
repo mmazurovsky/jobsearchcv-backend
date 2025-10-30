@@ -11,10 +11,10 @@ import java.util.*
 @Document(collection = "destinations")
 @Schema(description = "User notification destination")
 data class Destination(
-    @Id 
+    @Id
     @Schema(description = "Unique identifier for the destination", example = "dest-123e4567-e89b-12d3-a456-426614174000", required = true)
     val id: String,
-    @Indexed(unique = false) @field:Field("user_id") 
+    @Indexed(unique = true) @field:Field("user_id")
     @Schema(description = "ID of the user who owns this destination", required = true)
     val userId: String,
     @field:Field("channel") 
