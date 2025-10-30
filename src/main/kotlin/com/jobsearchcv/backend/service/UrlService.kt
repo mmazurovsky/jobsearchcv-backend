@@ -13,7 +13,7 @@ class UrlService(
     
     fun getSupportEmail(): String = supportEmail
     
-    fun getEditJobSearchUrl(alertId: String): String = "$websiteUrl/#/editJobSearch/$alertId"
-    
-    fun getUnsubscribeUrl(): String = "$websiteUrl/#/changeEmailSubscriptions"
+    fun getEditJobSearchUrl(alertId: String): String = "$websiteUrl/edit-job-search/$alertId"
+
+    fun getUnsubscribeUrl(): String = "$websiteUrl/change-email-subscriptions"
 }

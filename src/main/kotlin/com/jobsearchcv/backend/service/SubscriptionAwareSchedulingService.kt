@@ -12,7 +12,6 @@ import org.quartz.impl.StdSchedulerFactory
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Internal JobSearchScheduler - only accessible within this file
@@ -21,7 +20,8 @@ import java.util.concurrent.ConcurrentHashMap
 internal class InternalJobSearchScheduler(
     private val scraperJobService: ScraperJobService,
     private val destinationRepository: DestinationRepository,
-    private val jobSearchRepository: JobSearchRepository
+    private val jobSearchRepository: JobSearchRepository,
+    private val timePeriodResolver: (String, TimePeriod) -> TimePeriod
 ) {
 
     companion object {
@@ -29,14 +29,6 @@ internal class InternalJobSearchScheduler(
     }
 
     private lateinit var scheduler: Scheduler
-    private val activeSearches: MutableMap<String, JobSearchOut> = ConcurrentHashMap()
-
-    // Late initialization to avoid circular dependency
-    private lateinit var subscriptionAwareSchedulingService: SubscriptionAwareSchedulingService
-
-    fun setSubscriptionAwareSchedulingService(service: SubscriptionAwareSchedulingService) {
-        this.subscriptionAwareSchedulingService = service
-    }
 
     fun initializeScheduler() {
         scheduler = StdSchedulerFactory.getDefaultScheduler()
@@ -47,7 +39,6 @@ internal class InternalJobSearchScheduler(
     fun shutdown() {
         if (::scheduler.isInitialized && !scheduler.isShutdown) {
             scheduler.shutdown(true)
-            activeSearches.clear()
             logger.info("Job search scheduler stopped")
         }
     }
@@ -113,26 +104,17 @@ internal class InternalJobSearchScheduler(
 
     suspend fun removeJobSearch(searchId: String) {
         try {
-            if (searchId in activeSearches) {
-                // Remove from scheduler
-                val jobKey = JobKey.jobKey("job-search-$searchId", "job-searches")
+            val jobKey = JobKey.jobKey("job-search-$searchId", "job-searches")
+            if (::scheduler.isInitialized && scheduler.checkExists(jobKey)) {
                 scheduler.deleteJob(jobKey)
-
-                // Remove from active searches
-                activeSearches.remove(searchId)
-
                 logger.info("Removed job search: {}", searchId)
             } else {
-                logger.warn("Job search not found: {}", searchId)
+                logger.warn("Job search not found in scheduler: {}", searchId)
             }
         } catch (e: Exception) {
             logger.error("Error removing job search: {}", searchId, e)
         }
     }
-
-    fun getActiveSearchesCount(): Int = activeSearches.size
-
-    fun getActiveSearches(): Map<String, JobSearchOut> = activeSearches.toMap()
 
     class JobSearchJob : Job {
         companion object {
@@ -150,21 +132,45 @@ internal class InternalJobSearchScheduler(
                 runBlocking {
                     // Validate job search is still active and subscribed from database
                     val currentJobSearch = scheduler.jobSearchRepository.findById(searchId)
-                    
+
                     if (currentJobSearch == null) {
                         logger.warn("Skipping execution - job search {} no longer exists", searchId)
                         return@runBlocking
                     }
-                    
+
                     if (!currentJobSearch.isApproved || !currentJobSearch.isSubscribed) {
-                        logger.warn("Skipping execution - job search {} is no longer active or subscribed (approved: {}, subscribed: {})", 
+                        logger.warn("Skipping execution - job search {} is no longer active or subscribed (approved: {}, subscribed: {})",
                             searchId, currentJobSearch.isApproved, currentJobSearch.isSubscribed)
                         return@runBlocking
                     }
 
-                    // Check if still in active searches (for legacy compatibility)
-                    val jobSearch = scheduler.activeSearches[searchId] ?: currentJobSearch
-                    scheduler.scraperJobService.triggerScraperJobAndLog(jobSearch)
+                    // Get effective time period based on current subscription status
+                    val effectiveTimePeriod = scheduler.timePeriodResolver(
+                        currentJobSearch.userId,
+                        currentJobSearch.timePeriod
+                    )
+
+                    // Log execution with subscription context
+                    if (effectiveTimePeriod == currentJobSearch.timePeriod) {
+                        logger.debug(
+                            "Executing search {} for premium user {} (period: {})",
+                            searchId, currentJobSearch.userId, effectiveTimePeriod.displayName
+                        )
+                    } else {
+                        logger.info(
+                            "Executing search {} for free-tier user {} (effective period: {}, saved period: {})",
+                            searchId, currentJobSearch.userId, effectiveTimePeriod.displayName, currentJobSearch.timePeriod.displayName
+                        )
+                    }
+
+                    // Use effective time period for execution (important for free users)
+                    val jobSearchToExecute = if (effectiveTimePeriod != currentJobSearch.timePeriod) {
+                        currentJobSearch.copy(timePeriod = effectiveTimePeriod)
+                    } else {
+                        currentJobSearch
+                    }
+
+                    scheduler.scraperJobService.triggerScraperJobAndLog(jobSearchToExecute)
                 }
 
                 logger.info("Initiated scheduled job search: {}", searchId)
@@ -191,7 +197,13 @@ class SubscriptionAwareSchedulingService(
 
     // Internal scheduler instance - not injectable from outside
     private val internalJobSearchScheduler =
-        InternalJobSearchScheduler(scraperJobService, destinationRepository, jobSearchRepository)
+        InternalJobSearchScheduler(
+            scraperJobService,
+            destinationRepository,
+            jobSearchRepository
+        ) { userId, originalTimePeriod ->
+            getEffectiveTimePeriodForUser(userId, originalTimePeriod)
+        }
 
     companion object {
         private val logger = LoggerFactory.getLogger(SubscriptionAwareSchedulingService::class.java)
@@ -201,7 +213,6 @@ class SubscriptionAwareSchedulingService(
     @PostConstruct
     fun initializeScheduler() {
         internalJobSearchScheduler.initializeScheduler()
-        internalJobSearchScheduler.setSubscriptionAwareSchedulingService(this)
     }
 
     @PreDestroy
