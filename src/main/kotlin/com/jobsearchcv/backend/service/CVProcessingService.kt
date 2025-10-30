@@ -175,8 +175,6 @@ Sub-categories / Special Rules
   Bad examples: "Software Developer and Scrum Master", "Frontend or Backend Developer", "Developer/Designer"
 - At least one job search must use Hybrid remoteType and a specific city or state if the user's location is certain and sufficiently granular.
 - Skill weights: 80+ for frequently mentioned, specified earlier in CV; 40 for specified later in CV, specified only once; 60-79 for others.
-- In filterText, include "Only positions with languages: {languages that user knows based on CV}". Other filters are included only if clearly specified (e.g., 'visa sponsorship required').
-- Include skill weights in filter text at the end, write "My skills are {skills with weights}".
 
 Context
 - The input is plain CV text. Extraction accuracy for jobs, skills, location, and languages is essential.
@@ -206,8 +204,7 @@ JSON Schema to output:
       "location": string,
       "jobTypes": string[],
       "remoteTypes": string[],
-      "timePeriod": string,
-      "filterText": string
+      "timePeriod": string
     }
   ]
 }
@@ -261,12 +258,11 @@ Remember: Return ONLY the JSON object, no additional text or formatting.
                     val jobTypesRaw = search["jobTypes"] as? List<*> ?: listOf("Full-time")
                     val remoteTypesRaw = search["remoteTypes"] as? List<*> ?: listOf("Remote")
                     val timePeriodRaw = search["timePeriod"] as? String ?: "1 hour"
-                    val filterText = search["filterText"] as? String
-                    
+
                     val jobTypes = jobTypesRaw.mapNotNull { JobType.fromLabel(it.toString()) }
                     val remoteTypes = remoteTypesRaw.mapNotNull { RemoteType.fromLabel(it.toString()) }
                     val timePeriod = TimePeriod.fromDisplayName(timePeriodRaw) ?: TimePeriod.getDefault()
-                    
+
                     JobSearchIn(
                         id = UUID.randomUUID().toString(),
                         jobTitle = jobTitle,
@@ -274,8 +270,7 @@ Remember: Return ONLY the JSON object, no additional text or formatting.
                         jobTypes = jobTypes.ifEmpty { listOf(JobType.getDefault()) },
                         remoteTypes = remoteTypes.ifEmpty { listOf(RemoteType.getDefault()) },
                         timePeriod = timePeriod,
-
-                        filterText = filterText
+                        filterText = null
                     )
                 } catch (e: Exception) {
                     logger.warn("Failed to parse job search recommendation: ${e.message}")
