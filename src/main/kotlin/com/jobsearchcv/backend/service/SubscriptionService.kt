@@ -191,17 +191,31 @@ class SubscriptionService(
     }
     
     fun ensureStripeCustomer(userId: String, email: String, name: String? = null): String {
-        // Check if user already has a Stripe customer
+        // Check if user already has a subscription
         val existingSubscription = getSubscription(userId)
+
+        // If user has a Stripe customer ID, return it
         if (existingSubscription?.stripeCustomerId != null) {
             logger.info("User $userId already has Stripe customer: ${existingSubscription.stripeCustomerId}")
             return existingSubscription.stripeCustomerId
         }
-        
+
         // Create new Stripe customer
         val customer = stripeService.createCustomer(userId, email, name)
-        
-        // Create FREE subscription record with Stripe customer ID
+        logger.info("Created Stripe customer ${customer.id} for user: $userId")
+
+        // If user has an existing subscription (but no customer ID), update it without changing tier
+        if (existingSubscription != null) {
+            logger.info("Updating existing ${existingSubscription.tier} subscription with Stripe customer ID for user: $userId")
+            val updated = existingSubscription.copy(
+                stripeCustomerId = customer.id,
+                updatedAt = OffsetDateTime.now()
+            )
+            createOrUpdateSubscription(updated)
+            return customer.id
+        }
+
+        // No existing subscription - create FREE subscription record with Stripe customer ID
         val freeSubscription = UserSubscription(
             userId = userId,
             tier = SubscriptionTier.FREE,
@@ -211,10 +225,10 @@ class SubscriptionService(
             stripeCustomerId = customer.id,
             stripeSubscriptionId = null
         )
-        
+
         createOrUpdateSubscription(freeSubscription)
         logger.info("Created Stripe customer ${customer.id} and FREE subscription for user: $userId")
-        
+
         return customer.id
     }
     

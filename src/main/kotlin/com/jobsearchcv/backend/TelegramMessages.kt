@@ -119,7 +119,7 @@ object TelegramMessages {
     const val NOTE_UPDATED_ALERT_ACTIVE =
         "🔔 Your updated alert is now active and will search for jobs with the new criteria."
 
-    const val SEARCH_NOW_DESC = "Find jobs posted in last week"
+    const val SEARCH_NOW_DESC = "Find jobs posted in the last week"
     const val CREATE_ALERT_DESC = "Create Alert for new jobs"
     const val LIST_ALERTS_DESC = "View alerts"
     const val EDIT_ALERT_DESC = "Edit alert"

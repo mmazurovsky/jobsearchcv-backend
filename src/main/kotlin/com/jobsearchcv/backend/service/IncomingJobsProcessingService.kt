@@ -222,7 +222,7 @@ class IncomingJobsProcessingService(
                 }
                 val interval = specialSearchName ?: jobSearch?.timePeriod?.displayName
                 if (interval != null) {
-                    stringBuilder.append(" in last ${interval}")
+                    stringBuilder.append(" in the last ${interval}")
                 }
 
                 val displaySearchName = stringBuilder.toString()

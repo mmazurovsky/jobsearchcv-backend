@@ -47,6 +47,7 @@ class EmailTemplateService(
         userId: String,
         isFreeTier: Boolean
     ): String = buildString {
+        val scores = jobs.map { it.compatibilityScore }.sortedDescending().joinToString(", ")
         appendLine("<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">")
         appendLine("<html xmlns=\"http://www.w3.org/1999/xhtml\">")
         appendLine("<head>")
@@ -64,7 +65,7 @@ class EmailTemplateService(
         appendLine("                        <td style=\"padding: 20px;\">")
         appendLine("                            <table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\">")
         appendLine("                                <tr>")
-        appendLine("                                    <td style=\"font-size: 24px; font-weight: bold; padding-bottom: 24px;\">🎉 Found ${jobs.size} new jobs for $searchName!</td>")
+        appendLine("                                    <td style=\"font-size: 24px; font-weight: bold; padding-bottom: 24px;\">🎉 Found ${jobs.size} new jobs with compatibility scores: $scores!</td>")
         appendLine("                                </tr>")
         if (specialMessage != null) {
             appendLine("                                <tr>")
@@ -238,7 +239,8 @@ class EmailTemplateService(
         val messageBody = TelegramMessages.getJobNotificationMessage(searchName, jobs, null)
 
         return buildString {
-            appendLine("🎉 Found ${jobs.size} new jobs for $searchName!")
+            val scores = jobs.map { it.compatibilityScore }.sortedDescending().joinToString(", ")
+            appendLine("🎉 Found ${jobs.size} new jobs with compatibility scores: $scores!")
             appendLine()
             if (specialMessage != null) {
                 appendLine(specialMessage)
