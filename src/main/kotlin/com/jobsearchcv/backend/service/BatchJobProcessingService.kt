@@ -514,7 +514,7 @@ $jobsText
 
 For each job, identify:
 1. TECHSTACK: List of technologies, programming languages, frameworks, tools mentioned in title and description, ordered by importance (most important first)
-2. TAGS: Relevant tags like communication language with level needed, seniority level, travel expectations, standby/on-call requirements, soft skills, certifications, visa requirements, or other important non-technical details
+2. TAGS: Relevant tags like communication language with level needed, seniority level, travel expectations, standby/on-call requirements, soft skills, certifications, visa requirements, or other important non-technical requirements
 3. SALARY: Any salary information like ranges, fixed amounts, hourly/daily rates (null if not mentioned)
 
 Return ONLY a valid JSON array with this exact structure (no markdown, no extra text):
@@ -619,7 +619,7 @@ EVALUATION PRIORITY (in order of importance):
 5. NUMBER OF APPLICANTS: Filter out jobs with more than 70 applicants
 6. DESCRIPTION KEYWORDS: How well job description matches search keywords
 7. SALARY: Match for salary if specified in requirements
-8. TAGS & FILTER TEXT: Tags (languages, seniority, travel, standby) should be compared to filter text, if some tags imply the job should be filtered out according to filter text, do so
+8. TAGS & TECHSTACK ALIGNING WITH FILTER TEXT: Tags (languages, seniority, travel, standby) and techstack should be compared to filter text, if some tags or techstack imply the job should be filtered out according to filter text, do so
 
 SCORING GUIDELINES:
 - 90-100: Perfect match (title + techstack + tags are not conflicting with filter text at all)

@@ -14,7 +14,7 @@ class EmailTemplateService(
 ) {
 
     companion object {
-        const val BUSINESS_NAME = "Antkowiak Services GbR"
+        const val BUSINESS_NAME = "Antkowiak Services"
         const val BUSINESS_ADDRESS = "73262 Germany, Reichenbach an der Fils, Katherinenstr. 4"
     }
 
