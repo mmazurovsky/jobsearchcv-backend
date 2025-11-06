@@ -1,201 +1,319 @@
 package com.jobsearchcv.backend.service
 
-import com.jobsearchcv.backend.domain.model.*
+import com.github.benmanes.caffeine.cache.Cache
+import com.github.benmanes.caffeine.cache.Caffeine
+import com.jobsearchcv.backend.domain.model.SubscriptionStatus
+import com.jobsearchcv.backend.domain.model.SubscriptionStatusResponse
+import com.jobsearchcv.backend.domain.model.SubscriptionTier
+import com.jobsearchcv.backend.domain.model.StripeSubscriptionData
+import com.jobsearchcv.backend.domain.model.UserSubscription
+import com.jobsearchcv.backend.domain.model.createFreeSubscriptionData
 import com.jobsearchcv.backend.repository.DestinationRepository
 import com.jobsearchcv.backend.repository.SubscriptionRepository
 import com.stripe.model.Subscription
 import com.stripe.model.checkout.Session
-import kotlinx.coroutines.runBlocking
-import org.slf4j.LoggerFactory
-import org.springframework.stereotype.Service
+import java.time.Duration
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
+import kotlinx.coroutines.runBlocking
+import org.slf4j.LoggerFactory
+import org.springframework.stereotype.Service
+import jakarta.annotation.PostConstruct
 
+/**
+ * Simplified subscription service that fetches subscription data from Stripe API on-demand.
+ * MongoDB only stores user_id -> stripe_customer_id mapping.
+ * All subscription details are cached in memory for 5 minutes to reduce API calls.
+ *
+ * This eliminates sync issues - Stripe is the single source of truth.
+ */
 @Service
 class SubscriptionService(
-    private val subscriptionRepository: SubscriptionRepository,
-    private val stripeService: StripeService,
-    private val destinationRepository: DestinationRepository,
-    private val emailTemplateService: EmailTemplateService,
-    private val asyncEmailService: AsyncEmailService
+        private val subscriptionRepository: SubscriptionRepository,
+        private val stripeService: StripeService,
+        private val destinationRepository: DestinationRepository,
+        private val emailTemplateService: EmailTemplateService,
+        private val asyncEmailService: AsyncEmailService
 ) {
-    
-    // Late initialization to avoid circular dependency
-    private lateinit var subscriptionAwareSchedulingService: SubscriptionAwareSchedulingService
-    
-    fun setSubscriptionAwareSchedulingService(service: SubscriptionAwareSchedulingService) {
-        this.subscriptionAwareSchedulingService = service
-    }
     private val logger = LoggerFactory.getLogger(javaClass)
-    
+
+    // In-memory cache: userId -> StripeSubscriptionData (5 min TTL)
+    private lateinit var subscriptionCache: Cache<String, StripeSubscriptionData>
+
+    @PostConstruct
+    fun initCache() {
+        subscriptionCache = Caffeine.newBuilder()
+                .expireAfterWrite(Duration.ofMinutes(5))
+                .maximumSize(10_000)
+                .recordStats()
+                .build()
+        logger.info("Subscription cache initialized with 5 minute TTL")
+    }
+
+    /**
+     * Get user's subscription record (only contains user_id and stripe_customer_id mapping).
+     */
     fun getSubscription(userId: String): UserSubscription? {
         return subscriptionRepository.findByUserId(userId)
     }
-    
+
+    /**
+     * Get full subscription status by fetching from Stripe API (with caching).
+     */
     fun getSubscriptionStatus(userId: String): SubscriptionStatusResponse {
-        val subscription = getSubscription(userId)
-        
-        return if (subscription != null) {
-            SubscriptionStatusResponse(
+        val subscriptionData = fetchSubscriptionDataWithCache(userId)
+
+        return SubscriptionStatusResponse(
                 userId = userId,
-                tier = subscription.tier,
-                status = subscription.status,
-                currentPeriodEnd = subscription.currentPeriodEnd,
-                trialEnd = subscription.trialEnd,
-                hasPremiumAccess = checkPremiumAccess(userId)
-            )
-        } else {
-            // Default free subscription
-            SubscriptionStatusResponse(
-                userId = userId,
-                tier = SubscriptionTier.FREE,
-                status = SubscriptionStatus.ACTIVE,
-                currentPeriodEnd = null,
-                trialEnd = null,
-                hasPremiumAccess = false
-            )
+                tier = subscriptionData.tier,
+                status = subscriptionData.status,
+                currentPeriodEnd = subscriptionData.currentPeriodEnd,
+                trialEnd = subscriptionData.trialEnd,
+                hasPremiumAccess = subscriptionData.hasPremiumAccess(),
+                isTrialCancelled = subscriptionData.isTrialCancelled,
+                cachedAt = subscriptionData.cachedAt
+        )
+    }
+
+    /**
+     * Check if user has premium access.
+     * Fetches from Stripe API with 5-minute cache.
+     */
+    fun checkPremiumAccess(userId: String): Boolean {
+        val subscriptionData = fetchSubscriptionDataWithCache(userId)
+        return subscriptionData.hasPremiumAccess()
+    }
+
+    /**
+     * Fetch subscription data from Stripe API with caching.
+     * Cache TTL: 5 minutes
+     */
+    private fun fetchSubscriptionDataWithCache(userId: String): StripeSubscriptionData {
+        // Check cache first
+        val cached = subscriptionCache.getIfPresent(userId)
+        if (cached != null) {
+            logger.debug("Cache hit for user: $userId")
+            return cached
+        }
+
+        // Cache miss - fetch from Stripe
+        logger.debug("Cache miss for user: $userId, fetching from Stripe")
+        val subscriptionData = fetchSubscriptionDataFromStripe(userId)
+
+        // Cache the result
+        subscriptionCache.put(userId, subscriptionData)
+
+        return subscriptionData
+    }
+
+    /**
+     * Fetch subscription data directly from Stripe API.
+     * This is the source of truth for subscription status.
+     */
+    private fun fetchSubscriptionDataFromStripe(userId: String): StripeSubscriptionData {
+        try {
+            // Get user's Stripe customer ID from MongoDB
+            val userSubscription = getSubscription(userId)
+            if (userSubscription == null) {
+                logger.debug("No subscription record for user: $userId, returning free tier")
+                return createFreeSubscriptionData()
+            }
+
+            val customerId = userSubscription.stripeCustomerId
+
+            // Fetch all subscriptions for this customer from Stripe
+            val subscriptions = stripeService.listSubscriptionsByCustomer(customerId)
+
+            if (subscriptions.isEmpty()) {
+                logger.debug("No Stripe subscriptions found for customer: $customerId, returning free tier")
+                return createFreeSubscriptionData()
+            }
+
+            // Get the most recent active/trialing subscription (prioritize active subscriptions)
+            val activeSubscription = subscriptions
+                    .filter { it.status in listOf("active", "trialing", "past_due") }
+                    .maxByOrNull { it.created }
+
+            if (activeSubscription == null) {
+                logger.debug("No active subscription for customer: $customerId, returning free tier")
+                return createFreeSubscriptionData()
+            }
+
+            // Extract data from Stripe subscription
+            return extractSubscriptionData(activeSubscription)
+
+        } catch (e: Exception) {
+            logger.error("Error fetching subscription from Stripe for user: $userId", e)
+            // On error, return free tier (fail-safe) but don't cache it (cache only on success)
+            return createFreeSubscriptionData()
         }
     }
-    
+
+    /**
+     * Extract subscription data from Stripe subscription object.
+     */
+    private fun extractSubscriptionData(stripeSubscription: Subscription): StripeSubscriptionData {
+        val status = mapStripeStatus(stripeSubscription.status)
+        val tier = if (status in listOf(SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING)) {
+            SubscriptionTier.PREMIUM
+        } else {
+            SubscriptionTier.FREE
+        }
+
+        // Extract period end (try top-level first, then items)
+        val currentPeriodEnd = extractInstant(stripeSubscription, "current_period_end")
+                ?: extractNestedInstant(stripeSubscription)
+
+        val trialEnd = extractInstant(stripeSubscription, "trial_end")
+
+        // Check if subscription was cancelled (any cancellation field set)
+        val isCancelled = stripeSubscription.cancelAt != null ||
+                stripeSubscription.cancelAtPeriodEnd == true ||
+                stripeSubscription.canceledAt != null
+
+        return StripeSubscriptionData(
+                tier = tier,
+                status = status,
+                currentPeriodEnd = currentPeriodEnd,
+                trialEnd = trialEnd,
+                isTrialCancelled = isCancelled && status == SubscriptionStatus.TRIALING
+        )
+    }
+
+    /**
+     * Extract timestamp field from Stripe subscription JSON.
+     */
+    private fun extractInstant(stripeSubscription: Subscription, fieldName: String): Instant? {
+        return try {
+            stripeSubscription.rawJsonObject
+                    ?.get(fieldName)
+                    ?.takeIf { !it.isJsonNull }
+                    ?.asLong
+                    ?.let { Instant.ofEpochSecond(it) }
+        } catch (e: Exception) {
+            logger.debug("Failed to extract $fieldName from subscription ${stripeSubscription.id}: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * Extract current_period_end from subscription items (fallback for trialing subscriptions).
+     */
+    private fun extractNestedInstant(stripeSubscription: Subscription): Instant? {
+        return try {
+            val items = stripeSubscription.rawJsonObject?.getAsJsonObject("items")
+            val data = items?.getAsJsonArray("data")
+            val firstItem = data?.get(0)?.asJsonObject
+
+            firstItem?.get("current_period_end")
+                    ?.takeIf { !it.isJsonNull }
+                    ?.asLong
+                    ?.let { Instant.ofEpochSecond(it) }
+        } catch (e: Exception) {
+            logger.debug("Failed to extract nested current_period_end: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * Invalidate cache for a user (called by webhooks to force refresh).
+     */
+    fun invalidateCache(userId: String) {
+        subscriptionCache.invalidate(userId)
+        logger.debug("Invalidated cache for user: $userId")
+    }
+
+    /**
+     * Create or update subscription record (only stores userId -> stripeCustomerId mapping).
+     */
     fun createOrUpdateSubscription(subscription: UserSubscription): UserSubscription {
         val existing = subscriptionRepository.findByUserId(subscription.userId)
         return if (existing != null) {
-            logger.info("Updating existing subscription for user: ${subscription.userId}")
-            subscriptionRepository.save(subscription.copy(
-                id = existing.id,
-                createdAt = existing.createdAt
-            ))
+            logger.info("Updating subscription mapping for user: ${subscription.userId}")
+            subscriptionRepository.save(
+                    subscription.copy(id = existing.id, createdAt = existing.createdAt)
+            )
         } else {
-            logger.info("Creating new subscription for user: ${subscription.userId}")
+            logger.info("Creating subscription mapping for user: ${subscription.userId}")
             subscriptionRepository.save(subscription)
         }
     }
-    
+
+    /**
+     * Handle checkout completed webhook - only used for sending welcome email.
+     * Subscription data will be fetched from Stripe API when needed.
+     */
     suspend fun handleCheckoutCompleted(userId: String, session: Session) {
         logger.info("Handling checkout completed for user: $userId, session: ${session.id}")
-        
+
+        // Validate session has required fields
+        session.subscription
+                ?: throw IllegalArgumentException("No subscription ID in checkout session ${session.id}")
+        val customerId = session.customer
+                ?: throw IllegalArgumentException("No customer ID in checkout session ${session.id}")
+
+        // Create/update the mapping (userId -> stripeCustomerId)
         val subscription = UserSubscription(
-            userId = userId,
-            tier = SubscriptionTier.PREMIUM,
-            status = SubscriptionStatus.TRIALING,
-            stripeCustomerId = session.customer,
-            stripeSubscriptionId = session.subscription,
-            trialEnd = OffsetDateTime.now().plusDays(3),
-            currentPeriodEnd = OffsetDateTime.now().plusDays(3)
+                userId = userId,
+                stripeCustomerId = customerId
         )
-        
         createOrUpdateSubscription(subscription)
-        
-        // Send welcome email for trial start (async - doesn't block webhook response)
+
+        // Invalidate cache to force fresh fetch
+        invalidateCache(userId)
+
+        // Send welcome email (async - doesn't block webhook response)
         sendWelcomeEmail(userId)
     }
-    
-    fun handleSubscriptionCreated(stripeSubscription: Subscription) {
-        logger.info("Handling subscription created: ${stripeSubscription.id}")
-        
-        val customerId = stripeSubscription.customer
-        val existing = subscriptionRepository.findByStripeCustomerId(customerId)
-        
-        if (existing != null) {
-            val updated = existing.copy(
-                status = mapStripeStatus(stripeSubscription.status),
-                stripeSubscriptionId = stripeSubscription.id,
-                currentPeriodEnd = epochToOffsetDateTime(stripeSubscription.currentPeriodEnd),
-                trialEnd = stripeSubscription.trialEnd?.let { epochToOffsetDateTime(it) },
-                updatedAt = OffsetDateTime.now()
-            )
-            subscriptionRepository.save(updated)
-            logger.info("Updated subscription for customer: $customerId")
-        } else {
-            logger.warn("No subscription found for customer: $customerId")
-        }
-    }
-    
+
+    /**
+     * Handle subscription updated webhook - invalidate cache and send notifications.
+     */
     fun handleSubscriptionUpdated(stripeSubscription: Subscription) {
         logger.info("Handling subscription updated: ${stripeSubscription.id}")
-        
-        val existing = subscriptionRepository.findByStripeSubscriptionId(stripeSubscription.id)
-        
-        if (existing != null) {
-            // Check premium access before and after update
-            val oldHadPremium = checkPremiumAccess(existing.userId)
-            
-            val updated = existing.copy(
-                status = mapStripeStatus(stripeSubscription.status),
-                currentPeriodEnd = epochToOffsetDateTime(stripeSubscription.currentPeriodEnd),
-                trialEnd = stripeSubscription.trialEnd?.let { epochToOffsetDateTime(it) },
-                updatedAt = OffsetDateTime.now()
-            )
-            subscriptionRepository.save(updated)
-            
-            // Check premium access after update
-            val newHasPremium = checkPremiumAccess(existing.userId)
-            
-            // Handle subscription status changes that affect scheduling
-            handleSubscriptionStatusChange(existing.userId, oldHadPremium, newHasPremium, stripeSubscription.status)
-            
-            logger.info("Updated subscription: ${stripeSubscription.id}")
-        } else {
-            logger.warn("No subscription found with ID: ${stripeSubscription.id}")
+
+        // Find user by customer ID
+        val customerId = stripeSubscription.customer ?: return
+        val userSubscription = subscriptionRepository.findByStripeCustomerId(customerId) ?: run {
+            logger.warn("No user subscription found for customer: $customerId")
+            return
         }
+
+        // Invalidate cache to force fresh fetch on next access
+        invalidateCache(userSubscription.userId)
+
+        logger.info("Cache invalidated for subscription update: ${stripeSubscription.id}")
     }
-    
+
+    /**
+     * Handle subscription deleted webhook - invalidate cache.
+     */
     fun handleSubscriptionDeleted(stripeSubscription: Subscription) {
         logger.info("Handling subscription deleted: ${stripeSubscription.id}")
-        
-        val existing = subscriptionRepository.findByStripeSubscriptionId(stripeSubscription.id)
-        
-        if (existing != null) {
-            // Check if user had premium access before deletion
-            val hadPremium = checkPremiumAccess(existing.userId)
-            
-            val updated = existing.copy(
-                status = SubscriptionStatus.CANCELED,
-                updatedAt = OffsetDateTime.now()
-            )
-            subscriptionRepository.save(updated)
-            
-            // If user had premium access, they now lost it - reschedule to free tier
-            if (hadPremium) {
-                handleSubscriptionDowngrade(existing.userId)
-            }
-            
-            logger.info("Marked subscription as canceled: ${stripeSubscription.id}")
-        } else {
-            logger.warn("No subscription found with ID: ${stripeSubscription.id}")
+
+        val customerId = stripeSubscription.customer ?: return
+        val userSubscription = subscriptionRepository.findByStripeCustomerId(customerId) ?: run {
+            logger.warn("No user subscription found for customer: $customerId")
+            return
         }
+
+        // Invalidate cache
+        invalidateCache(userSubscription.userId)
+
+        logger.info("Cache invalidated for subscription deletion: ${stripeSubscription.id}")
     }
-    
-    fun checkPremiumAccess(userId: String): Boolean {
-        val subscription = getSubscription(userId) ?: return false
-        
-        if (subscription.tier != SubscriptionTier.PREMIUM) {
-            return false
-        }
-        
-        return when (subscription.status) {
-            SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIALING -> {
-                // Active subscriptions have access until period end
-                subscription.currentPeriodEnd?.isAfter(OffsetDateTime.now()) ?: true
-            }
-            SubscriptionStatus.PAST_DUE -> {
-                // No grace period - immediate access loss when payment fails
-                // Users must update payment method and Stripe will retry
-                false
-            }
-            SubscriptionStatus.CANCELED, SubscriptionStatus.INCOMPLETE -> {
-                false // No access
-            }
-        }
-    }
-    
+
+    /**
+     * Ensure user has a Stripe customer ID.
+     * Creates Stripe customer if needed and stores mapping in MongoDB.
+     */
     fun ensureStripeCustomer(userId: String, email: String, name: String? = null): String {
-        // Check if user already has a subscription
+        // Check if user already has a subscription record
         val existingSubscription = getSubscription(userId)
 
         // If user has a Stripe customer ID, return it
-        if (existingSubscription?.stripeCustomerId != null) {
+        if (existingSubscription != null) {
             logger.info("User $userId already has Stripe customer: ${existingSubscription.stripeCustomerId}")
             return existingSubscription.stripeCustomerId
         }
@@ -204,127 +322,115 @@ class SubscriptionService(
         val customer = stripeService.createCustomer(userId, email, name)
         logger.info("Created Stripe customer ${customer.id} for user: $userId")
 
-        // If user has an existing subscription (but no customer ID), update it without changing tier
-        if (existingSubscription != null) {
-            logger.info("Updating existing ${existingSubscription.tier} subscription with Stripe customer ID for user: $userId")
-            val updated = existingSubscription.copy(
-                stripeCustomerId = customer.id,
-                updatedAt = OffsetDateTime.now()
-            )
-            createOrUpdateSubscription(updated)
-            return customer.id
-        }
-
-        // No existing subscription - create FREE subscription record with Stripe customer ID
-        val freeSubscription = UserSubscription(
-            userId = userId,
-            tier = SubscriptionTier.FREE,
-            status = SubscriptionStatus.ACTIVE,
-            currentPeriodEnd = null,
-            trialEnd = null,
-            stripeCustomerId = customer.id,
-            stripeSubscriptionId = null
+        // Create subscription mapping
+        val subscription = UserSubscription(
+                userId = userId,
+                stripeCustomerId = customer.id
         )
-
-        createOrUpdateSubscription(freeSubscription)
-        logger.info("Created Stripe customer ${customer.id} and FREE subscription for user: $userId")
+        createOrUpdateSubscription(subscription)
 
         return customer.id
     }
-    
+
+    /**
+     * Handle trial will end webhook - send notification email only.
+     */
     suspend fun handleTrialWillEnd(stripeSubscription: Subscription) {
         logger.info("Handling trial will end for subscription: ${stripeSubscription.id}")
-        
-        val userSubscription = subscriptionRepository.findByStripeSubscriptionId(stripeSubscription.id)
+
+        val customerId = stripeSubscription.customer ?: return
+        val userSubscription = subscriptionRepository.findByStripeCustomerId(customerId)
+
         if (userSubscription != null) {
             sendTrialEndingEmail(userSubscription.userId)
         } else {
             logger.warn("No user subscription found for Stripe subscription: ${stripeSubscription.id}")
         }
     }
-    
+
+    /**
+     * Handle payment failed webhook - send notification email only.
+     */
     suspend fun handlePaymentFailed(invoice: com.stripe.model.Invoice) {
         logger.warn("Handling payment failed for invoice: ${invoice.id}")
-        
-        val subscriptionId = invoice.subscription
+
+        val subscriptionId = invoice.rawJsonObject?.get("subscription")?.asString
         if (subscriptionId != null) {
-            val userSubscription = subscriptionRepository.findByStripeSubscriptionId(subscriptionId)
-            if (userSubscription != null) {
-                sendPaymentFailedEmail(userSubscription.userId)
+            val customerId = invoice.customer
+            if (customerId != null) {
+                val userSubscription = subscriptionRepository.findByStripeCustomerId(customerId)
+                if (userSubscription != null) {
+                    // Invalidate cache immediately on payment failure
+                    invalidateCache(userSubscription.userId)
+                    sendPaymentFailedEmail(userSubscription.userId)
+                }
             }
+        } else {
+            logger.warn("No subscription ID found in invoice ${invoice.id}, cannot send payment failed email")
         }
     }
-    
+
     private suspend fun sendTrialEndingEmail(userId: String) {
         try {
-            // Get email from destination (since we create customers from destinations)
             val destinations = destinationRepository.findByUserId(userId)
             val emailDestination = destinations.find { it.channel == "email" }
-            
+
             if (emailDestination == null) {
                 logger.warn("No email destination found for trial ending email to user: $userId")
                 return
             }
-            
+
             val email = emailDestination.channelValue
             val emailContent = emailTemplateService.createTrialEndingEmail(email)
-            
-            // Send email asynchronously - doesn't block webhook response
+
             asyncEmailService.sendEmailWithRetry(emailContent, maxRetries = 2)
             logger.info("Queued trial ending email for user: $userId")
-            
         } catch (e: Exception) {
             logger.error("Error queuing trial ending email for user: $userId", e)
         }
     }
-    
+
     private suspend fun sendPaymentFailedEmail(userId: String) {
         try {
-            // Get email from destination (since we create customers from destinations)
             val destinations = destinationRepository.findByUserId(userId)
             val emailDestination = destinations.find { it.channel == "email" }
-            
+
             if (emailDestination == null) {
                 logger.warn("No email destination found for payment failed email to user: $userId")
                 return
             }
-            
+
             val email = emailDestination.channelValue
             val emailContent = emailTemplateService.createPaymentFailedEmail(email)
-            
-            // Send email asynchronously - doesn't block webhook response
+
             asyncEmailService.sendEmailWithRetry(emailContent, maxRetries = 3)
             logger.info("Queued payment failed email for user: $userId")
-            
         } catch (e: Exception) {
             logger.error("Error queuing payment failed email for user: $userId", e)
         }
     }
-    
+
     private suspend fun sendWelcomeEmail(userId: String) {
         try {
-            // Get email from destination (same pattern as other email methods)
             val destinations = destinationRepository.findByUserId(userId)
             val emailDestination = destinations.find { it.channel == "email" }
-            
+
             if (emailDestination == null) {
                 logger.warn("No email destination found for welcome email to user: $userId")
                 return
             }
-            
+
             val email = emailDestination.channelValue
             val emailContent = emailTemplateService.createWelcomeEmail(email)
-            
-            // Send email asynchronously - doesn't block webhook response
+
             asyncEmailService.sendEmailAsync(emailContent)
             logger.info("Queued welcome email for user: $userId")
-            
         } catch (e: Exception) {
             logger.error("Error queuing welcome email for user: $userId", e)
         }
     }
-    
-    fun mapStripeStatus(stripeStatus: String): SubscriptionStatus {
+
+    private fun mapStripeStatus(stripeStatus: String): SubscriptionStatus {
         return when (stripeStatus) {
             "active" -> SubscriptionStatus.ACTIVE
             "trialing" -> SubscriptionStatus.TRIALING
@@ -335,79 +441,6 @@ class SubscriptionService(
                 logger.warn("Unknown Stripe status: $stripeStatus, defaulting to INCOMPLETE")
                 SubscriptionStatus.INCOMPLETE
             }
-        }
-    }
-    
-    private fun epochToOffsetDateTime(epochSeconds: Long): OffsetDateTime {
-        return OffsetDateTime.ofInstant(Instant.ofEpochSecond(epochSeconds), ZoneOffset.UTC)
-    }
-    
-    /**
-     * Handles subscription status changes that affect premium access and rescheduling
-     */
-    private fun handleSubscriptionStatusChange(
-        userId: String,
-        oldHadPremium: Boolean,
-        newHasPremium: Boolean,
-        stripeStatus: String
-    ) {
-        try {
-            if (oldHadPremium != newHasPremium) {
-                if (newHasPremium && !oldHadPremium) {
-                    // User gained premium access - upgrade scheduling
-                    logger.info("User {} gained premium access (status: {})", userId, stripeStatus)
-                    handleSubscriptionUpgrade(userId)
-                } else if (!newHasPremium && oldHadPremium) {
-                    // User lost premium access - downgrade scheduling
-                    logger.info("User {} lost premium access (status: {})", userId, stripeStatus)
-                    handleSubscriptionDowngrade(userId)
-                }
-            } else {
-                logger.debug("No premium access change for user {}: oldHadPremium={}, newHasPremium={}", 
-                    userId, oldHadPremium, newHasPremium)
-            }
-        } catch (e: Exception) {
-            logger.error("Error handling subscription status change for user: {}", userId, e)
-        }
-    }
-    
-    /**
-     * Handles subscription upgrade - reschedules all user searches with their original time periods
-     */
-    fun handleSubscriptionUpgrade(userId: String) {
-        try {
-            logger.info("Handling subscription upgrade for user: {}", userId)
-            
-            if (::subscriptionAwareSchedulingService.isInitialized) {
-                runBlocking {
-                    subscriptionAwareSchedulingService.rescheduleAllSearchesForUser(userId)
-                }
-                logger.info("Successfully rescheduled all searches for upgraded user: {}", userId)
-            } else {
-                logger.warn("SubscriptionAwareSchedulingService not initialized, cannot reschedule searches for user: {}", userId)
-            }
-        } catch (e: Exception) {
-            logger.error("Failed to handle subscription upgrade for user: {}", userId, e)
-        }
-    }
-    
-    /**
-     * Handles subscription downgrade - reschedules all user searches to monthly periods
-     */
-    fun handleSubscriptionDowngrade(userId: String) {
-        try {
-            logger.info("Handling subscription downgrade for user: {}", userId)
-            
-            if (::subscriptionAwareSchedulingService.isInitialized) {
-                runBlocking {
-                    subscriptionAwareSchedulingService.rescheduleAllSearchesForUser(userId)
-                }
-                logger.info("Successfully rescheduled all searches for downgraded user: {}", userId)
-            } else {
-                logger.warn("SubscriptionAwareSchedulingService not initialized, cannot reschedule searches for user: {}", userId)
-            }
-        } catch (e: Exception) {
-            logger.error("Failed to handle subscription downgrade for user: {}", userId, e)
         }
     }
 }

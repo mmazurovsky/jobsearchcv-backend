@@ -113,8 +113,11 @@ dependencies {
     implementation("com.google.cloud:google-cloud-storage:2.29.1")
     
     // ── Stripe Payment Processing ──────────────────────────────
-    implementation("com.stripe:stripe-java:24.19.0")
-    
+    implementation("com.stripe:stripe-java:30.1.0")
+
+    // ── Caching (Caffeine for in-memory cache) ────────────────
+    implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
+
     // ── OpenAPI Documentation ──────────────────────────────────
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0")
     

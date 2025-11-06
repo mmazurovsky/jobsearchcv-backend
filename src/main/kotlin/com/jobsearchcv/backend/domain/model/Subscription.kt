@@ -5,6 +5,7 @@ import org.springframework.data.mongodb.core.index.CompoundIndex
 import org.springframework.data.mongodb.core.index.CompoundIndexes
 import org.springframework.data.mongodb.core.mapping.Document
 import org.springframework.data.mongodb.core.mapping.Field
+import java.time.Instant
 import java.time.OffsetDateTime
 import java.util.*
 
@@ -21,7 +22,7 @@ enum class SubscriptionStatus {
     ACTIVE,
     
     /**
-     * In 3-day free trial - user has full premium access
+     * In 30-day free trial - user has full premium access
      * Updated via: checkout.session.completed (initial) or customer.subscription.updated
      */
     TRIALING,
@@ -46,52 +47,51 @@ enum class SubscriptionStatus {
     INCOMPLETE
 }
 
+/**
+ * Simplified subscription record that only stores the mapping between user and Stripe customer.
+ * All subscription details are fetched from Stripe API on-demand with caching.
+ *
+ * This eliminates sync issues - Stripe is the single source of truth.
+ */
 @Document(collection = "user_subscriptions")
 @CompoundIndexes(
     CompoundIndex(name = "user_id_idx", def = "{'user_id': 1}", unique = true),
-    CompoundIndex(name = "stripe_customer_id_idx", def = "{'stripe_customer_id': 1}"),
-    CompoundIndex(name = "stripe_subscription_id_idx", def = "{'stripe_subscription_id': 1}")
+    CompoundIndex(name = "stripe_customer_id_idx", def = "{'stripe_customer_id': 1}")
 )
 data class UserSubscription(
     @Id
     val id: String = UUID.randomUUID().toString(),
-    
+
     @field:Field("user_id")
     val userId: String,
-    
-    @field:Field("tier")
-    val tier: SubscriptionTier,
-    
-    @field:Field("status")
-    val status: SubscriptionStatus,
-    
-    @field:Field("current_period_end")
-    val currentPeriodEnd: OffsetDateTime?,
-    
-    @field:Field("trial_end")
-    val trialEnd: OffsetDateTime?,
-    
+
+    /**
+     * Stripe customer ID for this user.
+     * Used to fetch subscription details from Stripe API.
+     */
     @field:Field("stripe_customer_id")
-    val stripeCustomerId: String?,
-    
-    @field:Field("stripe_subscription_id")
-    val stripeSubscriptionId: String?,
-    
+    val stripeCustomerId: String,
+
     @field:Field("created_at")
     val createdAt: OffsetDateTime = OffsetDateTime.now(),
-    
+
     @field:Field("updated_at")
     val updatedAt: OffsetDateTime = OffsetDateTime.now()
 )
 
 // Response DTOs
 
+/**
+ * Subscription status response with data fetched from Stripe API.
+ */
 data class SubscriptionStatusResponse(
     val userId: String,
     val tier: SubscriptionTier,
     val status: SubscriptionStatus,
-    val currentPeriodEnd: OffsetDateTime?,
-    val trialEnd: OffsetDateTime?,
-    val hasPremiumAccess: Boolean
+    val currentPeriodEnd: Instant?,
+    val trialEnd: Instant?,
+    val hasPremiumAccess: Boolean,
+    val isTrialCancelled: Boolean,
+    val cachedAt: Instant
 )
 

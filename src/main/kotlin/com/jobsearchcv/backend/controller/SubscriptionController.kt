@@ -94,7 +94,30 @@ class SubscriptionController(
     private fun processWebhookEvent(event: com.stripe.model.Event) {
         when (event.type) {
             "checkout.session.completed" -> {
-                val session = event.dataObjectDeserializer.`object`.get() as Session
+                val sessionOptional = event.dataObjectDeserializer.`object`
+                if (!sessionOptional.isPresent) {
+                    logger.error("Failed to deserialize checkout.session.completed event ${event.id}. API version: ${event.apiVersion}")
+                    logger.error("Attempting manual deserialization from raw JSON")
+
+                    // Try to manually deserialize from the raw JSON data
+                    try {
+                        val session = event.data.`object` as Session
+                        val userId = session.clientReferenceId
+                        if (userId != null) {
+                            CoroutineScope(Dispatchers.IO).launch {
+                                subscriptionService.handleCheckoutCompleted(userId, session)
+                            }
+                            logger.info("Checkout completed for user: $userId (manual deserialization)")
+                        } else {
+                            throw IllegalArgumentException("No client_reference_id in checkout session")
+                        }
+                        return
+                    } catch (e: Exception) {
+                        logger.error("Manual deserialization also failed: ${e.message}", e)
+                        throw IllegalStateException("Unable to deserialize checkout session from event", e)
+                    }
+                }
+                val session = sessionOptional.get() as Session
                 val userId = session.clientReferenceId
                 if (userId != null) {
                     // Use coroutine for async email sending - fire and forget
@@ -106,43 +129,63 @@ class SubscriptionController(
                     throw IllegalArgumentException("No client_reference_id in checkout session")
                 }
             }
-            
+
             "customer.subscription.created" -> {
-                val subscription = event.dataObjectDeserializer.`object`.get() as Subscription
-                subscriptionService.handleSubscriptionCreated(subscription)
+                // No action needed - subscription data will be fetched from Stripe API when needed
+                logger.info("Subscription created event ${event.id} - data will be fetched from Stripe on-demand")
             }
-            
+
             "customer.subscription.updated" -> {
-                val subscription = event.dataObjectDeserializer.`object`.get() as Subscription
+                val subscriptionOptional = event.dataObjectDeserializer.`object`
+                if (!subscriptionOptional.isPresent) {
+                    logger.error("Failed to deserialize customer.subscription.updated event ${event.id}")
+                    throw IllegalStateException("Unable to deserialize subscription from event")
+                }
+                val subscription = subscriptionOptional.get() as Subscription
                 subscriptionService.handleSubscriptionUpdated(subscription)
             }
-            
+
             "customer.subscription.deleted" -> {
-                val subscription = event.dataObjectDeserializer.`object`.get() as Subscription
+                val subscriptionOptional = event.dataObjectDeserializer.`object`
+                if (!subscriptionOptional.isPresent) {
+                    logger.error("Failed to deserialize customer.subscription.deleted event ${event.id}")
+                    throw IllegalStateException("Unable to deserialize subscription from event")
+                }
+                val subscription = subscriptionOptional.get() as Subscription
                 subscriptionService.handleSubscriptionDeleted(subscription)
             }
-            
+
             "customer.subscription.trial_will_end" -> {
-                val subscription = event.dataObjectDeserializer.`object`.get() as Subscription
+                val subscriptionOptional = event.dataObjectDeserializer.`object`
+                if (!subscriptionOptional.isPresent) {
+                    logger.error("Failed to deserialize customer.subscription.trial_will_end event ${event.id}")
+                    throw IllegalStateException("Unable to deserialize subscription from event")
+                }
+                val subscription = subscriptionOptional.get() as Subscription
                 // Use coroutine for async email sending - fire and forget
                 CoroutineScope(Dispatchers.IO).launch {
                     subscriptionService.handleTrialWillEnd(subscription)
                 }
             }
-            
+
             "invoice.payment_succeeded" -> {
                 logger.info("Payment succeeded for event ${event.id}")
                 // Log successful payment - could track metrics here
             }
-            
+
             "invoice.payment_failed" -> {
-                val invoice = event.dataObjectDeserializer.`object`.get() as com.stripe.model.Invoice
+                val invoiceOptional = event.dataObjectDeserializer.`object`
+                if (!invoiceOptional.isPresent) {
+                    logger.error("Failed to deserialize invoice.payment_failed event ${event.id}")
+                    throw IllegalStateException("Unable to deserialize invoice from event")
+                }
+                val invoice = invoiceOptional.get() as com.stripe.model.Invoice
                 // Use coroutine for async email sending - fire and forget
                 CoroutineScope(Dispatchers.IO).launch {
                     subscriptionService.handlePaymentFailed(invoice)
                 }
             }
-            
+
             else -> {
                 logger.info("Unhandled webhook event type: ${event.type}")
             }

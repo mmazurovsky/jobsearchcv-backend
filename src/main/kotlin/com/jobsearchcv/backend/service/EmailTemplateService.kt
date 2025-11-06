@@ -275,11 +275,11 @@ class EmailTemplateService(
 
 
     fun createTrialEndingEmail(recipient: String): EmailContent {
-        val subject = "Your ApplyFirst trial ends in 3 days"
+        val subject = "Your ApplyFirst trial ends in 30 days"
         val htmlBody = createSystemEmailHtml(
             title = "Your trial is ending soon",
             content = """
-                <p style="font-size: 16px; line-height: 24px; margin-bottom: 16px;">Your 3-day ApplyFirst Premium trial will end in 3 days.</p>
+                <p style="font-size: 16px; line-height: 24px; margin-bottom: 16px;">Your 30-day ApplyFirst Premium trial will end in 30 days.</p>
                 <p style="font-size: 16px; line-height: 24px; margin-bottom: 16px;">Your subscription will automatically continue at $14/month to maintain premium features.</p>
                 <p style="font-size: 16px; line-height: 24px; margin-bottom: 20px;">To cancel or manage your subscription, visit the customer portal.</p>
             """.trimIndent(),
@@ -288,7 +288,7 @@ class EmailTemplateService(
         )
         val textBody = createSystemEmailText(
             title = "Your trial is ending soon",
-            content = "Your 3-day ApplyFirst Premium trial will end in 3 days. Your subscription will automatically continue at $14/month to maintain premium features. To cancel or manage your subscription, visit the customer portal."
+            content = "Your 30-day ApplyFirst Premium trial will end in 30 days. Your subscription will automatically continue at $14/month to maintain premium features. To cancel or manage your subscription, visit the customer portal."
         )
         return EmailContent(recipient, subject, htmlBody, textBody)
     }
@@ -369,7 +369,7 @@ class EmailTemplateService(
         appendLine("                                    <td class=\"mobile-text\" style=\"font-size: 14px; color: #666666; padding-bottom: 30px;\">Your personalised Job Search AI Agent</td>")
         appendLine("                                </tr>")
         appendLine("                                <tr>")
-        appendLine("                                    <td class=\"mobile-title\" style=\"font-size: 24px; font-weight: bold; padding-bottom: 24px;\">🎉 Welcome to your 3-day Premium trial!</td>")
+        appendLine("                                    <td class=\"mobile-title\" style=\"font-size: 24px; font-weight: bold; padding-bottom: 24px;\">🎉 Welcome to your 30-day Premium trial!</td>")
         appendLine("                                </tr>")
         appendLine("                            </table>")
         appendLine("                        </td>")
@@ -386,7 +386,7 @@ class EmailTemplateService(
         // Trial info
         appendLine("                                            <tr>")
         appendLine("                                                <td class=\"mobile-text\" style=\"font-size: 16px; line-height: 24px; color: #000000; padding-bottom: 20px;\">")
-        appendLine("                                                    Your <strong>3-day free trial</strong> has started! You now have access to all Premium features with no charges until your trial ends.")
+        appendLine("                                                    Your <strong>30-day free trial</strong> has started! You now have access to all Premium features with no charges until your trial ends.")
         appendLine("                                                </td>")
         appendLine("                                            </tr>")
         
@@ -415,7 +415,7 @@ class EmailTemplateService(
         // Trial terms (mobile responsive)
         appendLine("                                            <tr>")
         appendLine("                                                <td class=\"mobile-text\" style=\"font-size: 14px; color: #000000; padding: 20px 0 12px 0; border-top: 1px solid #e5e5e5;\">")
-        appendLine("                                                    <strong>After your 3-day trial:</strong>")
+        appendLine("                                                    <strong>After your 30-day trial:</strong>")
         appendLine("                                                </td>")
         appendLine("                                            </tr>")
         appendLine("                                            <tr>")
@@ -485,9 +485,9 @@ class EmailTemplateService(
 
     private fun createWelcomeEmailText(): String {
         return buildString {
-            appendLine("🎉 Welcome to your 3-day ApplyFirst Premium trial!")
+            appendLine("🎉 Welcome to your 30-day ApplyFirst Premium trial!")
             appendLine()
-            appendLine("Your 3-day free trial has started! You now have access to all Premium features with no charges until your trial ends.")
+            appendLine("Your 30-day free trial has started! You now have access to all Premium features with no charges until your trial ends.")
             appendLine()
             appendLine("What's included in Premium:")
             appendLine("• Continuous real-time monitoring of job boards and career pages")
@@ -496,7 +496,7 @@ class EmailTemplateService(
             appendLine("• See your compatibility score for each job")
             appendLine("• All free features: one-time search, filtering, fewer applicants info")
             appendLine()
-            appendLine("After your 3-day trial:")
+            appendLine("After your 30-day trial:")
             appendLine("• Your subscription will automatically continue at $14/month")
             appendLine("• Cancel anytime before trial ends to avoid charges")
             appendLine()

@@ -8,5 +8,4 @@ import org.springframework.stereotype.Repository
 interface SubscriptionRepository : MongoRepository<UserSubscription, String> {
     fun findByUserId(userId: String): UserSubscription?
     fun findByStripeCustomerId(customerId: String): UserSubscription?
-    fun findByStripeSubscriptionId(subscriptionId: String): UserSubscription?
 }
