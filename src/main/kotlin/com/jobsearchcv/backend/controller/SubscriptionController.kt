@@ -33,7 +33,8 @@ class SubscriptionController(
     @Operation(summary = "Get current subscription status")
     fun getSubscriptionStatus(request: HttpServletRequest): ResponseEntity<SubscriptionStatusResponse> {
         val userId = userAuthService.extractUserIdFromRequest(request)
-        val status = subscriptionService.getSubscriptionStatus(userId)
+        // Force fresh fetch from Stripe for user-requested status (with rate limiting)
+        val status = subscriptionService.getSubscriptionStatus(userId, forceRefresh = true)
         return ResponseEntity.ok(status)
     }
     
@@ -131,8 +132,36 @@ class SubscriptionController(
             }
 
             "customer.subscription.created" -> {
-                // No action needed - subscription data will be fetched from Stripe API when needed
-                logger.info("Subscription created event ${event.id} - data will be fetched from Stripe on-demand")
+                val subscriptionOptional = event.dataObjectDeserializer.`object`
+                if (!subscriptionOptional.isPresent) {
+                    logger.error("Failed to deserialize customer.subscription.created event ${event.id}")
+                    throw IllegalStateException("Unable to deserialize subscription from event")
+                }
+                val subscription = subscriptionOptional.get() as Subscription
+                val customerId = subscription.customer ?: return
+
+                // Check if we already have a record (from checkout.session.completed)
+                val existing = subscriptionService.getSubscriptionByCustomerId(customerId)
+
+                if (existing == null) {
+                    // This is an admin-created subscription - create the mapping
+                    logger.info("Admin-created subscription detected: ${subscription.id}")
+
+                    // Fetch customer details from Stripe
+                    val customer = stripeService.retrieveCustomer(customerId)
+                    val userId = customer.metadata["userId"]
+                        ?: throw IllegalArgumentException("No userId in customer metadata for customer: $customerId. When creating subscriptions via admin, ensure customer has userId in metadata.")
+                    val email = customer.email
+                        ?: throw IllegalArgumentException("No email for customer: $customerId")
+
+                    // Create the subscription mapping
+                    CoroutineScope(Dispatchers.IO).launch {
+                        subscriptionService.handleSubscriptionCreated(userId, customerId, email)
+                    }
+                    logger.info("Created subscription mapping for admin subscription: userId=$userId, customerId=$customerId")
+                } else {
+                    logger.info("Subscription created event ${event.id} - record already exists from checkout, skipping")
+                }
             }
 
             "customer.subscription.updated" -> {

@@ -117,6 +117,7 @@ dependencies {
 
     // ── Caching (Caffeine for in-memory cache) ────────────────
     implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
+    implementation("com.bucket4j:bucket4j-core:8.10.1")
 
     // ── OpenAPI Documentation ──────────────────────────────────
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0")

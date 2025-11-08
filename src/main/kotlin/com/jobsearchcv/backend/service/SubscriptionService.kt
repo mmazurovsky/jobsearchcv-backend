@@ -12,10 +12,14 @@ import com.jobsearchcv.backend.repository.DestinationRepository
 import com.jobsearchcv.backend.repository.SubscriptionRepository
 import com.stripe.model.Subscription
 import com.stripe.model.checkout.Session
+import io.github.bucket4j.Bandwidth
+import io.github.bucket4j.Bucket
+import io.github.bucket4j.Refill
 import java.time.Duration
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -41,6 +45,9 @@ class SubscriptionService(
     // In-memory cache: userId -> StripeSubscriptionData (5 min TTL)
     private lateinit var subscriptionCache: Cache<String, StripeSubscriptionData>
 
+    // Rate limiter for fresh subscription fetches: userId -> Bucket (10 requests per minute)
+    private val rateLimitBuckets = ConcurrentHashMap<String, Bucket>()
+
     @PostConstruct
     fun initCache() {
         subscriptionCache = Caffeine.newBuilder()
@@ -52,6 +59,19 @@ class SubscriptionService(
     }
 
     /**
+     * Get or create a rate limit bucket for a user.
+     * Allows 10 fresh fetches per minute.
+     */
+    private fun getRateLimitBucket(userId: String): Bucket {
+        return rateLimitBuckets.computeIfAbsent(userId) {
+            val limit = Bandwidth.classic(10, Refill.intervally(10, Duration.ofMinutes(1)))
+            Bucket.builder()
+                    .addLimit(limit)
+                    .build()
+        }
+    }
+
+    /**
      * Get user's subscription record (only contains user_id and stripe_customer_id mapping).
      */
     fun getSubscription(userId: String): UserSubscription? {
@@ -59,10 +79,42 @@ class SubscriptionService(
     }
 
     /**
-     * Get full subscription status by fetching from Stripe API (with caching).
+     * Get user's subscription record by Stripe customer ID.
      */
-    fun getSubscriptionStatus(userId: String): SubscriptionStatusResponse {
-        val subscriptionData = fetchSubscriptionDataWithCache(userId)
+    fun getSubscriptionByCustomerId(customerId: String): UserSubscription? {
+        return subscriptionRepository.findByStripeCustomerId(customerId)
+    }
+
+    /**
+     * Get full subscription status by fetching from Stripe API (with caching).
+     *
+     * @param userId User ID
+     * @param forceRefresh If true, attempts to fetch fresh data from Stripe (subject to rate limiting).
+     *                     When rate limit is exceeded, falls back to cached data.
+     *                     If false, uses standard caching behavior.
+     */
+    fun getSubscriptionStatus(userId: String, forceRefresh: Boolean = false): SubscriptionStatusResponse {
+        // Fetch UserSubscription once (needed for both stripeCustomerId and email)
+        val userSubscription = getSubscription(userId)
+
+        val subscriptionData = if (forceRefresh) {
+            // Check rate limit for fresh fetches
+            val bucket = getRateLimitBucket(userId)
+            if (bucket.tryConsume(1)) {
+                // Within rate limit - fetch fresh from Stripe and update cache
+                logger.debug("Fresh fetch requested for user $userId (within rate limit)")
+                val freshData = fetchSubscriptionDataFromStripe(userSubscription)
+                subscriptionCache.put(userId, freshData)
+                freshData
+            } else {
+                // Rate limit exceeded - fall back to cached data
+                logger.debug("Rate limit exceeded for user $userId, using cached data")
+                fetchSubscriptionDataWithCache(userSubscription)
+            }
+        } else {
+            // Standard cached behavior for internal system calls
+            fetchSubscriptionDataWithCache(userSubscription)
+        }
 
         return SubscriptionStatusResponse(
                 userId = userId,
@@ -72,7 +124,8 @@ class SubscriptionService(
                 trialEnd = subscriptionData.trialEnd,
                 hasPremiumAccess = subscriptionData.hasPremiumAccess(),
                 isTrialCancelled = subscriptionData.isTrialCancelled,
-                cachedAt = subscriptionData.cachedAt
+                cachedAt = subscriptionData.cachedAt,
+                email = userSubscription?.email
         )
     }
 
@@ -81,7 +134,8 @@ class SubscriptionService(
      * Fetches from Stripe API with 5-minute cache.
      */
     fun checkPremiumAccess(userId: String): Boolean {
-        val subscriptionData = fetchSubscriptionDataWithCache(userId)
+        val userSubscription = getSubscription(userId)
+        val subscriptionData = fetchSubscriptionDataWithCache(userSubscription)
         return subscriptionData.hasPremiumAccess()
     }
 
@@ -89,7 +143,9 @@ class SubscriptionService(
      * Fetch subscription data from Stripe API with caching.
      * Cache TTL: 5 minutes
      */
-    private fun fetchSubscriptionDataWithCache(userId: String): StripeSubscriptionData {
+    private fun fetchSubscriptionDataWithCache(userSubscription: UserSubscription?): StripeSubscriptionData {
+        val userId = userSubscription?.userId ?: return createFreeSubscriptionData()
+
         // Check cache first
         val cached = subscriptionCache.getIfPresent(userId)
         if (cached != null) {
@@ -99,7 +155,7 @@ class SubscriptionService(
 
         // Cache miss - fetch from Stripe
         logger.debug("Cache miss for user: $userId, fetching from Stripe")
-        val subscriptionData = fetchSubscriptionDataFromStripe(userId)
+        val subscriptionData = fetchSubscriptionDataFromStripe(userSubscription)
 
         // Cache the result
         subscriptionCache.put(userId, subscriptionData)
@@ -111,12 +167,10 @@ class SubscriptionService(
      * Fetch subscription data directly from Stripe API.
      * This is the source of truth for subscription status.
      */
-    private fun fetchSubscriptionDataFromStripe(userId: String): StripeSubscriptionData {
+    private fun fetchSubscriptionDataFromStripe(userSubscription: UserSubscription?): StripeSubscriptionData {
         try {
-            // Get user's Stripe customer ID from MongoDB
-            val userSubscription = getSubscription(userId)
             if (userSubscription == null) {
-                logger.debug("No subscription record for user: $userId, returning free tier")
+                logger.debug("No subscription record, returning free tier")
                 return createFreeSubscriptionData()
             }
 
@@ -144,7 +198,7 @@ class SubscriptionService(
             return extractSubscriptionData(activeSubscription)
 
         } catch (e: Exception) {
-            logger.error("Error fetching subscription from Stripe for user: $userId", e)
+            logger.error("Error fetching subscription from Stripe for user: ${userSubscription?.userId}", e)
             // On error, return free tier (fail-safe) but don't cache it (cache only on success)
             return createFreeSubscriptionData()
         }
@@ -252,11 +306,36 @@ class SubscriptionService(
                 ?: throw IllegalArgumentException("No subscription ID in checkout session ${session.id}")
         val customerId = session.customer
                 ?: throw IllegalArgumentException("No customer ID in checkout session ${session.id}")
+        val email = session.customerDetails?.email
+                ?: throw IllegalArgumentException("No email in checkout session ${session.id}")
 
-        // Create/update the mapping (userId -> stripeCustomerId)
+        // Create/update the mapping (userId -> stripeCustomerId -> email)
         val subscription = UserSubscription(
                 userId = userId,
-                stripeCustomerId = customerId
+                stripeCustomerId = customerId,
+                email = email
+        )
+        createOrUpdateSubscription(subscription)
+
+        // Invalidate cache to force fresh fetch
+        invalidateCache(userId)
+
+        // Send welcome email (async - doesn't block webhook response)
+        sendWelcomeEmail(userId)
+    }
+
+    /**
+     * Handle subscription created webhook for admin-created subscriptions.
+     * Called when a subscription is created directly in Stripe dashboard.
+     */
+    suspend fun handleSubscriptionCreated(userId: String, customerId: String, email: String) {
+        logger.info("Handling subscription created for user: $userId, customer: $customerId")
+
+        // Create/update the mapping (userId -> stripeCustomerId -> email)
+        val subscription = UserSubscription(
+                userId = userId,
+                stripeCustomerId = customerId,
+                email = email
         )
         createOrUpdateSubscription(subscription)
 
@@ -325,7 +404,8 @@ class SubscriptionService(
         // Create subscription mapping
         val subscription = UserSubscription(
                 userId = userId,
-                stripeCustomerId = customer.id
+                stripeCustomerId = customer.id,
+                email = email
         )
         createOrUpdateSubscription(subscription)
 

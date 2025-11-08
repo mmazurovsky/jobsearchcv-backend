@@ -72,6 +72,13 @@ data class UserSubscription(
     @field:Field("stripe_customer_id")
     val stripeCustomerId: String,
 
+    /**
+     * Email address used for Stripe checkout and subscription.
+     * Required for building checkout URLs with prefilled_email parameter.
+     */
+    @field:Field("email")
+    val email: String,
+
     @field:Field("created_at")
     val createdAt: OffsetDateTime = OffsetDateTime.now(),
 
@@ -92,6 +99,7 @@ data class SubscriptionStatusResponse(
     val trialEnd: Instant?,
     val hasPremiumAccess: Boolean,
     val isTrialCancelled: Boolean,
-    val cachedAt: Instant
+    val cachedAt: Instant,
+    val email: String? = null  // Email for building checkout URL with prefilled_email parameter
 )
 

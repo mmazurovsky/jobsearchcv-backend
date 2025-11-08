@@ -39,6 +39,11 @@ class StripeService(
         return customer
     }
 
+    fun retrieveCustomer(customerId: String): Customer {
+        logger.debug("Retrieving Stripe customer: $customerId")
+        return Customer.retrieve(customerId)
+    }
+
     fun retrieveSubscription(subscriptionId: String): Subscription {
         logger.debug("Retrieving Stripe subscription: $subscriptionId")
         return Subscription.retrieve(subscriptionId)
