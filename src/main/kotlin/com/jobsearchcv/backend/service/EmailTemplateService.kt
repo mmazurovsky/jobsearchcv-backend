@@ -399,11 +399,9 @@ class EmailTemplateService(
         
         // Feature list (mobile responsive)
         val premiumFeatures = listOf(
-            "🔄 Continuous real-time monitoring of job boards and career pages",
-            "📊 Deep analysis of your strengths and weaknesses against each posting", 
-            "📧 Email alerts with your specified frequency",
-            "⭐ See your compatibility score for each job",
-            "✅ All free features: one-time search, filtering, fewer applicants info"
+            "🤖 AI-powered job matching and compatibility scoring",
+            "🔄 Continuous real-time monitoring of job boards for jobs matching your job searches and preferences",
+            "📧 Email alerts with your specified frequency set in your job searches",
         )
         
         premiumFeatures.forEach { feature ->
@@ -490,11 +488,9 @@ class EmailTemplateService(
             appendLine("Your 30-day free trial has started! You now have access to all Premium features with no charges until your trial ends.")
             appendLine()
             appendLine("What's included in Premium:")
-            appendLine("• Continuous real-time monitoring of job boards and career pages")
-            appendLine("• Deep analysis of your strengths and weaknesses against each posting")
-            appendLine("• Email alerts with your specified frequency")
-            appendLine("• See your compatibility score for each job")
-            appendLine("• All free features: one-time search, filtering, fewer applicants info")
+            appendLine("• AI-powered job matching and compatibility scoring")
+            appendLine("• Continuous real-time monitoring of job boards for jobs matching your job searches and preferences")
+            appendLine("• Email alerts with your specified frequency set in your job searches")
             appendLine()
             appendLine("After your 30-day trial:")
             appendLine("• Your subscription will automatically continue at $14/month")
