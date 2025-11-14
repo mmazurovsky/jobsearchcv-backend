@@ -22,7 +22,6 @@ enum class SubscriptionStatus {
     ACTIVE,
     
     /**
-     * In 30-day free trial - user has full premium access
      * Updated via: checkout.session.completed (initial) or customer.subscription.updated
      */
     TRIALING,
