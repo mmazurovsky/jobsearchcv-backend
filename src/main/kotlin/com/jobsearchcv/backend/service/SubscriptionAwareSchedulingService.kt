@@ -61,7 +61,7 @@ internal class InternalJobSearchScheduler(
             val userHasDestinations = hasDestinations(jobSearch.userId)
 
             if (!userHasDestinations) {
-                logger.error("Job search ${jobSearch.id} wanted to be scheduled but its user ${jobSearch.userId} has no destinations")
+                  logger.warn("Skipping scheduling for job search ${jobSearch.id} - user ${jobSearch.userId} needs to add a destination first")
                 return
             }
 

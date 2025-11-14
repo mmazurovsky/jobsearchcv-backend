@@ -22,6 +22,7 @@ import java.time.ZoneOffset
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
+import org.springframework.context.annotation.Lazy
 import org.springframework.stereotype.Service
 import jakarta.annotation.PostConstruct
 
@@ -38,7 +39,8 @@ class SubscriptionService(
         private val stripeService: StripeService,
         private val destinationRepository: DestinationRepository,
         private val emailTemplateService: EmailTemplateService,
-        private val asyncEmailService: AsyncEmailService
+        private val asyncEmailService: AsyncEmailService,
+        @Lazy private val subscriptionAwareSchedulingService: SubscriptionAwareSchedulingService
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
@@ -295,7 +297,7 @@ class SubscriptionService(
     }
 
     /**
-     * Handle checkout completed webhook - only used for sending welcome email.
+     * Handle checkout completed webhook - sends welcome email and reschedules job searches.
      * Subscription data will be fetched from Stripe API when needed.
      */
     suspend fun handleCheckoutCompleted(userId: String, session: Session) {
@@ -320,6 +322,15 @@ class SubscriptionService(
         // Invalidate cache to force fresh fetch
         invalidateCache(userId)
 
+        // Reschedule all job searches for this user with new subscription status
+        try {
+            subscriptionAwareSchedulingService.rescheduleAllSearchesForUser(userId)
+            logger.info("Successfully rescheduled job searches for user: $userId after checkout")
+        } catch (e: Exception) {
+            logger.error("Failed to reschedule job searches for user: $userId after checkout", e)
+            // Don't throw - email sending should still proceed
+        }
+
         // Send welcome email (async - doesn't block webhook response)
         sendWelcomeEmail(userId)
     }
@@ -342,12 +353,21 @@ class SubscriptionService(
         // Invalidate cache to force fresh fetch
         invalidateCache(userId)
 
+        // Reschedule all job searches for this user with new subscription status
+        try {
+            subscriptionAwareSchedulingService.rescheduleAllSearchesForUser(userId)
+            logger.info("Successfully rescheduled job searches for user: $userId after admin subscription creation")
+        } catch (e: Exception) {
+            logger.error("Failed to reschedule job searches for user: $userId after admin subscription creation", e)
+            // Don't throw - email sending should still proceed
+        }
+
         // Send welcome email (async - doesn't block webhook response)
         sendWelcomeEmail(userId)
     }
 
     /**
-     * Handle subscription updated webhook - invalidate cache and send notifications.
+     * Handle subscription updated webhook - invalidate cache, reschedule job searches.
      */
     fun handleSubscriptionUpdated(stripeSubscription: Subscription) {
         logger.info("Handling subscription updated: ${stripeSubscription.id}")
@@ -359,14 +379,29 @@ class SubscriptionService(
             return
         }
 
-        // Invalidate cache to force fresh fetch on next access
-        invalidateCache(userSubscription.userId)
+        val userId = userSubscription.userId
 
-        logger.info("Cache invalidated for subscription update: ${stripeSubscription.id}")
+        // Invalidate cache to force fresh fetch on next access
+        invalidateCache(userId)
+
+        // Reschedule all job searches for this user with updated subscription status
+        // Use runBlocking since this is called from a non-suspend function
+        try {
+            runBlocking {
+                subscriptionAwareSchedulingService.rescheduleAllSearchesForUser(userId)
+            }
+            logger.info("Successfully rescheduled job searches for user: $userId after subscription update")
+        } catch (e: Exception) {
+            logger.error("Failed to reschedule job searches for user: $userId after subscription update", e)
+            // Don't throw - we still want to acknowledge the webhook
+        }
+
+        logger.info("Cache invalidated and searches rescheduled for subscription update: ${stripeSubscription.id}")
     }
 
     /**
-     * Handle subscription deleted webhook - invalidate cache.
+     * Handle subscription deleted webhook - invalidate cache and reschedule job searches.
+     * User will be downgraded to free tier, so searches need to be rescheduled to monthly frequency.
      */
     fun handleSubscriptionDeleted(stripeSubscription: Subscription) {
         logger.info("Handling subscription deleted: ${stripeSubscription.id}")
@@ -377,39 +412,24 @@ class SubscriptionService(
             return
         }
 
+        val userId = userSubscription.userId
+
         // Invalidate cache
-        invalidateCache(userSubscription.userId)
+        invalidateCache(userId)
 
-        logger.info("Cache invalidated for subscription deletion: ${stripeSubscription.id}")
-    }
-
-    /**
-     * Ensure user has a Stripe customer ID.
-     * Creates Stripe customer if needed and stores mapping in MongoDB.
-     */
-    fun ensureStripeCustomer(userId: String, email: String, name: String? = null): String {
-        // Check if user already has a subscription record
-        val existingSubscription = getSubscription(userId)
-
-        // If user has a Stripe customer ID, return it
-        if (existingSubscription != null) {
-            logger.info("User $userId already has Stripe customer: ${existingSubscription.stripeCustomerId}")
-            return existingSubscription.stripeCustomerId
+        // Reschedule all job searches for this user to free tier frequency (monthly)
+        // Use runBlocking since this is called from a non-suspend function
+        try {
+            runBlocking {
+                subscriptionAwareSchedulingService.rescheduleAllSearchesForUser(userId)
+            }
+            logger.info("Successfully rescheduled job searches for user: $userId after subscription deletion (downgraded to free tier)")
+        } catch (e: Exception) {
+            logger.error("Failed to reschedule job searches for user: $userId after subscription deletion", e)
+            // Don't throw - we still want to acknowledge the webhook
         }
 
-        // Create new Stripe customer
-        val customer = stripeService.createCustomer(userId, email, name)
-        logger.info("Created Stripe customer ${customer.id} for user: $userId")
-
-        // Create subscription mapping
-        val subscription = UserSubscription(
-                userId = userId,
-                stripeCustomerId = customer.id,
-                email = email
-        )
-        createOrUpdateSubscription(subscription)
-
-        return customer.id
+        logger.info("Cache invalidated and searches rescheduled for subscription deletion: ${stripeSubscription.id}")
     }
 
     /**

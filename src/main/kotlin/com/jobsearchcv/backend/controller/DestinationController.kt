@@ -107,22 +107,6 @@ class DestinationController(
             )
             val savedDestination = destinationRepository.save(destination)
 
-            // Create Stripe customer when user creates first email destination
-            // This ensures we have customer ID for future subscription management
-            if (!hadDestinationsBefore && channel == Channel.EMAIL) {
-                try {
-                    subscriptionService.ensureStripeCustomer(
-                        userId = userId,
-                        email = request.channelValue, // Email from destination
-                        name = userDetails?.displayName
-                    )
-                    logger.info("Created Stripe customer for user: $userId")
-                } catch (e: Exception) {
-                    logger.error("Failed to create Stripe customer for user: $userId", e)
-                    // Don't fail destination creation if Stripe customer creation fails
-                }
-            }
-
             // Always reschedule all approved job searches when destination changes
             // This ensures all searches use the new destination
             try {
