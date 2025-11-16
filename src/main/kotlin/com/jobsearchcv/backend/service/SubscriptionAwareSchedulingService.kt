@@ -4,11 +4,8 @@ import com.jobsearchcv.backend.domain.model.JobSearchOut
 import com.jobsearchcv.backend.domain.model.TimePeriod
 import com.jobsearchcv.backend.repository.DestinationRepository
 import com.jobsearchcv.backend.repository.JobSearchRepository
-import jakarta.annotation.PostConstruct
-import jakarta.annotation.PreDestroy
 import kotlinx.coroutines.runBlocking
 import org.quartz.*
-import org.quartz.impl.StdSchedulerFactory
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -17,7 +14,7 @@ import org.springframework.stereotype.Service
  * Result of a scheduling attempt
  */
 sealed class SchedulingResult {
-    data class Scheduled(val jobSearchId: String) : SchedulingResult()
+    data class Scheduled(val jobSearchId: String, val isPremium: Boolean) : SchedulingResult()
     data class Skipped(val jobSearchId: String, val reason: String) : SchedulingResult()
     data class Error(val jobSearchId: String, val exception: Exception) : SchedulingResult()
 }
@@ -27,6 +24,7 @@ sealed class SchedulingResult {
  * All external code should use SubscriptionAwareSchedulingService instead
  */
 internal class InternalJobSearchScheduler(
+    private val scheduler: Scheduler,
     private val scraperJobService: ScraperJobService,
     private val destinationRepository: DestinationRepository,
     private val jobSearchRepository: JobSearchRepository,
@@ -37,19 +35,8 @@ internal class InternalJobSearchScheduler(
         private val logger: Logger = LoggerFactory.getLogger(InternalJobSearchScheduler::class.java)
     }
 
-    private lateinit var scheduler: Scheduler
-
-    fun initializeScheduler() {
-        scheduler = StdSchedulerFactory.getDefaultScheduler()
-        scheduler.start()
-        logger.info("Job search scheduler started")
-    }
-
-    fun shutdown() {
-        if (::scheduler.isInitialized && !scheduler.isShutdown) {
-            scheduler.shutdown(true)
-            logger.info("Job search scheduler stopped")
-        }
+    init {
+        logger.info("InternalJobSearchScheduler initialized with Spring-managed scheduler")
     }
 
     /**
@@ -65,7 +52,7 @@ internal class InternalJobSearchScheduler(
         }
     }
 
-    suspend fun scheduleJobSearch(jobSearch: JobSearchOut): SchedulingResult {
+    suspend fun scheduleJobSearch(jobSearch: JobSearchOut, isPremium: Boolean): SchedulingResult {
         try {
             val userHasDestinations = hasDestinations(jobSearch.userId)
 
@@ -105,7 +92,7 @@ internal class InternalJobSearchScheduler(
                 logger.info("Scheduled new job search: {}", jobSearch.toLogString())
             }
 
-            return SchedulingResult.Scheduled(jobSearch.id)
+            return SchedulingResult.Scheduled(jobSearch.id, isPremium)
 
         } catch (e: Exception) {
             logger.error("Failed to schedule job search: {}", jobSearch.toLogString(), e)
@@ -116,7 +103,7 @@ internal class InternalJobSearchScheduler(
     suspend fun removeJobSearch(searchId: String) {
         try {
             val jobKey = JobKey.jobKey("job-search-$searchId", "job-searches")
-            if (::scheduler.isInitialized && scheduler.checkExists(jobKey)) {
+            if (scheduler.checkExists(jobKey)) {
                 scheduler.deleteJob(jobKey)
                 logger.info("Removed job search: {}", searchId)
             } else {
@@ -200,6 +187,7 @@ internal class InternalJobSearchScheduler(
  */
 @Service
 class SubscriptionAwareSchedulingService(
+    private val scheduler: Scheduler,
     private val subscriptionService: SubscriptionService,
     private val scraperJobService: ScraperJobService,
     private val destinationRepository: DestinationRepository,
@@ -209,6 +197,7 @@ class SubscriptionAwareSchedulingService(
     // Internal scheduler instance - not injectable from outside
     private val internalJobSearchScheduler =
         InternalJobSearchScheduler(
+            scheduler,
             scraperJobService,
             destinationRepository,
             jobSearchRepository
@@ -221,14 +210,8 @@ class SubscriptionAwareSchedulingService(
         private val FREE_TIER_TIME_PERIOD = TimePeriod.`1 month`
     }
 
-    @PostConstruct
-    fun initializeScheduler() {
-        internalJobSearchScheduler.initializeScheduler()
-    }
-
-    @PreDestroy
-    fun shutdown() {
-        internalJobSearchScheduler.shutdown()
+    init {
+        logger.info("SubscriptionAwareSchedulingService initialized with Spring-managed Quartz scheduler")
     }
 
     /**
@@ -263,6 +246,7 @@ class SubscriptionAwareSchedulingService(
                 return SchedulingResult.Skipped(jobSearch.id, reason)
             }
 
+            val isPremium = subscriptionService.checkPremiumAccess(jobSearch.userId)
             val effectiveTimePeriod = getEffectiveTimePeriod(jobSearch.userId, jobSearch.timePeriod)
             val adjustedJobSearch = jobSearch.copy(timePeriod = effectiveTimePeriod)
 
@@ -276,7 +260,7 @@ class SubscriptionAwareSchedulingService(
                 )
             }
 
-            return internalJobSearchScheduler.scheduleJobSearch(adjustedJobSearch)
+            return internalJobSearchScheduler.scheduleJobSearch(adjustedJobSearch, isPremium)
         } catch (e: Exception) {
             logger.error("Error scheduling job search with subscription logic: ${jobSearch.id}", e)
             return SchedulingResult.Error(jobSearch.id, e)
@@ -287,28 +271,18 @@ class SubscriptionAwareSchedulingService(
      * Removes a job search from the scheduler
      */
     suspend fun removeJobSearch(searchId: String) {
-        try {
-            logger.info("Removing job search from scheduler: {}", searchId)
-            internalJobSearchScheduler.removeJobSearch(searchId)
-            logger.info("Successfully removed job search: {}", searchId)
-        } catch (e: Exception) {
-            logger.error("Error removing job search: {}", searchId, e)
-            throw e
-        }
+        logger.info("Removing job search from scheduler: {}", searchId)
+        internalJobSearchScheduler.removeJobSearch(searchId)
     }
 
     /**
      * Updates a job search with subscription-aware scheduling logic
-     * First removes any existing schedule, then reschedules with appropriate time period
      */
     suspend fun updateJobSearch(jobSearch: JobSearchOut) {
         try {
             logger.info("Updating job search with subscription logic: ${jobSearch.id}")
 
-            // First remove the existing scheduled job
             internalJobSearchScheduler.removeJobSearch(jobSearch.id)
-
-            // Then reschedule with subscription-aware logic
             val result = scheduleJobSearchWithSubscriptionLogic(jobSearch)
 
             when (result) {
@@ -330,7 +304,12 @@ class SubscriptionAwareSchedulingService(
         val skipped = results.filterIsInstance<SchedulingResult.Skipped>()
         val errors = results.filterIsInstance<SchedulingResult.Error>()
 
-        logger.info("$operation summary: Scheduled: ${scheduled.size}, Skipped: ${skipped.size}")
+        val premiumCount = scheduled.count { it.isPremium }
+        val freeCount = scheduled.count { !it.isPremium }
+
+        logger.info(
+            "$operation summary: Scheduled: ${scheduled.size} (Premium: $premiumCount, Free: $freeCount), Skipped: ${skipped.size}"
+        )
 
         if (skipped.isNotEmpty()) {
             skipped.forEach { skip ->
@@ -347,9 +326,10 @@ class SubscriptionAwareSchedulingService(
      * Determines the effective time period based on user's subscription status
      */
     private fun getEffectiveTimePeriod(userId: String, originalTimePeriod: TimePeriod): TimePeriod {
-        return if (subscriptionService.checkPremiumAccess(userId)) {
+        val hasPremium = subscriptionService.checkPremiumAccess(userId)
+        return if (hasPremium) {
             // Premium users get their originally saved time period
-            logger.debug(
+            logger.info(
                 "User {} has premium access, using original period: {}",
                 userId,
                 originalTimePeriod.displayName
@@ -357,8 +337,8 @@ class SubscriptionAwareSchedulingService(
             originalTimePeriod
         } else {
             // Free users are forced to monthly scheduling
-            logger.debug(
-                "User {} is free tier, forcing monthly period (original: {})",
+            logger.info(
+                "User {} is free tier (checkPremiumAccess=false), forcing monthly period (original: {})",
                 userId,
                 originalTimePeriod.displayName
             )
@@ -368,13 +348,12 @@ class SubscriptionAwareSchedulingService(
 
     /**
      * Reschedules all job searches for a specific user based on their current subscription status
-     * This is called when subscription status changes (upgrade/downgrade)
+     * Called when subscription status changes (upgrade/downgrade)
      */
     suspend fun rescheduleAllSearchesForUser(userId: String) {
         try {
             logger.info("Rescheduling all job searches for user: {}", userId)
 
-            // Get all user's searches from database that should be scheduled
             val userSearches = jobSearchRepository.findByUserId(userId)
             val schedulableSearches = userSearches.filter { shouldScheduleJobSearch(it) }
 
@@ -383,15 +362,9 @@ class SubscriptionAwareSchedulingService(
                 return
             }
 
-            val results = mutableListOf<SchedulingResult>()
-
-            schedulableSearches.forEach { jobSearch ->
-                // Remove existing scheduled job first to avoid conflicts
+            val results = schedulableSearches.map { jobSearch ->
                 internalJobSearchScheduler.removeJobSearch(jobSearch.id)
-
-                // Schedule with subscription-aware logic
-                val result = scheduleJobSearchWithSubscriptionLogic(jobSearch)
-                results.add(result)
+                scheduleJobSearchWithSubscriptionLogic(jobSearch)
             }
 
             logSchedulingSummary(results, "Rescheduling for user $userId")
@@ -408,33 +381,10 @@ class SubscriptionAwareSchedulingService(
     }
 
     /**
-     * Bulk schedule job searches with subscription-aware logic
-     * Used during application startup
-     */
-    suspend fun scheduleMultipleJobSearchesWithSubscriptionLogic(jobSearches: List<JobSearchOut>) {
-        logger.info("Bulk scheduling {} job searches with subscription logic", jobSearches.size)
-
-        val results = jobSearches.map { jobSearch ->
-            scheduleJobSearchWithSubscriptionLogic(jobSearch)
-        }
-
-        logSchedulingSummary(results, "Bulk scheduling")
-
-        val errorCount = results.filterIsInstance<SchedulingResult.Error>().size
-        if (errorCount > 0) {
-            logger.warn("Some job searches failed to schedule during bulk operation. Check logs for details.")
-        }
-    }
-
-    /**
      * Schedules initial job searches on application startup with subscription-aware logic
-     * Replaces direct JobSearchScheduler.addInitialJobSearches calls
      */
     suspend fun scheduleInitialJobSearches(jobSearches: List<JobSearchOut>) {
-        logger.info(
-            "Scheduling {} initial job searches with subscription awareness",
-            jobSearches.size
-        )
+        logger.info("Scheduling {} initial job searches with subscription awareness", jobSearches.size)
 
         val results = jobSearches.map { jobSearch ->
             scheduleJobSearchWithSubscriptionLogic(jobSearch)
@@ -449,8 +399,8 @@ class SubscriptionAwareSchedulingService(
     }
 
     /**
-     * Schedules all approved and subscribed job searches for a specific user when they add their first destination
-     * Replaces direct JobSearchScheduler.scheduleAllApprovedSearchesForUser calls
+     * Schedules all approved and subscribed job searches for a specific user
+     * Called when a user adds their first notification destination
      */
     suspend fun scheduleAllApprovedSubscribedSearchesForUser(userId: String) {
         logger.info("Scheduling all approved and subscribed job searches for user: {}", userId)
