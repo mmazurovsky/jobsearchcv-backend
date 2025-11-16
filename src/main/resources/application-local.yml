@@ -1,0 +1,20 @@
+# Local Development Profile - Verbose Logging
+spring:
+  config:
+    activate:
+      on-profile: local
+
+logging:
+  level:
+    root: INFO
+    com.jobsearchcv.backend: DEBUG
+    # Logbook logging level - must be TRACE to see request/response logs
+    org.zalando.logbook: TRACE
+    # Enable to debug Logbook auto-configuration
+    org.zalando.logbook.autoconfigure: DEBUG
+    # Spring Security debug logging (useful for auth debugging)
+    org.springframework.security: DEBUG
+    com.jobsearchcv.backend.security: DEBUG
+    # Other useful debug loggers
+    org.springframework.web: DEBUG
+    org.springframework.data.mongodb: DEBUG

@@ -29,6 +29,7 @@ class SecurityConfig(
             .authorizeHttpRequests { authz ->
                 authz
                     // Public endpoints
+                    .requestMatchers("/", "/error").permitAll() // Root and error pages
                     .requestMatchers("/api/cv/health").permitAll()
                     .requestMatchers("/api/job-data-callback").permitAll()
                     .requestMatchers("/api/test/**").permitAll() // Test endpoints for Logbook

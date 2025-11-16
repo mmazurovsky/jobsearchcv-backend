@@ -77,15 +77,12 @@ logging:
   config: classpath:logback-spring.xml
   level:
     root: ${LOG_LEVEL:INFO}
-    com.jobsalerts: ${LOG_LEVEL:INFO}
-    com.jobsearchcv.backend.http: ${LOG_LEVEL:INFO} # Custom HTTP logs
-    # Logbook logging level - must be TRACE to see request/response logs
-    org.zalando.logbook: TRACE
-    # Enable to debug Logbook auto-configuration
-    org.zalando.logbook.autoconfigure: DEBUG
-    # Spring Security debug logging
-    org.springframework.security: DEBUG
-    com.jobsearchcv.backend.security: DEBUG
+    com.jobsearchcv.backend: ${LOG_LEVEL:INFO}
+    # Third-party libraries - keep quiet in production
+    org.springframework: INFO
+    org.mongodb.driver: WARN
+    org.quartz: INFO
+    org.zalando.logbook: WARN
 
 DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:}
 OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:}

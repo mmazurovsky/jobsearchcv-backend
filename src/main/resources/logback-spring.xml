@@ -111,16 +111,14 @@
     </springProfile>
 
     <!-- Application-specific loggers -->
-    <logger name="com.jobsalerts.core" level="INFO"/>
-    <logger name="com.jobsalerts.core.service.JobSearchService" level="DEBUG"/>
-    <logger name="com.jobsalerts.core.bot" level="INFO"/>
-    
+    <logger name="com.jobsearchcv.backend" level="INFO"/>
+
     <!-- Third-party loggers -->
     <logger name="org.springframework" level="INFO"/>
     <logger name="org.mongodb.driver" level="WARN"/>
     <logger name="org.quartz" level="INFO"/>
     <logger name="io.ktor" level="INFO"/>
-    
+
     <!-- Reduce noise from common frameworks -->
     <logger name="org.springframework.web.servlet.DispatcherServlet" level="WARN"/>
     <logger name="org.springframework.boot.actuate.endpoint.web" level="WARN"/>

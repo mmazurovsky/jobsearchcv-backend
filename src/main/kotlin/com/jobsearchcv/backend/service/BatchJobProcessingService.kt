@@ -55,11 +55,9 @@ class BatchJobProcessingService(
     private val logger = LoggerFactory.getLogger(this::class.java)
 
     // Token limits for batching - conservative estimates for DeepSeek
-    private val maxInputTokens = 8000
+    private val maxInputTokens = 6000  // Reduced from 8000 to be more conservative
     private val estimatedTokensPerChar = 0.25
-    private val jobDescriptionMaxLength = 4000
-    private val maxEnrichmentBatchSize = 8
-    private val maxCompatibilityBatchSize = 10
+    private val jobDescriptionMaxLength = 4000  // Full description needed for accurate analysis
 
     // Semaphore to limit parallel LLM requests
     private val llmSemaphore = Semaphore(3)
@@ -298,10 +296,9 @@ class BatchJobProcessingService(
             val jobContent = "${request.title} ${request.description} ${request.company}"
             val jobTokens = (jobContent.length * estimatedTokensPerChar).toInt()
 
-            // Check if adding this job would exceed limits
+            // Check if adding this job would exceed token limit
             if (currentBatch.isNotEmpty() &&
-                (currentBatchTokens + jobTokens + (currentBatch.size * responseTokensPerJob) > availableTokens ||
-                        currentBatch.size >= maxEnrichmentBatchSize)
+                currentBatchTokens + jobTokens + ((currentBatch.size + 1) * responseTokensPerJob) > availableTokens
             ) {
 
                 batches.add(currentBatch.toList())
@@ -353,10 +350,9 @@ class BatchJobProcessingService(
                 "${request.title} ${request.description} ${request.company} $techstackText $tagsText ${request.salary ?: ""}"
             val jobTokens = (jobContent.length * estimatedTokensPerChar).toInt()
 
-            // Check if adding this job would exceed limits
+            // Check if adding this job would exceed token limit
             if (currentBatch.isNotEmpty() &&
-                (currentBatchTokens + jobTokens + (currentBatch.size * responseTokensPerJob) > availableTokens ||
-                        currentBatch.size >= maxCompatibilityBatchSize)
+                currentBatchTokens + jobTokens + ((currentBatch.size + 1) * responseTokensPerJob) > availableTokens
             ) {
 
                 batches.add(currentBatch.toList())
