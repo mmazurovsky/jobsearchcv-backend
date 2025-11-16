@@ -122,10 +122,7 @@ class SubscriptionService(
                 userId = userId,
                 tier = subscriptionData.tier,
                 status = subscriptionData.status,
-                currentPeriodEnd = subscriptionData.currentPeriodEnd,
-                trialEnd = subscriptionData.trialEnd,
                 hasPremiumAccess = subscriptionData.hasPremiumAccess(),
-                isTrialCancelled = subscriptionData.isTrialCancelled,
                 cachedAt = subscriptionData.cachedAt,
                 email = userSubscription?.email
         )
@@ -138,7 +135,17 @@ class SubscriptionService(
     fun checkPremiumAccess(userId: String): Boolean {
         val userSubscription = getSubscription(userId)
         val subscriptionData = fetchSubscriptionDataWithCache(userSubscription)
-        return subscriptionData.hasPremiumAccess()
+        val hasPremium = subscriptionData.hasPremiumAccess()
+
+        logger.info(
+            "Premium access check for user {}: tier={}, status={}, result={}",
+            userId,
+            subscriptionData.tier,
+            subscriptionData.status,
+            hasPremium
+        )
+
+        return hasPremium
     }
 
     /**
@@ -208,6 +215,7 @@ class SubscriptionService(
 
     /**
      * Extract subscription data from Stripe subscription object.
+     * Only extracts tier and status - trusts Stripe completely for access control.
      */
     private fun extractSubscriptionData(stripeSubscription: Subscription): StripeSubscriptionData {
         val status = mapStripeStatus(stripeSubscription.status)
@@ -217,60 +225,12 @@ class SubscriptionService(
             SubscriptionTier.FREE
         }
 
-        // Extract period end (try top-level first, then items)
-        val currentPeriodEnd = extractInstant(stripeSubscription, "current_period_end")
-                ?: extractNestedInstant(stripeSubscription)
-
-        val trialEnd = extractInstant(stripeSubscription, "trial_end")
-
-        // Check if subscription was cancelled (any cancellation field set)
-        val isCancelled = stripeSubscription.cancelAt != null ||
-                stripeSubscription.cancelAtPeriodEnd == true ||
-                stripeSubscription.canceledAt != null
-
         return StripeSubscriptionData(
                 tier = tier,
-                status = status,
-                currentPeriodEnd = currentPeriodEnd,
-                trialEnd = trialEnd,
-                isTrialCancelled = isCancelled && status == SubscriptionStatus.TRIALING
+                status = status
         )
     }
 
-    /**
-     * Extract timestamp field from Stripe subscription JSON.
-     */
-    private fun extractInstant(stripeSubscription: Subscription, fieldName: String): Instant? {
-        return try {
-            stripeSubscription.rawJsonObject
-                    ?.get(fieldName)
-                    ?.takeIf { !it.isJsonNull }
-                    ?.asLong
-                    ?.let { Instant.ofEpochSecond(it) }
-        } catch (e: Exception) {
-            logger.debug("Failed to extract $fieldName from subscription ${stripeSubscription.id}: ${e.message}")
-            null
-        }
-    }
-
-    /**
-     * Extract current_period_end from subscription items (fallback for trialing subscriptions).
-     */
-    private fun extractNestedInstant(stripeSubscription: Subscription): Instant? {
-        return try {
-            val items = stripeSubscription.rawJsonObject?.getAsJsonObject("items")
-            val data = items?.getAsJsonArray("data")
-            val firstItem = data?.get(0)?.asJsonObject
-
-            firstItem?.get("current_period_end")
-                    ?.takeIf { !it.isJsonNull }
-                    ?.asLong
-                    ?.let { Instant.ofEpochSecond(it) }
-        } catch (e: Exception) {
-            logger.debug("Failed to extract nested current_period_end: ${e.message}")
-            null
-        }
-    }
 
     /**
      * Invalidate cache for a user (called by webhooks to force refresh).

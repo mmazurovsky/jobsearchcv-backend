@@ -89,15 +89,13 @@ data class UserSubscription(
 
 /**
  * Subscription status response with data fetched from Stripe API.
+ * Trust Stripe's status completely - no need to return period/trial dates.
  */
 data class SubscriptionStatusResponse(
     val userId: String,
     val tier: SubscriptionTier,
     val status: SubscriptionStatus,
-    val currentPeriodEnd: Instant?,
-    val trialEnd: Instant?,
     val hasPremiumAccess: Boolean,
-    val isTrialCancelled: Boolean,
     val cachedAt: Instant,
     val email: String? = null  // Email for building checkout URL with prefilled_email parameter
 )

@@ -67,10 +67,7 @@ class AdminController(
                     userId = userId,
                     tier = SubscriptionTier.FREE,
                     status = SubscriptionStatus.ACTIVE,
-                    currentPeriodEnd = null,
-                    trialEnd = null,
                     hasPremiumAccess = false,
-                    isTrialCancelled = false,
                     cachedAt = Instant.now()
                 )
             )
@@ -90,10 +87,7 @@ class AdminController(
                     userId = userId,
                     tier = SubscriptionTier.FREE,
                     status = SubscriptionStatus.ACTIVE,
-                    currentPeriodEnd = null,
-                    trialEnd = null,
                     hasPremiumAccess = false,
-                    isTrialCancelled = false,
                     cachedAt = Instant.now()
                 )
             )
