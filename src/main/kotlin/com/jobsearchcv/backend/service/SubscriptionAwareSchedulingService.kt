@@ -14,6 +14,15 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 
 /**
+ * Result of a scheduling attempt
+ */
+sealed class SchedulingResult {
+    data class Scheduled(val jobSearchId: String) : SchedulingResult()
+    data class Skipped(val jobSearchId: String, val reason: String) : SchedulingResult()
+    data class Error(val jobSearchId: String, val exception: Exception) : SchedulingResult()
+}
+
+/**
  * Internal JobSearchScheduler - only accessible within this file
  * All external code should use SubscriptionAwareSchedulingService instead
  */
@@ -56,13 +65,13 @@ internal class InternalJobSearchScheduler(
         }
     }
 
-    suspend fun scheduleJobSearch(jobSearch: JobSearchOut) {
+    suspend fun scheduleJobSearch(jobSearch: JobSearchOut): SchedulingResult {
         try {
             val userHasDestinations = hasDestinations(jobSearch.userId)
 
             if (!userHasDestinations) {
                   logger.warn("Skipping scheduling for job search ${jobSearch.id} - user ${jobSearch.userId} needs to add a destination first")
-                return
+                return SchedulingResult.Skipped(jobSearch.id, "no destinations")
             }
 
             val jobDataMap = JobDataMap().apply {
@@ -96,9 +105,11 @@ internal class InternalJobSearchScheduler(
                 logger.info("Scheduled new job search: {}", jobSearch.toLogString())
             }
 
+            return SchedulingResult.Scheduled(jobSearch.id)
+
         } catch (e: Exception) {
             logger.error("Failed to schedule job search: {}", jobSearch.toLogString(), e)
-            throw e
+            return SchedulingResult.Error(jobSearch.id, e)
         }
     }
 
@@ -152,7 +163,7 @@ internal class InternalJobSearchScheduler(
 
                     // Log execution with subscription context
                     if (effectiveTimePeriod == currentJobSearch.timePeriod) {
-                        logger.debug(
+                        logger.info(
                             "Executing search {} for premium user {} (period: {})",
                             searchId, currentJobSearch.userId, effectiveTimePeriod.displayName
                         )
@@ -233,17 +244,23 @@ class SubscriptionAwareSchedulingService(
      * - Premium users: Use their originally saved time period
      * - Only schedules if both isApproved and isSubscribed are true
      */
-    suspend fun scheduleJobSearchWithSubscriptionLogic(jobSearch: JobSearchOut) {
+    suspend fun scheduleJobSearchWithSubscriptionLogic(jobSearch: JobSearchOut): SchedulingResult {
         try {
             // Check if job search should be scheduled
             if (!shouldScheduleJobSearch(jobSearch)) {
+                val reason = when {
+                    !jobSearch.isApproved && !jobSearch.isSubscribed -> "not approved and not subscribed"
+                    !jobSearch.isApproved -> "not approved"
+                    !jobSearch.isSubscribed -> "not subscribed"
+                    else -> "unknown reason"
+                }
                 logger.info(
                     "Skipping scheduling for job search {} - isApproved: {}, isSubscribed: {}",
                     jobSearch.id,
                     jobSearch.isApproved,
                     jobSearch.isSubscribed
                 )
-                return
+                return SchedulingResult.Skipped(jobSearch.id, reason)
             }
 
             val effectiveTimePeriod = getEffectiveTimePeriod(jobSearch.userId, jobSearch.timePeriod)
@@ -259,10 +276,10 @@ class SubscriptionAwareSchedulingService(
                 )
             }
 
-            internalJobSearchScheduler.scheduleJobSearch(adjustedJobSearch)
+            return internalJobSearchScheduler.scheduleJobSearch(adjustedJobSearch)
         } catch (e: Exception) {
             logger.error("Error scheduling job search with subscription logic: ${jobSearch.id}", e)
-            throw e
+            return SchedulingResult.Error(jobSearch.id, e)
         }
     }
 
@@ -292,12 +309,37 @@ class SubscriptionAwareSchedulingService(
             internalJobSearchScheduler.removeJobSearch(jobSearch.id)
 
             // Then reschedule with subscription-aware logic
-            scheduleJobSearchWithSubscriptionLogic(jobSearch)
+            val result = scheduleJobSearchWithSubscriptionLogic(jobSearch)
 
-            logger.info("Successfully updated job search: ${jobSearch.id}")
+            when (result) {
+                is SchedulingResult.Scheduled -> logger.info("Successfully updated job search: ${jobSearch.id}")
+                is SchedulingResult.Skipped -> logger.info("Job search ${jobSearch.id} not scheduled: ${result.reason}")
+                is SchedulingResult.Error -> throw result.exception
+            }
         } catch (e: Exception) {
             logger.error("Error updating job search with subscription logic: ${jobSearch.id}", e)
             throw e
+        }
+    }
+
+    /**
+     * Logs a summary of scheduling results
+     */
+    private fun logSchedulingSummary(results: List<SchedulingResult>, operation: String) {
+        val scheduled = results.filterIsInstance<SchedulingResult.Scheduled>()
+        val skipped = results.filterIsInstance<SchedulingResult.Skipped>()
+        val errors = results.filterIsInstance<SchedulingResult.Error>()
+
+        logger.info("$operation summary: Scheduled: ${scheduled.size}, Skipped: ${skipped.size}")
+
+        if (skipped.isNotEmpty()) {
+            skipped.forEach { skip ->
+                logger.info("- Job ${skip.jobSearchId} not scheduled: ${skip.reason}")
+            }
+        }
+
+        if (errors.isNotEmpty()) {
+            logger.warn("$operation had ${errors.size} errors - check logs for details")
         }
     }
 
@@ -341,33 +383,20 @@ class SubscriptionAwareSchedulingService(
                 return
             }
 
-            var rescheduledCount = 0
-            var errorCount = 0
+            val results = mutableListOf<SchedulingResult>()
 
             schedulableSearches.forEach { jobSearch ->
-                try {
-                    // Remove existing scheduled job first to avoid conflicts
-                    internalJobSearchScheduler.removeJobSearch(jobSearch.id)
+                // Remove existing scheduled job first to avoid conflicts
+                internalJobSearchScheduler.removeJobSearch(jobSearch.id)
 
-                    // Schedule with subscription-aware logic
-                    scheduleJobSearchWithSubscriptionLogic(jobSearch)
-                    rescheduledCount++
-                } catch (e: Exception) {
-                    logger.error(
-                        "Failed to reschedule job search {} for user {}",
-                        jobSearch.id,
-                        userId,
-                        e
-                    )
-                    errorCount++
-                }
+                // Schedule with subscription-aware logic
+                val result = scheduleJobSearchWithSubscriptionLogic(jobSearch)
+                results.add(result)
             }
 
-            logger.info(
-                "Rescheduling completed for user {}: {} searches rescheduled, {} errors",
-                userId, rescheduledCount, errorCount
-            )
+            logSchedulingSummary(results, "Rescheduling for user $userId")
 
+            val errorCount = results.filterIsInstance<SchedulingResult.Error>().size
             if (errorCount > 0) {
                 throw RuntimeException("Failed to reschedule $errorCount out of ${schedulableSearches.size} searches for user: $userId")
             }
@@ -385,28 +414,13 @@ class SubscriptionAwareSchedulingService(
     suspend fun scheduleMultipleJobSearchesWithSubscriptionLogic(jobSearches: List<JobSearchOut>) {
         logger.info("Bulk scheduling {} job searches with subscription logic", jobSearches.size)
 
-        var scheduledCount = 0
-        var errorCount = 0
-
-        jobSearches.forEach { jobSearch ->
-            try {
-                scheduleJobSearchWithSubscriptionLogic(jobSearch)
-                scheduledCount++
-            } catch (e: Exception) {
-                logger.error(
-                    "Failed to schedule job search {} during bulk operation",
-                    jobSearch.id,
-                    e
-                )
-                errorCount++
-            }
+        val results = jobSearches.map { jobSearch ->
+            scheduleJobSearchWithSubscriptionLogic(jobSearch)
         }
 
-        logger.info(
-            "Bulk scheduling completed: {} searches scheduled successfully, {} errors",
-            scheduledCount, errorCount
-        )
+        logSchedulingSummary(results, "Bulk scheduling")
 
+        val errorCount = results.filterIsInstance<SchedulingResult.Error>().size
         if (errorCount > 0) {
             logger.warn("Some job searches failed to schedule during bulk operation. Check logs for details.")
         }
@@ -422,28 +436,13 @@ class SubscriptionAwareSchedulingService(
             jobSearches.size
         )
 
-        var scheduledCount = 0
-        var errorCount = 0
-
-        jobSearches.forEach { jobSearch ->
-            try {
-                scheduleJobSearchWithSubscriptionLogic(jobSearch)
-                scheduledCount++
-            } catch (e: Exception) {
-                logger.error(
-                    "Failed to schedule initial job search {} during startup",
-                    jobSearch.id,
-                    e
-                )
-                errorCount++
-            }
+        val results = jobSearches.map { jobSearch ->
+            scheduleJobSearchWithSubscriptionLogic(jobSearch)
         }
 
-        logger.info(
-            "Initial scheduling completed: {} searches scheduled successfully, {} errors",
-            scheduledCount, errorCount
-        )
+        logSchedulingSummary(results, "Initial scheduling")
 
+        val errorCount = results.filterIsInstance<SchedulingResult.Error>().size
         if (errorCount > 0) {
             logger.warn("Some initial job searches failed to schedule during startup. Check logs for details.")
         }
@@ -464,29 +463,13 @@ class SubscriptionAwareSchedulingService(
             return
         }
 
-        var scheduledCount = 0
-        var errorCount = 0
-
-        userSearches.forEach { jobSearch ->
-            try {
-                scheduleJobSearchWithSubscriptionLogic(jobSearch)
-                scheduledCount++
-            } catch (e: Exception) {
-                logger.error(
-                    "Failed to schedule approved job search {} for user {}",
-                    jobSearch.id,
-                    userId,
-                    e
-                )
-                errorCount++
-            }
+        val results = userSearches.map { jobSearch ->
+            scheduleJobSearchWithSubscriptionLogic(jobSearch)
         }
 
-        logger.info(
-            "Approved searches scheduling completed for user {}: {} scheduled, {} errors",
-            userId, scheduledCount, errorCount
-        )
+        logSchedulingSummary(results, "Approved searches scheduling for user $userId")
 
+        val errorCount = results.filterIsInstance<SchedulingResult.Error>().size
         if (errorCount > 0) {
             logger.warn(
                 "Some approved searches failed to schedule for user {}. Check logs for details.",
