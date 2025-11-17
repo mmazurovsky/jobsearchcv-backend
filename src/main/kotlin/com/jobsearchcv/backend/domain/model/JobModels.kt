@@ -171,3 +171,19 @@ data class XComJobData(
     val salary: String?,
     val internalJobLink: String
 )
+
+/**
+ * Public job response for viewing job details via public API
+ * Used when users click X.com tweet links
+ */
+data class PublicJobResponse(
+    val internalId: String,
+    val title: String,
+    val company: String,
+    val location: String,
+    val link: String,
+    val techstack: List<String>,
+    val tags: List<String>,
+    val salary: String?,
+    val processedAt: java.time.OffsetDateTime
+)

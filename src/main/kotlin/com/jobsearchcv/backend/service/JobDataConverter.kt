@@ -85,29 +85,35 @@ class JobDataConverter {
     }
 
     /**
-     * Converts EnrichedJobData to ScoredJobData.
+     * Converts ProcessedJobData to ScoredJobData.
      */
     fun toScoredJobData(
-        enrichedJob: EnrichedJobData,
+        processedJob: ProcessedJobData,
+        createdAgo: String,
+        scrapedAt: OffsetDateTime,
+        userId: String,
+        jobSearchId: String,
+        keywords: String,
         compatibilityScore: Int,
         filterReason: String?
     ): ScoredJobData {
         return ScoredJobData(
-            id = enrichedJob.id,
-            title = enrichedJob.title,
-            company = enrichedJob.company,
-            location = enrichedJob.location,
-            link = enrichedJob.link,
-            createdAgo = enrichedJob.createdAgo,
-            description = enrichedJob.description,
-            applicants = enrichedJob.applicants,
-            scrapedAt = enrichedJob.scrapedAt,
-            userId = enrichedJob.userId,
-            jobSearchId = enrichedJob.jobSearchId,
-            keywords = enrichedJob.keywords,
-            techstack = enrichedJob.techstack,
-            tags = enrichedJob.tags,
-            salary = enrichedJob.salary,
+            id = processedJob.id,
+            internalId = processedJob.internalId,
+            title = processedJob.title,
+            company = processedJob.company,
+            location = processedJob.location,
+            link = processedJob.link,
+            createdAgo = createdAgo,
+            description = processedJob.description,
+            applicants = processedJob.applicants,
+            scrapedAt = scrapedAt,
+            userId = userId,
+            jobSearchId = jobSearchId,
+            keywords = keywords,
+            techstack = processedJob.techstack,
+            tags = processedJob.tags,
+            salary = processedJob.salary,
             compatibilityScore = compatibilityScore,
             filterReason = filterReason,
         )

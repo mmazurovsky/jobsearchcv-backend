@@ -90,6 +90,7 @@ data class EnrichedJobData(
  */
 data class ScoredJobData(
     val id: String,
+    val internalId: String,
     val title: String,
     val company: String,
     val location: String,

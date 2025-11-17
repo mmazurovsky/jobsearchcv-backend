@@ -10,7 +10,6 @@ import com.jobsearchcv.backend.domain.model.XComJobData
 object XComMessages {
 
     private const val MAX_TWEET_LENGTH = 280
-    private const val JOB_LINK_BASE = "t.me/sixfigs_bot?start="
 
     /**
      * Formats a job for X.com posting with 280 character limit
@@ -76,31 +75,5 @@ object XComMessages {
         }
 
         return result
-    }
-
-    /**
-     * Generates the job link for X.com posts using internal ID
-     */
-    fun generateJobLink(internalId: String): String {
-        return "$JOB_LINK_BASE$internalId"
-    }
-
-    /**
-     * Converts ScoredJobData to XComJobData for X.com posting
-     * Excludes compatibility scores and uses custom job link
-     */
-    fun toXComJobData(
-        scoredJob: ScoredJobData,
-        internalId: String
-    ): XComJobData {
-        return XComJobData(
-            internalId = internalId,
-            title = scoredJob.title,
-            company = scoredJob.company,
-            location = scoredJob.location,
-            techstack = scoredJob.techstack,
-            salary = scoredJob.salary,
-            internalJobLink = generateJobLink(internalId)
-        )
     }
 }

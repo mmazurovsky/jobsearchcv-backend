@@ -37,6 +37,8 @@ class SecurityConfig(
                     .requestMatchers("/api/subscriptions/webhook").permitAll()
                     // Admin endpoints (authenticated via admin secret)
                     .requestMatchers("/api/admin/**").permitAll()
+                    // Public job viewing endpoint (for X.com tweet links)
+                    .requestMatchers("/api/jobs/**").permitAll()
                     // OpenAPI endpoints
                     .requestMatchers("/v3/api-docs/**").permitAll()
                     .requestMatchers("/swagger-ui/**").permitAll()

@@ -1,8 +1,4 @@
 spring:
-  config:
-    activate:
-      on-profile: prod,local
-    import: optional:file:.env.local[.properties]
   application:
     name: jobsearchcv-backend
   data:
@@ -94,6 +90,11 @@ resend:
   from-email: ${RESEND_FROM_EMAIL}
   from-name: ${RESEND_FROM_NAME:ApplyFirst}
 
+# X.com (Twitter) API Configuration
+xcom:
+  api-url: ${XCOM_API_URL}
+  api-key: ${XCOM_API_KEY}
+
 # Application URLs and contact information
 app:
   website:
@@ -135,6 +136,18 @@ stripe:
   # - Payment Link: ${STRIPE_CHECKOUT_URL}?client_reference_id={userId}
   # - Customer Portal: ${STRIPE_CUSTOMER_PORTAL_URL}
 
+---
+# Local profile configuration
+spring:
+  config:
+    activate:
+      on-profile: local
+    import: optional:file:.env.local[.properties]
 
-
-
+---
+# Production profile configuration
+spring:
+  config:
+    activate:
+      on-profile: prod
+    import: optional:file:.env.prod[.properties]

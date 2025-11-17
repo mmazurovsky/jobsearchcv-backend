@@ -85,7 +85,7 @@ class BatchJobProcessingService(
                 logger.warn("[JobSearch: $jobSearchId] Didn't get techstack for job ${job.id}, link: ${job.link}")
             }
 
-            // Step 3: Save final processed jobs with all data including compatibility scores
+            // Step 3: Save processed jobs 
             val processedJobs = enrichedJobs.map { job ->
                 jobDataConverter.enrichedToProcessedJobData(job)
             }
@@ -93,6 +93,7 @@ class BatchJobProcessingService(
 
             // Step 4: Compatibility Scoring
             val scoredJobs = scoreJobsDataBatch(
+                processedJobs,
                 enrichedJobs,
                 jobSearch
             ).sortedByDescending { it.compatibilityScore }
@@ -211,6 +212,7 @@ class BatchJobProcessingService(
      * Restored from legacy scoreJobsCompatibilityBatch method.
      */
     private suspend fun scoreJobsDataBatch(
+        processedJobs: List<ProcessedJobData>,
         enrichedJobs: List<EnrichedJobData>,
         jobSearch: JobSearchOut?
     ): List<ScoredJobData> {
@@ -238,16 +240,25 @@ class BatchJobProcessingService(
 
             // Apply compatibility results to jobs
             val compatibilityMap = compatibilityResults.associateBy { it.jobId }
+            val processedJobMap = processedJobs.associateBy { it.id }
+            val enrichedJobMap = enrichedJobs.associateBy { it.id }
 
-            return enrichedJobs.mapNotNull { job ->
-                val compatibility = compatibilityMap[job.id]
+            return processedJobs.mapNotNull { processedJob ->
+                val enrichedJob = enrichedJobMap[processedJob.id]
+                val compatibility = compatibilityMap[processedJob.id]
                 val compatibilityScore = compatibility?.compatibilityScore
-                if (compatibilityScore == null) {
-                    logger.error("[JobSearch: $jobSearchId] Compatibility score is null for ${job.title} ${job.link}")
+
+                if (compatibilityScore == null || enrichedJob == null) {
+                    logger.error("[JobSearch: $jobSearchId] Missing data for ${processedJob.title} ${processedJob.link}")
                     null
                 } else {
                     jobDataConverter.toScoredJobData(
-                        enrichedJob = job,
+                        processedJob = processedJob,
+                        createdAgo = enrichedJob.createdAgo,
+                        scrapedAt = enrichedJob.scrapedAt,
+                        userId = enrichedJob.userId,
+                        jobSearchId = enrichedJob.jobSearchId,
+                        keywords = enrichedJob.keywords,
                         compatibilityScore = compatibility.compatibilityScore,
                         filterReason = compatibility.filterReason
                     )
@@ -260,12 +271,23 @@ class BatchJobProcessingService(
                 "[JobSearch: $jobSearchId] Exception caught in batch compatibility scoring",
                 e
             )
-            return enrichedJobs.map { job ->
-                jobDataConverter.toScoredJobData(
-                    enrichedJob = job,
-                    compatibilityScore = 0,
-                    filterReason = "Compatibility scoring failed: ${e.message}"
-                )
+            val enrichedJobMap = enrichedJobs.associateBy { it.id }
+            return processedJobs.mapNotNull { processedJob ->
+                val enrichedJob = enrichedJobMap[processedJob.id]
+                if (enrichedJob != null) {
+                    jobDataConverter.toScoredJobData(
+                        processedJob = processedJob,
+                        createdAgo = enrichedJob.createdAgo,
+                        scrapedAt = enrichedJob.scrapedAt,
+                        userId = enrichedJob.userId,
+                        jobSearchId = enrichedJob.jobSearchId,
+                        keywords = enrichedJob.keywords,
+                        compatibilityScore = 0,
+                        filterReason = "Compatibility scoring failed: ${e.message}"
+                    )
+                } else {
+                    null
+                }
             }
         }
     }

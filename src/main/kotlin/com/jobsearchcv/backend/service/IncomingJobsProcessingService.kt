@@ -20,13 +20,9 @@ class IncomingJobsProcessingService(
     private val emailTemplateService: EmailTemplateService,
     private val asyncEmailService: AsyncEmailService,
     private val subscriptionService: SubscriptionService,
+    private val xcomQueueService: XComQueueService,
 ) {
     private val logger = LoggerFactory.getLogger(this::class.java)
-
-    companion object {
-        private const val XCOM_DAILY_JOB_LIMIT = 50
-        private const val XCOM_RATE_LIMIT_HOURS = 24
-    }
 
     suspend fun processIncomingJobData(
         jobSearchId: String,
@@ -132,51 +128,6 @@ class IncomingJobsProcessingService(
         }
     }
 
-    private suspend fun sendJobsToXCom(
-        jobs: List<ScoredJobData>,
-        jobSearch: JobSearchOut
-    ): List<ScoredJobData> {
-        return try {
-            logger.info("[JobSearch: ${jobSearch.id}] Sending ${jobs.size} jobs to X.com (no compatibility filtering)")
-
-            // Check rate limit: 50 jobs per 24 hours
-            val twentyFourHoursAgo = OffsetDateTime.now().minusHours(XCOM_RATE_LIMIT_HOURS.toLong())
-            val jobsSentLast24Hours = sentJobRepository.countByDestinationAndSentAtAfter(
-                destination = "xcom_us_tech",
-                sentAtAfter = twentyFourHoursAgo
-            )
-
-            logger.info("[JobSearch: ${jobSearch.id}] Jobs sent to X.com in last 24 hours: $jobsSentLast24Hours")
-
-            val remainingQuota = XCOM_DAILY_JOB_LIMIT - jobsSentLast24Hours
-            if (remainingQuota <= 0) {
-                logger.warn("[JobSearch: ${jobSearch.id}] Daily limit reached for X.com. Skipping all ${jobs.size} jobs.")
-                return emptyList()
-            }
-
-            // Take only as many jobs as we can send within the limit
-            val jobsToSend = if (jobs.size > remainingQuota) {
-                logger.info("[JobSearch: ${jobSearch.id}] Limiting jobs to send from ${jobs.size} to $remainingQuota due to daily quota")
-                jobs.take(remainingQuota.toInt())
-            } else {
-                jobs
-            }
-
-            // Post jobs to X.com without compatibility score filtering
-//            TODO: use x scraper to post
-
-
-            emptyList()
-
-        } catch (e: Exception) {
-            logger.error(
-                "[JobSearch: ${jobSearch.id}] Error sending jobs to X.com: ${e.message}",
-                e
-            )
-            emptyList()
-        }
-    }
-
     private suspend fun sendJobsToUserDestinations(
         jobs: List<ScoredJobData>,
         jobSearch: JobSearchOut?,
@@ -210,48 +161,61 @@ class IncomingJobsProcessingService(
             // Get user destinations
 
 
-            // Check if channel is email
-            if (latestDestination.channel == "email") {
-                val recipientEmail = latestDestination.channelValue
-                val location = jobSearch?.location
-                val stringBuilder = StringBuilder()
-                val jobTitle = jobSearch?.jobTitle ?: "Your Job Search"
-                stringBuilder.append(jobTitle)
-                if (location != null) {
-                    stringBuilder.append(" in $location")
+            // Route based on channel type
+            when (latestDestination.channel) {
+                "email" -> {
+                    val recipientEmail = latestDestination.channelValue
+                    val location = jobSearch?.location
+                    val stringBuilder = StringBuilder()
+                    val jobTitle = jobSearch?.jobTitle ?: "Your Job Search"
+                    stringBuilder.append(jobTitle)
+                    if (location != null) {
+                        stringBuilder.append(" in $location")
+                    }
+                    val interval = specialSearchName ?: jobSearch?.timePeriod?.displayName
+                    if (interval != null) {
+                        stringBuilder.append(" in the last ${interval}")
+                    }
+
+                    val displaySearchName = stringBuilder.toString()
+                    val alertId = jobSearch?.id ?: "unknown"
+
+                    logger.info("Sending email to $recipientEmail for ${jobs.size} jobs, searchName=$specialSearchName")
+
+                    // Create email content using EmailTemplateService
+                    val hasPremiumAccess = subscriptionService.checkPremiumAccess(userId)
+                    val emailContent = emailTemplateService.createJobNotificationEmail(
+                        recipient = recipientEmail,
+                        searchName = displaySearchName,
+                        jobs = jobs,
+                        alertId = alertId,
+                        specialMessage = if (specialSearchName == "Monthly Overview") "This is an overview of jobs posted in the last month, you receive it only one time after job search is created \uD83D\uDE0A" else null,
+                        userId = userId,
+                        isFreeTier = !hasPremiumAccess
+                    )
+
+                    // Send email asynchronously using AsyncEmailService - fire and forget
+                    asyncEmailService.sendEmailAsync(emailContent)
+                    logger.info("Queued email to $recipientEmail with ${jobs.size} jobs")
+
+                    // Return jobs as successfully sent since we're fire-and-forget
+                    jobs
                 }
-                val interval = specialSearchName ?: jobSearch?.timePeriod?.displayName
-                if (interval != null) {
-                    stringBuilder.append(" in the last ${interval}")
+                "xcom" -> {
+                    val username = latestDestination.channelValue
+                    logger.info("Enqueueing ${jobs.size} jobs for X.com posting (username: $username)")
+
+                    // Enqueue jobs for X.com posting with random delays
+                    val enqueuedCount = xcomQueueService.enqueueJobs(jobs, username, userId)
+                    logger.info("Successfully enqueued $enqueuedCount jobs for X.com posting")
+
+                    // Return jobs as successfully sent since they're now queued
+                    jobs
                 }
-
-                val displaySearchName = stringBuilder.toString()
-                val alertId = jobSearch?.id ?: "unknown"
-
-                logger.info("Sending email to $recipientEmail for ${jobs.size} jobs, searchName=$specialSearchName")
-
-                // Create email content using EmailTemplateService
-                val hasPremiumAccess = subscriptionService.checkPremiumAccess(userId)
-                val emailContent = emailTemplateService.createJobNotificationEmail(
-                    recipient = recipientEmail,
-                    searchName = displaySearchName,
-                    jobs = jobs,
-                    alertId = alertId,
-                    specialMessage = if (specialSearchName == "Monthly Overview") "This is an overview of jobs posted in the last month, you receive it only one time after job search is created \uD83D\uDE0A" else null,
-                    userId = userId,
-                    isFreeTier = !hasPremiumAccess
-                )
-
-                // Send email asynchronously using AsyncEmailService - fire and forget
-                asyncEmailService.sendEmailAsync(emailContent)
-                logger.info("Queued email to $recipientEmail with ${jobs.size} jobs")
-
-                // Return jobs as successfully sent since we're fire-and-forget
-                jobs
-            } else {
-                logger.info("Channel '${latestDestination.channel}' is not email, skipping for now")
-                // TODO: Handle telegram or other channels in the future
-                emptyList()
+                else -> {
+                    logger.info("Channel '${latestDestination.channel}' is not supported, skipping")
+                    emptyList()
+                }
             }
 
         } catch (e: Exception) {
