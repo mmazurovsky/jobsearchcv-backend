@@ -8,10 +8,11 @@ import org.slf4j.LoggerFactory
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import java.time.OffsetDateTime
+import kotlin.random.Random
 
 /**
  * Background worker that processes the X.com job posting queue
- * Runs every 30 seconds to post jobs that are due
+ * Posts ONE job every 3-8 minutes (random delay between posts)
  */
 @Service
 class XComQueueWorker(
@@ -22,17 +23,31 @@ class XComQueueWorker(
 
     companion object {
         const val MAX_RETRIES = 3
+        const val MIN_DELAY_MINUTES = 3
+        const val MAX_DELAY_MINUTES = 8
     }
+
+    // Next allowed post time (set after each successful post)
+    @Volatile
+    private var nextAllowedPostTime: OffsetDateTime = OffsetDateTime.now()
 
     /**
      * Scheduled task that runs every 30 seconds
-     * Fetches and processes pending jobs that are due to be posted
+     * Posts one pending job if enough time has passed since last post
      */
-    @Scheduled(fixedDelay = 90000) 
+    @Scheduled(fixedDelay = 60000)
     fun processQueue() {
         runBlocking {
             try {
                 val now = OffsetDateTime.now()
+
+                // Check if we're allowed to post yet
+                if (now.isBefore(nextAllowedPostTime)) {
+                    logger.debug("Waiting until $nextAllowedPostTime before next post")
+                    return@runBlocking
+                }
+
+                // Find oldest pending job
                 val pendingJobs = xcomQueueRepository.findPendingJobsScheduledBefore(now)
 
                 if (pendingJobs.isEmpty()) {
@@ -40,13 +55,12 @@ class XComQueueWorker(
                     return@runBlocking
                 }
 
-                logger.info("Processing ${pendingJobs.size} pending X.com jobs")
+                // Process ONE job
+                val job = pendingJobs.first()
+                logger.info("Posting X.com job ${job.id} (${pendingJobs.size} pending)")
 
-                for (job in pendingJobs) {
-                    processJob(job)
-                }
+                processJob(job)
 
-                logger.info("Finished processing X.com queue batch")
             } catch (e: Exception) {
                 logger.error("Error processing X.com queue", e)
             }
@@ -61,23 +75,26 @@ class XComQueueWorker(
         try {
             logger.debug("Posting job ${job.id} to X.com (username: ${job.username})")
 
-            // Post to X.com
             val result = xcomClient.postTweet(job.username, job.tweetText)
 
             result.fold(
                 onSuccess = { response ->
-                    // Success - update status to POSTED
+                    val postedAt = OffsetDateTime.now()
                     xcomQueueRepository.updateStatus(
                         id = job.id,
                         status = QueueStatus.POSTED,
-                        postedAt = OffsetDateTime.now(),
+                        postedAt = postedAt,
                         tweetId = response.tweetId,
                         error = null
                     )
-                    logger.info("Successfully posted job ${job.id} to X.com, tweetId: ${response.tweetId}")
+
+                    // Set next allowed post time with random delay (3-8 minutes)
+                    val delayMinutes = Random.nextInt(MIN_DELAY_MINUTES, MAX_DELAY_MINUTES + 1)
+                    nextAllowedPostTime = postedAt.plusMinutes(delayMinutes.toLong())
+
+                    logger.info("Successfully posted job ${job.id}, tweetId: ${response.tweetId}, next post at: $nextAllowedPostTime")
                 },
                 onFailure = { error ->
-                    // Failure - check if we should retry or mark as failed
                     handleJobFailure(job, error)
                 }
             )
@@ -95,11 +112,9 @@ class XComQueueWorker(
         val newRetryCount = job.retryCount + 1
 
         if (newRetryCount < MAX_RETRIES) {
-            // Increment retry count and keep status as PENDING
             xcomQueueRepository.incrementRetryCount(job.id)
             logger.warn("Job ${job.id} failed, will retry (attempt $newRetryCount/$MAX_RETRIES): ${error.message}")
         } else {
-            // Max retries reached - mark as FAILED
             xcomQueueRepository.updateStatus(
                 id = job.id,
                 status = QueueStatus.FAILED,

@@ -51,20 +51,21 @@ object XComMessages {
     private fun truncateTechstack(techstack: List<String>, availableSpace: Int): String {
         if (techstack.isEmpty()) return ""
 
-        val joined = techstack.joinToString(",") {
-            "#$it"
-        }
+        // Convert all technologies to hashtag format
+        val hashtags = techstack.map { toHashtag(it) }
+
+        val joined = hashtags.joinToString(" ")
 
         if (joined.length <= availableSpace) {
             return joined
         }
 
-        // Find the last comma that allows the string to fit
+        // Find the last hashtag that allows the string to fit
         var result = ""
         var currentLength = 0
 
-        for (tech in techstack) {
-            val addition = if (result.isEmpty()) tech else ", $tech"
+        for (hashtag in hashtags) {
+            val addition = if (result.isEmpty()) hashtag else " $hashtag"
 
             if (currentLength + addition.length <= availableSpace) {
                 result += addition
@@ -75,5 +76,18 @@ object XComMessages {
         }
 
         return result
+    }
+
+    /**
+     * Converts a technology name to a hashtag format
+     * e.g., "Spring Boot" -> "#springboot", "C#" -> "#csharp"
+     */
+    private fun toHashtag(tech: String): String {
+        val normalized = tech
+            .lowercase()
+            .replace("#", "sharp")
+            .replace("+", "plus")
+            .replace(Regex("[^a-z0-9]"), "") // Remove spaces, special chars
+        return "#$normalized"
     }
 }

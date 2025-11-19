@@ -28,7 +28,7 @@ internal class InternalJobSearchScheduler(
     private val scraperJobService: ScraperJobService,
     private val destinationRepository: DestinationRepository,
     private val jobSearchRepository: JobSearchRepository,
-    private val timePeriodResolver: (String, TimePeriod) -> TimePeriod
+    private val timePeriodResolver: (JobSearchOut) -> TimePeriod
 ) {
 
     companion object {
@@ -142,14 +142,16 @@ internal class InternalJobSearchScheduler(
                         return@runBlocking
                     }
 
-                    // Get effective time period based on current subscription status
-                    val effectiveTimePeriod = scheduler.timePeriodResolver(
-                        currentJobSearch.userId,
-                        currentJobSearch.timePeriod
-                    )
+                    // Get effective time period based on admin flag and current subscription status
+                    val effectiveTimePeriod = scheduler.timePeriodResolver(currentJobSearch)
 
                     // Log execution with subscription context
-                    if (effectiveTimePeriod == currentJobSearch.timePeriod) {
+                    if (currentJobSearch.isAdmin == true) {
+                        logger.info(
+                            "Executing admin search {} for user {} (period: {})",
+                            searchId, currentJobSearch.userId, effectiveTimePeriod.displayName
+                        )
+                    } else if (effectiveTimePeriod == currentJobSearch.timePeriod) {
                         logger.info(
                             "Executing search {} for premium user {} (period: {})",
                             searchId, currentJobSearch.userId, effectiveTimePeriod.displayName
@@ -201,8 +203,8 @@ class SubscriptionAwareSchedulingService(
             scraperJobService,
             destinationRepository,
             jobSearchRepository
-        ) { userId, originalTimePeriod ->
-            getEffectiveTimePeriodForUser(userId, originalTimePeriod)
+        ) { jobSearch ->
+            getEffectiveTimePeriodForJobSearch(jobSearch)
         }
 
     companion object {
@@ -246,8 +248,9 @@ class SubscriptionAwareSchedulingService(
                 return SchedulingResult.Skipped(jobSearch.id, reason)
             }
 
-            val isPremium = subscriptionService.checkPremiumAccess(jobSearch.userId)
-            val effectiveTimePeriod = getEffectiveTimePeriod(jobSearch.userId, jobSearch.timePeriod)
+            // Admin job searches bypass premium check and are treated as premium
+            val isPremium = jobSearch.isAdmin == true || subscriptionService.checkPremiumAccess(jobSearch.userId)
+            val effectiveTimePeriod = getEffectiveTimePeriodForJobSearch(jobSearch)
             val adjustedJobSearch = jobSearch.copy(timePeriod = effectiveTimePeriod)
 
             // Log the scheduling decision
@@ -320,6 +323,23 @@ class SubscriptionAwareSchedulingService(
         if (errors.isNotEmpty()) {
             logger.warn("$operation had ${errors.size} errors - check logs for details")
         }
+    }
+
+    /**
+     * Determines the effective time period based on job search's admin flag and user's subscription status
+     */
+    private fun getEffectiveTimePeriodForJobSearch(jobSearch: JobSearchOut): TimePeriod {
+        // Admin job searches always get original time period (bypass premium check)
+        if (jobSearch.isAdmin == true) {
+            logger.info(
+                "Admin job search {} using original period: {}",
+                jobSearch.id,
+                jobSearch.timePeriod.displayName
+            )
+            return jobSearch.timePeriod
+        }
+
+        return getEffectiveTimePeriod(jobSearch.userId, jobSearch.timePeriod)
     }
 
     /**

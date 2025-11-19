@@ -6,11 +6,10 @@ import com.jobsearchcv.backend.repository.XComQueueRepository
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.time.OffsetDateTime
-import kotlin.random.Random
 
 /**
  * Service for managing X.com job posting queue
- * Handles enqueueing jobs with random delays between posts
+ * Jobs are added immediately - worker handles posting delays
  */
 @Service
 class XComQueueService(
@@ -19,14 +18,9 @@ class XComQueueService(
 ) {
     private val logger = LoggerFactory.getLogger(XComQueueService::class.java)
 
-    companion object {
-        const val MIN_DELAY_MINUTES = 1
-        const val MAX_DELAY_MINUTES = 5
-    }
-
     /**
-     * Enqueues jobs for X.com posting with random delays
-     * First job is scheduled immediately, subsequent jobs are delayed by 1-5 minutes
+     * Enqueues jobs for X.com posting
+     * Jobs are saved immediately - the worker posts them with 3-8 minute delays
      *
      * @param jobs List of scored jobs to post
      * @param username X.com username (from Destination.channelValue)
@@ -45,36 +39,20 @@ class XComQueueService(
 
         logger.info("Enqueueing ${jobs.size} jobs for X.com posting (username: $username, userId: $userId)")
 
-        val queueJobs = mutableListOf<XComQueueJob>()
-        var scheduledAt = OffsetDateTime.now()
-
-        for ((index, job) in jobs.withIndex()) {
-            // Convert to XComJobData
+        val now = OffsetDateTime.now()
+        val queueJobs = jobs.map { job ->
             val xcomJobData = xcomMessageComposer.createXComJobData(job)
-
-            // Format tweet text
             val tweetText = xcomMessageComposer.formatTweet(xcomJobData)
 
-            // Create queue job
-            val queueJob = XComQueueJob.create(
+            XComQueueJob.create(
                 userId = userId,
                 username = username,
                 jobData = xcomJobData,
                 tweetText = tweetText,
-                scheduledAt = scheduledAt
+                scheduledAt = now
             )
-
-            queueJobs.add(queueJob)
-
-            // Calculate next scheduled time with random delay (except for last job)
-            if (index < jobs.size - 1) {
-                val delayMinutes = Random.nextInt(MIN_DELAY_MINUTES, MAX_DELAY_MINUTES + 1)
-                scheduledAt = scheduledAt.plusMinutes(delayMinutes.toLong())
-                logger.debug("Job ${index + 1}/${jobs.size} scheduled at ${queueJob.scheduledAt}, next delay: $delayMinutes minutes")
-            }
         }
 
-        // Save all queue jobs at once
         xcomQueueRepository.saveAll(queueJobs)
 
         logger.info("Successfully enqueued ${queueJobs.size} jobs for X.com posting")

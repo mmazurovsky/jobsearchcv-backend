@@ -70,7 +70,10 @@ data class JobSearchOut(
     val destination: String? = null,
     @Indexed(unique = false) @field:Field("is_subscribed")
     @Schema(description = "Whether user is subscribed to receive email notifications for this job search", required = true)
-    val isSubscribed: Boolean = true
+    val isSubscribed: Boolean = true,
+    @field:Field("is_admin")
+    @Schema(description = "Whether this is an admin job search that bypasses premium checks", required = false)
+    val isAdmin: Boolean? = null
 ) {
     fun toLogString(): String {
         return "id=$id, title=$jobTitle, location=$location, " +
@@ -95,7 +98,7 @@ data class JobSearchOut(
         /**
          * Creates a persistent JobSearchOut from JobSearchIn with a new UUID and destination
          */
-        fun fromJobSearchIn(input: JobSearchIn, userId: String, destinationId: String? = null, isApproved: Boolean = false): JobSearchOut {
+        fun fromJobSearchIn(input: JobSearchIn, userId: String, destinationId: String? = null, isApproved: Boolean = false, isAdmin: Boolean? = null): JobSearchOut {
             return JobSearchOut(
                 id = input.id,
                 jobTitle = input.jobTitle,
@@ -108,14 +111,15 @@ data class JobSearchOut(
                 createdAt = OffsetDateTime.now(),
                 destination = destinationId,
                 isApproved = isApproved,
-                isSubscribed = true
+                isSubscribed = true,
+                isAdmin = isAdmin
             )
         }
 
         /**
          * Creates a temporary JobSearchOut from JobSearchIn with a temporary ID prefix
          */
-        fun fromJobSearchInAsTemp(input: JobSearchIn, userId: String, destinationId: String? = null): JobSearchOut {
+        fun fromJobSearchInAsTemp(input: JobSearchIn, userId: String, destinationId: String? = null, isAdmin: Boolean? = null): JobSearchOut {
             return JobSearchOut(
                 id = "temp-${java.util.UUID.randomUUID()}",
                 jobTitle = input.jobTitle,
@@ -128,7 +132,8 @@ data class JobSearchOut(
                 createdAt = OffsetDateTime.now(),
                 destination = destinationId,
                 isApproved = false,
-                isSubscribed = true
+                isSubscribed = true,
+                isAdmin = isAdmin
             )
         }
     }
