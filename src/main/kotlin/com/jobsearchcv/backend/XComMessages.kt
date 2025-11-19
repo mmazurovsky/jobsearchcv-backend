@@ -11,8 +11,22 @@ object XComMessages {
 
     private const val MAX_TWEET_LENGTH = 280
 
+    // Default hashtags pool - 2 will be randomly selected for each tweet
+    private val DEFAULT_HASHTAGS = listOf(
+        "#techjobs", "#itjobs", "#hiring", "#remotework",
+        "#remotejobs", "#careers", "#jobmarket", "#techhiring"
+    )
+
+    /**
+     * Selects 2 random unique hashtags from the default pool
+     */
+    private fun selectDefaultHashtags(): List<String> {
+        return DEFAULT_HASHTAGS.shuffled().take(2)
+    }
+
     /**
      * Formats a job for X.com posting with 280 character limit
+     * Includes 2 random default hashtags before techstack hashtags
      * Truncates techstack if necessary to fit within limit
      */
     fun formatJobMessage(job: XComJobData): String {
@@ -27,21 +41,25 @@ object XComMessages {
 
         val linkPart = "\n🔗 ${job.internalJobLink}"
 
-        // Calculate available space for techstack
+        // Select 2 random default hashtags
+        val defaultHashtags = selectDefaultHashtags()
+        val defaultHashtagsStr = defaultHashtags.joinToString(" ")
+
+        // Calculate available space for techstack (after default hashtags)
+        val hashtagSectionPrefix = "\n🛠️ $defaultHashtagsStr"
         val availableSpace =
-            MAX_TWEET_LENGTH - baseMessageWithoutLink.length - linkPart.length - "\n🛠️ ".length
+            MAX_TWEET_LENGTH - baseMessageWithoutLink.length - hashtagSectionPrefix.length - linkPart.length - 1 // -1 for space before techstack
 
-        if (job.techstack.isEmpty()) {
-            return baseMessageWithoutLink + linkPart
-        }
+        // Build hashtag section with default hashtags first
+        val techstackHashtags = truncateTechstack(job.techstack, availableSpace)
 
-        val truncatedTechstack = truncateTechstack(job.techstack, availableSpace)
-
-        return if (truncatedTechstack.isNotEmpty()) {
-            "$baseMessageWithoutLink\n🛠️ $truncatedTechstack$linkPart"
+        val hashtagSection = if (techstackHashtags.isNotEmpty()) {
+            "\n🛠️ $defaultHashtagsStr $techstackHashtags"
         } else {
-            baseMessageWithoutLink + linkPart
+            "\n🛠️ $defaultHashtagsStr"
         }
+
+        return "$baseMessageWithoutLink$hashtagSection$linkPart"
     }
 
     /**
