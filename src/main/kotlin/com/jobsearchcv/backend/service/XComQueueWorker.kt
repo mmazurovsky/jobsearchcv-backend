@@ -23,8 +23,8 @@ class XComQueueWorker(
 
     companion object {
         const val MAX_RETRIES = 3
-        const val MIN_DELAY_MINUTES = 3
-        const val MAX_DELAY_MINUTES = 8
+        const val MIN_DELAY_MINUTES = 7
+        const val MAX_DELAY_MINUTES = 18
     }
 
     // Next allowed post time (set after each successful post)

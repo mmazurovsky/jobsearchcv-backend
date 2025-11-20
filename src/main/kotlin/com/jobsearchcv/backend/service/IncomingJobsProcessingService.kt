@@ -4,6 +4,7 @@ import com.jobsearchcv.backend.domain.model.*
 import com.jobsearchcv.backend.repository.JobSearchRepository
 import com.jobsearchcv.backend.repository.SentJobRepository
 import com.jobsearchcv.backend.repository.DestinationRepository
+import com.jobsearchcv.backend.service.XComQueueService
 import io.sentry.Sentry
 import io.sentry.SentryLevel
 import kotlinx.coroutines.*
@@ -85,11 +86,11 @@ class IncomingJobsProcessingService(
 
                 // Step 6: Filter by compatibility score > 59
                 val filteredJobs = scoredJobsData.filter {
-                    it.compatibilityScore > 59
+                    it.compatibilityScore > 70
                 }
 
                 logger.info(
-                    "{} jobs passed compatibility filter (score > 59) for jobSearchId={}, userId={}",
+                    "{} jobs passed compatibility filter for jobSearchId={}, userId={}",
                     filteredJobs.size, jobSearchId, userId
                 )
 

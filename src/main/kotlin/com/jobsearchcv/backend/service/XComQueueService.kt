@@ -40,7 +40,11 @@ class XComQueueService(
         logger.info("Enqueueing ${jobs.size} jobs for X.com posting (username: $username, userId: $userId)")
 
         val now = OffsetDateTime.now()
-        val queueJobs = jobs.map { job ->
+        val queueJobs = jobs.filter {
+            (it.techstack.size > 3 && it.salary != null)
+        }
+        
+        .map { job ->
             val xcomJobData = xcomMessageComposer.createXComJobData(job)
             val tweetText = xcomMessageComposer.formatTweet(xcomJobData)
 

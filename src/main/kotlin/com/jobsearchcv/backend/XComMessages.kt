@@ -26,12 +26,61 @@ object XComMessages {
 
     /**
      * Formats a job for X.com posting with 280 character limit
-     * Includes 2 random default hashtags before techstack hashtags
-     * Truncates techstack if necessary to fit within limit
+     * Priority: Default hashtags + Comment instruction (MANDATORY) > Base message > Techstack hashtags
+     * Truncates base message or techstack if necessary to fit within limit
      */
     fun formatJobMessage(job: XComJobData): String {
-        // Build message without techstack and link first
-        val baseMessageWithoutLink = buildString {
+        // Select 2 random default hashtags (MANDATORY - highest priority)
+        val defaultHashtags = selectDefaultHashtags()
+        val defaultHashtagsStr = defaultHashtags.joinToString(" ")
+
+        // Build mandatory parts that must ALWAYS be included
+        val shortId = job.internalId.take(8)
+        val linkPart = "\n💬 Like and comment \"Interested\" to get details"
+        val mandatoryHashtagPart = "\n🛠️ $defaultHashtagsStr"
+        val mandatoryLength = linkPart.length + mandatoryHashtagPart.length
+
+        // Calculate maximum space available for base message
+        val maxBaseMessageLength = MAX_TWEET_LENGTH - mandatoryLength
+
+        // Build base message, truncating if necessary
+        val baseMessage = buildTruncatedBaseMessage(job, maxBaseMessageLength)
+
+        // Calculate remaining space for techstack hashtags
+        val remainingSpace = MAX_TWEET_LENGTH - baseMessage.length - mandatoryHashtagPart.length - linkPart.length - 1 // -1 for space
+
+        // Add techstack hashtags only if space remains
+        val techstackHashtags = if (remainingSpace > 0) {
+            truncateTechstack(job.techstack, remainingSpace)
+        } else {
+            ""
+        }
+
+        // Build final hashtag section
+        val hashtagSection = if (techstackHashtags.isNotEmpty()) {
+            "\n🛠️ $defaultHashtagsStr $techstackHashtags"
+        } else {
+            mandatoryHashtagPart
+        }
+
+        // Assemble final message
+        val finalMessage = "$baseMessage$hashtagSection$linkPart"
+
+        // Validate length (should never exceed 280)
+        require(finalMessage.length <= MAX_TWEET_LENGTH) {
+            "Tweet exceeds $MAX_TWEET_LENGTH characters: ${finalMessage.length}"
+        }
+
+        return finalMessage
+    }
+
+    /**
+     * Builds base message (title, company, location, salary) with truncation if needed
+     * Truncates company name and/or title to fit within maxLength
+     */
+    private fun buildTruncatedBaseMessage(job: XComJobData, maxLength: Int): String {
+        // Try to build full message first
+        val fullMessage = buildString {
             append("💼 ${job.title} at ${job.company}")
             append("\n📍 ${job.location}")
             if (job.salary != null) {
@@ -39,27 +88,59 @@ object XComMessages {
             }
         }
 
-        val linkPart = "\n🔗 ${job.internalJobLink}"
-
-        // Select 2 random default hashtags
-        val defaultHashtags = selectDefaultHashtags()
-        val defaultHashtagsStr = defaultHashtags.joinToString(" ")
-
-        // Calculate available space for techstack (after default hashtags)
-        val hashtagSectionPrefix = "\n🛠️ $defaultHashtagsStr"
-        val availableSpace =
-            MAX_TWEET_LENGTH - baseMessageWithoutLink.length - hashtagSectionPrefix.length - linkPart.length - 1 // -1 for space before techstack
-
-        // Build hashtag section with default hashtags first
-        val techstackHashtags = truncateTechstack(job.techstack, availableSpace)
-
-        val hashtagSection = if (techstackHashtags.isNotEmpty()) {
-            "\n🛠️ $defaultHashtagsStr $techstackHashtags"
-        } else {
-            "\n🛠️ $defaultHashtagsStr"
+        if (fullMessage.length <= maxLength) {
+            return fullMessage
         }
 
-        return "$baseMessageWithoutLink$hashtagSection$linkPart"
+        // Need to truncate - calculate fixed parts
+        val locationPart = "\n📍 ${job.location}"
+        val salaryPart = if (job.salary != null) "\n💰 ${job.salary}" else ""
+        val fixedPartsLength = "💼  at ".length + locationPart.length + salaryPart.length
+
+        val availableForTitleAndCompany = maxLength - fixedPartsLength
+
+        if (availableForTitleAndCompany <= 10) {
+            // Not enough space even with truncation - return minimal message
+            return "💼 Job$locationPart$salaryPart"
+        }
+
+        // Try to fit both title and company with truncation
+        val titleLength = job.title.length
+        val companyLength = job.company.length
+
+        return when {
+            titleLength + companyLength <= availableForTitleAndCompany -> {
+                // Both fit
+                "💼 ${job.title} at ${job.company}$locationPart$salaryPart"
+            }
+            titleLength <= availableForTitleAndCompany - 7 -> {
+                // Title fits, truncate company (need at least "..." = 3 chars)
+                val availableForCompany = availableForTitleAndCompany - titleLength
+                val truncatedCompany = if (companyLength > availableForCompany) {
+                    job.company.take(availableForCompany - 3) + "..."
+                } else {
+                    job.company
+                }
+                "💼 ${job.title} at $truncatedCompany$locationPart$salaryPart"
+            }
+            else -> {
+                // Both need truncation - prioritize title
+                val titleSpace = (availableForTitleAndCompany * 0.6).toInt()
+                val companySpace = availableForTitleAndCompany - titleSpace
+
+                val truncatedTitle = if (titleLength > titleSpace) {
+                    job.title.take(titleSpace - 3) + "..."
+                } else {
+                    job.title
+                }
+                val truncatedCompany = if (companyLength > companySpace) {
+                    job.company.take(companySpace - 3) + "..."
+                } else {
+                    job.company
+                }
+                "💼 $truncatedTitle at $truncatedCompany$locationPart$salaryPart"
+            }
+        }
     }
 
     /**
