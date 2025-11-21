@@ -55,8 +55,8 @@ class ProcessedJobRepositoryImpl(
             jobs.forEach { job ->
                 val query = Query(Criteria.where("_id").`is`(job.id))
                 val update = Update()
-                    // Use input internalId from JobDataConverter
-                    .set("internal_id", job.internalId)
+                    // Set internalId only on INSERT, never update it
+                    .setOnInsert("internal_id", job.internalId)
                     // These fields can be updated
                     .set("title", job.title)
                     .set("company", job.company)

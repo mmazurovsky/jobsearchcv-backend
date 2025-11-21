@@ -26,7 +26,7 @@ object XComMessages {
 
     /**
      * Formats a job for X.com posting with 280 character limit
-     * Priority: Default hashtags + Comment instruction (MANDATORY) > Base message > Techstack hashtags
+     * Priority: Default hashtags + Link (MANDATORY) > Base message > Techstack hashtags
      * Truncates base message or techstack if necessary to fit within limit
      */
     fun formatJobMessage(job: XComJobData): String {
@@ -35,8 +35,7 @@ object XComMessages {
         val defaultHashtagsStr = defaultHashtags.joinToString(" ")
 
         // Build mandatory parts that must ALWAYS be included
-        val shortId = job.internalId.take(8)
-        val linkPart = "\n💬 Like and comment \"Interested\" to get details"
+        val linkPart = "\n🔗 ${job.internalJobLink}"
         val mandatoryHashtagPart = "\n🛠️ $defaultHashtagsStr"
         val mandatoryLength = linkPart.length + mandatoryHashtagPart.length
 
