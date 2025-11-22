@@ -151,24 +151,15 @@ internal class InternalJobSearchScheduler(
                             "Executing admin search {} for user {} (period: {})",
                             searchId, currentJobSearch.userId, effectiveTimePeriod.displayName
                         )
-                    } else if (effectiveTimePeriod == currentJobSearch.timePeriod) {
-                        logger.info(
-                            "Executing search {} for premium user {} (period: {})",
-                            searchId, currentJobSearch.userId, effectiveTimePeriod.displayName
-                        )
                     } else {
                         logger.info(
-                            "Executing search {} for free-tier user {} (effective period: {}, saved period: {})",
-                            searchId, currentJobSearch.userId, effectiveTimePeriod.displayName, currentJobSearch.timePeriod.displayName
+                            "Executing search {} for subscribed user {} (period: {})",
+                            searchId, currentJobSearch.userId, effectiveTimePeriod.displayName
                         )
                     }
 
-                    // Use effective time period for execution (important for free users)
-                    val jobSearchToExecute = if (effectiveTimePeriod != currentJobSearch.timePeriod) {
-                        currentJobSearch.copy(timePeriod = effectiveTimePeriod)
-                    } else {
-                        currentJobSearch
-                    }
+                    // Use effective time period for execution
+                    val jobSearchToExecute = currentJobSearch.copy(timePeriod = effectiveTimePeriod)
 
                     scheduler.scraperJobService.triggerScraperJobAndLog(jobSearchToExecute)
                 }
@@ -209,7 +200,6 @@ class SubscriptionAwareSchedulingService(
 
     companion object {
         private val logger = LoggerFactory.getLogger(SubscriptionAwareSchedulingService::class.java)
-        private val FREE_TIER_TIME_PERIOD = TimePeriod.`1 month`
     }
 
     init {
@@ -224,14 +214,30 @@ class SubscriptionAwareSchedulingService(
     }
 
     /**
+     * CRITICAL: Only schedule jobs for users with active Stripe subscriptions
+     * Users without Stripe subscription (FREE tier) should NOT get any job searches scheduled
+     * This prevents free monthly job overviews
+     */
+    private fun shouldScheduleJobSearchForUser(userId: String): Boolean {
+        // Admin job searches bypass this check
+        val hasPremiumAccess = subscriptionService.checkPremiumAccess(userId)
+        if (!hasPremiumAccess) {
+            logger.info("Skipping job search scheduling for user {} - no active subscription", userId)
+            return false
+        }
+        return true
+    }
+
+    /**
      * Schedules a job search with subscription-aware time period logic
-     * - Free users: Force monthly scheduling regardless of saved time period
-     * - Premium users: Use their originally saved time period
+     * - CRITICAL: Only schedules for users with active Stripe subscription (PREMIUM tier)
+     * - Users without subscription (FREE tier) will NOT have job searches scheduled
+     * - Premium users (weekly or monthly, including trial): Use their selected time period
      * - Only schedules if both isApproved and isSubscribed are true
      */
     suspend fun scheduleJobSearchWithSubscriptionLogic(jobSearch: JobSearchOut): SchedulingResult {
         try {
-            // Check if job search should be scheduled
+            // Check if job search should be scheduled (isApproved and isSubscribed)
             if (!shouldScheduleJobSearch(jobSearch)) {
                 val reason = when {
                     !jobSearch.isApproved && !jobSearch.isSubscribed -> "not approved and not subscribed"
@@ -248,20 +254,31 @@ class SubscriptionAwareSchedulingService(
                 return SchedulingResult.Skipped(jobSearch.id, reason)
             }
 
+            // CRITICAL: Check if user has active subscription (unless admin)
+            val isAdmin = jobSearch.isAdmin == true
+            if (!isAdmin && !shouldScheduleJobSearchForUser(jobSearch.userId)) {
+                logger.info(
+                    "Skipping scheduling for job search {} - user {} has no active subscription",
+                    jobSearch.id,
+                    jobSearch.userId
+                )
+                return SchedulingResult.Skipped(jobSearch.id, "no active subscription")
+            }
+
             // Admin job searches bypass premium check and are treated as premium
-            val isPremium = jobSearch.isAdmin == true || subscriptionService.checkPremiumAccess(jobSearch.userId)
+            val isPremium = isAdmin || subscriptionService.checkPremiumAccess(jobSearch.userId)
             val effectiveTimePeriod = getEffectiveTimePeriodForJobSearch(jobSearch)
             val adjustedJobSearch = jobSearch.copy(timePeriod = effectiveTimePeriod)
 
             // Log the scheduling decision
-            if (effectiveTimePeriod != jobSearch.timePeriod) {
-                logger.info(
-                    "Adjusted scheduling for user {}: original period '{}', effective period '{}' (subscription-based)",
-                    jobSearch.userId,
-                    jobSearch.timePeriod.displayName,
-                    effectiveTimePeriod.displayName
-                )
-            }
+            logger.info(
+                "Scheduling job search {} for user {} with period '{}' (isPremium: {}, isAdmin: {})",
+                jobSearch.id,
+                jobSearch.userId,
+                effectiveTimePeriod.displayName,
+                isPremium,
+                isAdmin
+            )
 
             return internalJobSearchScheduler.scheduleJobSearch(adjustedJobSearch, isPremium)
         } catch (e: Exception) {
@@ -344,26 +361,24 @@ class SubscriptionAwareSchedulingService(
 
     /**
      * Determines the effective time period based on user's subscription status
+     * All users with active subscription (PREMIUM tier - weekly or monthly) get their selected frequency
      */
     private fun getEffectiveTimePeriod(userId: String, originalTimePeriod: TimePeriod): TimePeriod {
         val hasPremium = subscriptionService.checkPremiumAccess(userId)
-        return if (hasPremium) {
-            // Premium users get their originally saved time period
-            logger.info(
-                "User {} has premium access, using original period: {}",
-                userId,
-                originalTimePeriod.displayName
+        if (!hasPremium) {
+            throw IllegalStateException(
+                "Cannot determine effective time period for user $userId without active subscription. " +
+                "This should have been caught earlier by shouldScheduleJobSearchForUser check."
             )
-            originalTimePeriod
-        } else {
-            // Free users are forced to monthly scheduling
-            logger.info(
-                "User {} is free tier (checkPremiumAccess=false), forcing monthly period (original: {})",
-                userId,
-                originalTimePeriod.displayName
-            )
-            FREE_TIER_TIME_PERIOD
         }
+
+        // All PREMIUM users (weekly or monthly, including trial) get their selected frequency
+        logger.debug(
+            "User {} has premium access, using selected period: {}",
+            userId,
+            originalTimePeriod.displayName
+        )
+        return originalTimePeriod
     }
 
     /**

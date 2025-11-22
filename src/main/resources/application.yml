@@ -130,10 +130,12 @@ stripe:
   secret-key: ${STRIPE_SECRET_KEY}
   webhook-secret: ${STRIPE_WEBHOOK_SECRET}
   customer-portal-url: ${STRIPE_CUSTOMER_PORTAL_URL}
-  checkout-url: ${STRIPE_CHECKOUT_URL}
+  checkout-url: ${STRIPE_CHECKOUT_URL}  # Monthly plan ($14/month, 7-day trial)
+  checkout-weekly-url: ${STRIPE_CHECKOUT_WEEKLY_URL}  # Weekly plan ($7/week, no trial)
   # Payment Link and Customer Portal URLs are configured in Stripe Dashboard
   # Frontend uses these directly:
-  # - Payment Link: ${STRIPE_CHECKOUT_URL}?client_reference_id={userId}
+  # - Monthly Payment Link: ${STRIPE_CHECKOUT_URL}?client_reference_id={userId}
+  # - Weekly Payment Link: ${STRIPE_CHECKOUT_WEEKLY_URL}?client_reference_id={userId}
   # - Customer Portal: ${STRIPE_CUSTOMER_PORTAL_URL}
 
 ---

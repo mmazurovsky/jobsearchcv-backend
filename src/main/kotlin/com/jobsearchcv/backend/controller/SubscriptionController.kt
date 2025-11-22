@@ -154,9 +154,9 @@ class SubscriptionController(
                     val email = customer.email
                         ?: throw IllegalArgumentException("No email for customer: $customerId")
 
-                    // Create the subscription mapping
+                    // Create the subscription mapping with billing interval
                     CoroutineScope(Dispatchers.IO).launch {
-                        subscriptionService.handleSubscriptionCreated(userId, customerId, email)
+                        subscriptionService.handleSubscriptionCreated(userId, customerId, email, subscription)
                     }
                     logger.info("Created subscription mapping for admin subscription: userId=$userId, customerId=$customerId")
                 } else {

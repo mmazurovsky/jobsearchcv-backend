@@ -78,6 +78,13 @@ data class UserSubscription(
     @field:Field("email")
     val email: String,
 
+    /**
+     * Billing interval: "week" or "month"
+     * Determines which plan the user is subscribed to (Weekly vs Monthly)
+     */
+    @field:Field("billing_interval")
+    val billingInterval: String? = null,
+
     @field:Field("created_at")
     val createdAt: OffsetDateTime = OffsetDateTime.now(),
 
@@ -95,6 +102,7 @@ data class SubscriptionStatusResponse(
     val userId: String,
     val tier: SubscriptionTier,
     val status: SubscriptionStatus,
+    val billingInterval: String? = null,  // "week" or "month" - for displaying plan name in UI
     val hasPremiumAccess: Boolean,
     val cachedAt: Instant,
     val email: String? = null  // Email for building checkout URL with prefilled_email parameter
