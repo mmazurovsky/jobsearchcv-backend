@@ -97,10 +97,15 @@ data class JobSearchOut(
     companion object {
         /**
          * Creates a persistent JobSearchOut from JobSearchIn with a new UUID and destination
+         * Replaces temporary client-side IDs (starting with "temp-") with proper UUIDs
          */
         fun fromJobSearchIn(input: JobSearchIn, userId: String, destinationId: String? = null, isApproved: Boolean = false, isAdmin: Boolean? = null): JobSearchOut {
             return JobSearchOut(
-                id = input.id,
+                id = if (input.id.startsWith("temp-")) {
+                    java.util.UUID.randomUUID().toString()
+                } else {
+                    input.id
+                },
                 jobTitle = input.jobTitle,
                 location = input.location,
                 jobTypes = input.jobTypes,
