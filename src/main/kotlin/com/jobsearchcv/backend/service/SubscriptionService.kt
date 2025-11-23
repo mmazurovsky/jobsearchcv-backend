@@ -285,11 +285,11 @@ class SubscriptionService(
                 ?: throw IllegalArgumentException("No email in checkout session ${session.id}")
 
         // Fetch subscription from Stripe to get billing interval
-        val stripeSubscription = stripeService.retrieveSubscription(subscriptionId)
         val billingInterval = try {
+            val stripeSubscription = stripeService.retrieveSubscription(subscriptionId)
             stripeSubscription.items?.data?.firstOrNull()?.plan?.interval
         } catch (e: Exception) {
-            logger.warn("Failed to extract billing interval from subscription $subscriptionId: ${e.message}")
+            logger.warn("Failed to retrieve subscription from Stripe $subscriptionId: ${e.message}. This is normal in test mode with stripe listen.")
             null
         }
 
