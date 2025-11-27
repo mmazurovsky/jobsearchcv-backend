@@ -6,8 +6,9 @@ import io.swagger.v3.oas.annotations.media.Schema
 enum class Channel(val value: String) {
     EMAIL("email"),
     TELEGRAM("telegram"),
-    XCOM("xcom");
-    
+    XCOM("xcom"),
+    PAGE("page");
+
     companion object {
         fun fromString(value: String): Channel {
             return values().find { it.value == value.lowercase() }

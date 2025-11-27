@@ -13,6 +13,7 @@ interface SentJobRepository {
     fun findById(id: String): SentJobOut?
     fun findAll(): List<SentJobOut>
     fun findByUserId(userId: String): List<SentJobOut>
+    fun findByUserIdAndSentAtAfter(userId: String, sentAtAfter: OffsetDateTime): List<SentJobOut>
     fun existsByUserIdAndJobUrl(userId: String, jobUrl: String): Boolean
     fun deleteById(id: String)
     fun countByDestinationAndSentAtAfter(destination: String, sentAtAfter: OffsetDateTime): Long
@@ -52,6 +53,15 @@ class SentJobRepositoryImpl(
     override fun deleteById(id: String) {
         val query = Query(Criteria.where("id").`is`(id))
         mongoTemplate.remove(query, SentJobOut::class.java)
+    }
+
+    override fun findByUserIdAndSentAtAfter(userId: String, sentAtAfter: OffsetDateTime): List<SentJobOut> {
+        val query = Query(
+            Criteria.where("user_id").`is`(userId)
+                .and("sent_at").gte(sentAtAfter)
+        ).with(org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC, "sent_at"))
+
+        return mongoTemplate.find(query, SentJobOut::class.java)
     }
 
     override fun countByDestinationAndSentAtAfter(destination: String, sentAtAfter: OffsetDateTime): Long {

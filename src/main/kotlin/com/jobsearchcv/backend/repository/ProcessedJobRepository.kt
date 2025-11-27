@@ -21,6 +21,7 @@ interface ProcessedJobRepository {
     fun findByLinkPattern(pattern: String): List<ProcessedJobData>
     fun findById(id: String): ProcessedJobData?
     fun findByInternalId(internalId: String): ProcessedJobData?
+    fun findByInternalIds(internalIds: Set<String>): List<ProcessedJobData>
     fun findInternalIdsForJobIds(jobIds: Set<String>): Map<String, String>
 }
 
@@ -161,5 +162,17 @@ class ProcessedJobRepositoryImpl(
     override fun findByInternalId(internalId: String): ProcessedJobData? {
         val query = Query(Criteria.where("internal_id").`is`(internalId))
         return mongoTemplate.findOne(query, ProcessedJobData::class.java)
+    }
+
+    /**
+     * Finds multiple jobs by their internal IDs.
+     */
+    override fun findByInternalIds(internalIds: Set<String>): List<ProcessedJobData> {
+        if (internalIds.isEmpty()) {
+            return emptyList()
+        }
+
+        val query = Query(Criteria.where("internal_id").`in`(internalIds))
+        return mongoTemplate.find(query, ProcessedJobData::class.java)
     }
 }

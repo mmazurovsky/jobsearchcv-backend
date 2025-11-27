@@ -39,6 +39,8 @@ class SecurityConfig(
                     .requestMatchers("/api/admin/**").permitAll()
                     // Public job viewing endpoint (for X.com tweet links)
                     .requestMatchers("/api/jobs/**").permitAll()
+                    // Public page jobs endpoint (for displaying user's page jobs)
+                    .requestMatchers("/api/page-jobs/**").permitAll()
                     // OpenAPI endpoints
                     .requestMatchers("/v3/api-docs/**").permitAll()
                     .requestMatchers("/swagger-ui/**").permitAll()

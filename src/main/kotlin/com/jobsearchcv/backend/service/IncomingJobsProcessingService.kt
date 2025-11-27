@@ -213,6 +213,12 @@ class IncomingJobsProcessingService(
                     // Return jobs as successfully sent since they're now queued
                     jobs
                 }
+                "page" -> {
+                    logger.info("Page channel: tracking ${jobs.size} jobs without active distribution for userId=$userId")
+                    // Jobs are already processed and saved to DB at this point
+                    // Return jobs so they get marked as sent below
+                    jobs
+                }
                 else -> {
                     logger.info("Channel '${latestDestination.channel}' is not supported, skipping")
                     emptyList()
@@ -241,6 +247,7 @@ class IncomingJobsProcessingService(
                     userId = userId,
                     jobUrl = job.link,
                     destination = destination,
+                    internalId = job.internalId
                 )
             }
             sentJobRepository.saveAll(sentJobEntities)
