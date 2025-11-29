@@ -59,13 +59,10 @@ class PageJobService(
                 title = processedJob.title,
                 company = processedJob.company,
                 location = processedJob.location,
-                description = processedJob.description,
-                applicants = processedJob.applicants,
                 techstack = processedJob.techstack,
                 tags = processedJob.tags,
                 salary = processedJob.salary,
                 processedAt = processedJob.processedAt,
-                sentAt = sentJob.sentAt
             )
         }
 
