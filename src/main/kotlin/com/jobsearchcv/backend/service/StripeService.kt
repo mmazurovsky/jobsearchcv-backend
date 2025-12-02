@@ -21,7 +21,7 @@ class StripeService(
     fun init() {
         Stripe.apiKey = stripeConfig.secretKey
         logger.info("Stripe SDK initialized (v30.1.0) with secret key ending in: ...${stripeConfig.secretKey.takeLast(4)}")
-        logger.info("NOTE: Webhook endpoint in Stripe Dashboard should be configured to use API version 2025-10-29.clover or earlier")
+        logger.info("NOTE: Webhook endpoint in Stripe Dashboard should be configured to use API version 2025-11-17.clover")
     }
     
     fun createCustomer(userId: String, email: String?, name: String? = null): Customer {

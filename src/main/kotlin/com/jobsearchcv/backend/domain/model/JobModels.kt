@@ -146,13 +146,15 @@ data class JobSearchOut(
 
 @Document(collection = "sent_jobs")
 @CompoundIndexes(
-    CompoundIndex(name = "user_job_idx", def = "{'user_id': 1, 'job_url': 1}")
+    CompoundIndex(name = "user_job_idx", def = "{'user_id': 1, 'job_url': 1}"),
+    CompoundIndex(name = "user_sent_at_idx", def = "{'user_id': 1, 'sent_at': -1}")
 )
 data class SentJobOut(
     @Indexed(unique = false) @field:Field("user_id") val userId: String,
     @Indexed(unique = false) @field:Field("destination") val destination: String? = null,
     @Indexed(unique = false) @field:Field("job_url") val jobUrl: String,
     @Indexed(unique = false) @field:Field("sent_at") val sentAt: OffsetDateTime = OffsetDateTime.now(),
+    @Indexed(unique = false) @field:Field("internal_id") val internalId: String? = null,
 )
 
 data class SearchJobsParams(
@@ -196,4 +198,19 @@ data class PublicJobResponse(
     val tags: List<String>,
     val salary: String?,
     val processedAt: java.time.OffsetDateTime
+)
+
+/**
+ * Response model for page jobs endpoint
+ * Excludes link (external URL) and _id (MongoDB internal ID)
+ */
+data class PageJobResponse(
+    val internalId: String,
+    val title: String,
+    val company: String,
+    val location: String,
+    val techstack: List<String>,
+    val tags: List<String>,
+    val salary: String?,
+    val processedAt: java.time.OffsetDateTime,
 )

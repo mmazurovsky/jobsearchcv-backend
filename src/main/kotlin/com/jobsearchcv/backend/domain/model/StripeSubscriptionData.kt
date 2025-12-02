@@ -12,6 +12,7 @@ import java.time.Instant
 data class StripeSubscriptionData(
     val tier: SubscriptionTier,
     val status: SubscriptionStatus,
+    val billingInterval: String? = null,  // "week" or "month" - for UI display
     val cachedAt: Instant = Instant.now()
 ) {
     /**

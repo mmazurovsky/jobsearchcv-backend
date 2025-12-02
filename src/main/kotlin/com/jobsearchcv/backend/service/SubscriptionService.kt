@@ -122,6 +122,7 @@ class SubscriptionService(
                 userId = userId,
                 tier = subscriptionData.tier,
                 status = subscriptionData.status,
+                billingInterval = subscriptionData.billingInterval,  // Include billing interval from Stripe
                 hasPremiumAccess = subscriptionData.hasPremiumAccess(),
                 cachedAt = subscriptionData.cachedAt,
                 email = userSubscription?.email
@@ -215,7 +216,8 @@ class SubscriptionService(
 
     /**
      * Extract subscription data from Stripe subscription object.
-     * Only extracts tier and status - trusts Stripe completely for access control.
+     * Extracts tier, status, and billing interval from Stripe.
+     * Both weekly and monthly subscriptions map to PREMIUM tier.
      */
     private fun extractSubscriptionData(stripeSubscription: Subscription): StripeSubscriptionData {
         val status = mapStripeStatus(stripeSubscription.status)
@@ -225,9 +227,20 @@ class SubscriptionService(
             SubscriptionTier.FREE
         }
 
+        // Extract billing interval from subscription items (first item's plan)
+        val billingInterval = try {
+            stripeSubscription.items?.data?.firstOrNull()?.plan?.interval
+        } catch (e: Exception) {
+            logger.warn("Failed to extract billing interval from Stripe subscription ${stripeSubscription.id}: ${e.message}")
+            null
+        }
+
+        logger.debug("Extracted subscription data: tier=$tier, status=$status, interval=$billingInterval")
+
         return StripeSubscriptionData(
                 tier = tier,
-                status = status
+                status = status,
+                billingInterval = billingInterval
         )
     }
 
@@ -264,18 +277,30 @@ class SubscriptionService(
         logger.info("Handling checkout completed for user: $userId, session: ${session.id}")
 
         // Validate session has required fields
-        session.subscription
+        val subscriptionId = session.subscription
                 ?: throw IllegalArgumentException("No subscription ID in checkout session ${session.id}")
         val customerId = session.customer
                 ?: throw IllegalArgumentException("No customer ID in checkout session ${session.id}")
         val email = session.customerDetails?.email
                 ?: throw IllegalArgumentException("No email in checkout session ${session.id}")
 
-        // Create/update the mapping (userId -> stripeCustomerId -> email)
+        // Fetch subscription from Stripe to get billing interval
+        val billingInterval = try {
+            val stripeSubscription = stripeService.retrieveSubscription(subscriptionId)
+            stripeSubscription.items?.data?.firstOrNull()?.plan?.interval
+        } catch (e: Exception) {
+            logger.warn("Failed to retrieve subscription from Stripe $subscriptionId: ${e.message}. This is normal in test mode with stripe listen.")
+            null
+        }
+
+        logger.info("Creating subscription for user $userId with interval: $billingInterval")
+
+        // Create/update the mapping (userId -> stripeCustomerId -> email -> billingInterval)
         val subscription = UserSubscription(
                 userId = userId,
                 stripeCustomerId = customerId,
-                email = email
+                email = email,
+                billingInterval = billingInterval
         )
         createOrUpdateSubscription(subscription)
 
@@ -299,14 +324,27 @@ class SubscriptionService(
      * Handle subscription created webhook for admin-created subscriptions.
      * Called when a subscription is created directly in Stripe dashboard.
      */
-    suspend fun handleSubscriptionCreated(userId: String, customerId: String, email: String) {
+    suspend fun handleSubscriptionCreated(userId: String, customerId: String, email: String, stripeSubscription: Subscription? = null) {
         logger.info("Handling subscription created for user: $userId, customer: $customerId")
 
-        // Create/update the mapping (userId -> stripeCustomerId -> email)
+        // Extract billing interval if subscription object is provided
+        val billingInterval = stripeSubscription?.let {
+            try {
+                it.items?.data?.firstOrNull()?.plan?.interval
+            } catch (e: Exception) {
+                logger.warn("Failed to extract billing interval: ${e.message}")
+                null
+            }
+        }
+
+        logger.info("Creating subscription for user $userId with interval: $billingInterval")
+
+        // Create/update the mapping (userId -> stripeCustomerId -> email -> billingInterval)
         val subscription = UserSubscription(
                 userId = userId,
                 stripeCustomerId = customerId,
-                email = email
+                email = email,
+                billingInterval = billingInterval
         )
         createOrUpdateSubscription(subscription)
 
@@ -327,7 +365,8 @@ class SubscriptionService(
     }
 
     /**
-     * Handle subscription updated webhook - invalidate cache, reschedule job searches.
+     * Handle subscription updated webhook - invalidate cache, update billing interval, reschedule job searches.
+     * Called when subscription changes (e.g., weekly ↔ monthly plan switching)
      */
     fun handleSubscriptionUpdated(stripeSubscription: Subscription) {
         logger.info("Handling subscription updated: ${stripeSubscription.id}")
@@ -340,6 +379,24 @@ class SubscriptionService(
         }
 
         val userId = userSubscription.userId
+
+        // Extract updated billing interval from Stripe
+        val newBillingInterval = try {
+            stripeSubscription.items?.data?.firstOrNull()?.plan?.interval
+        } catch (e: Exception) {
+            logger.warn("Failed to extract billing interval from subscription ${stripeSubscription.id}: ${e.message}")
+            null
+        }
+
+        // Update billing interval in database if it has changed
+        if (newBillingInterval != null && newBillingInterval != userSubscription.billingInterval) {
+            logger.info("Updating billing interval for user $userId from ${userSubscription.billingInterval} to $newBillingInterval")
+            val updatedSubscription = userSubscription.copy(
+                billingInterval = newBillingInterval,
+                updatedAt = OffsetDateTime.now()
+            )
+            subscriptionRepository.save(updatedSubscription)
+        }
 
         // Invalidate cache to force fresh fetch on next access
         invalidateCache(userId)

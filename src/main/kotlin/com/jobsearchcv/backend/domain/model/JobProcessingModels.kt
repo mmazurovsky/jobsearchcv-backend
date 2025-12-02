@@ -116,8 +116,7 @@ data class ScoredJobData(
 @Document(collection = "processed_jobs")
 data class ProcessedJobData(
     @Id @field:Field("_id") val id: String,
-//    TODO: might be not needed internal id
-    @field:Field("internal_id") val internalId: String,
+    @Indexed @field:Field("internal_id") val internalId: String,
     val title: String,
     val company: String,
     val location: String,
