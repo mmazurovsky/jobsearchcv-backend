@@ -73,7 +73,10 @@ data class JobSearchOut(
     val isSubscribed: Boolean = true,
     @field:Field("is_admin")
     @Schema(description = "Whether this is an admin job search that bypasses premium checks", required = false)
-    val isAdmin: Boolean? = null
+    val isAdmin: Boolean? = null,
+    @Indexed(unique = false) @field:Field("prompt_id")
+    @Schema(description = "ID of the prompt that was used to create this job search (null for backward compatibility)", required = false)
+    val promptId: String? = null
 ) {
     fun toLogString(): String {
         return "id=$id, title=$jobTitle, location=$location, " +
@@ -99,7 +102,7 @@ data class JobSearchOut(
          * Creates a persistent JobSearchOut from JobSearchIn with a new UUID and destination
          * Replaces temporary client-side IDs (starting with "temp-") with proper UUIDs
          */
-        fun fromJobSearchIn(input: JobSearchIn, userId: String, destinationId: String? = null, isApproved: Boolean = false, isAdmin: Boolean? = null): JobSearchOut {
+        fun fromJobSearchIn(input: JobSearchIn, userId: String, destinationId: String? = null, isApproved: Boolean = false, isAdmin: Boolean? = null, promptId: String? = null): JobSearchOut {
             return JobSearchOut(
                 id = if (input.id.startsWith("temp-")) {
                     java.util.UUID.randomUUID().toString()
@@ -117,14 +120,15 @@ data class JobSearchOut(
                 destination = destinationId,
                 isApproved = isApproved,
                 isSubscribed = true,
-                isAdmin = isAdmin
+                isAdmin = isAdmin,
+                promptId = promptId
             )
         }
 
         /**
          * Creates a temporary JobSearchOut from JobSearchIn with a temporary ID prefix
          */
-        fun fromJobSearchInAsTemp(input: JobSearchIn, userId: String, destinationId: String? = null, isAdmin: Boolean? = null): JobSearchOut {
+        fun fromJobSearchInAsTemp(input: JobSearchIn, userId: String, destinationId: String? = null, isAdmin: Boolean? = null, promptId: String? = null): JobSearchOut {
             return JobSearchOut(
                 id = "temp-${java.util.UUID.randomUUID()}",
                 jobTitle = input.jobTitle,
@@ -138,7 +142,8 @@ data class JobSearchOut(
                 destination = destinationId,
                 isApproved = false,
                 isSubscribed = true,
-                isAdmin = isAdmin
+                isAdmin = isAdmin,
+                promptId = promptId
             )
         }
     }

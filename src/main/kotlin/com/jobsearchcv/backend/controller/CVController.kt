@@ -2,6 +2,7 @@ package com.jobsearchcv.backend.controller
 
 import com.jobsearchcv.backend.service.SimpleCVService
 import com.jobsearchcv.backend.service.CVProcessingService
+import com.jobsearchcv.backend.service.PromptJobSearchCreationService
 import com.jobsearchcv.backend.service.CVListItem
 import com.jobsearchcv.backend.repository.JobSearchRepository
 import com.jobsearchcv.backend.domain.model.*
@@ -32,7 +33,8 @@ import org.springframework.core.io.ByteArrayResource
 class CVController(
     private val cvService: SimpleCVService,
     private val cvProcessingService: CVProcessingService,
-    private val jobSearchRepository: JobSearchRepository
+    private val jobSearchRepository: JobSearchRepository,
+    private val promptJobSearchCreationService: PromptJobSearchCreationService
 ) {
     companion object {
         private val logger: Logger = LoggerFactory.getLogger(CVController::class.java)
@@ -147,6 +149,78 @@ class CVController(
             return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(createErrorResponse("Internal server error: ${e.message}"))
         }
+    }
+
+    @PostMapping("/createSearchesFromPrompt")
+    @Operation(
+        summary = "Create job searches from free-form text prompt",
+        description = "Analyzes a text prompt with AI and generates 3-5 recommended job searches. Available to all authenticated users including anonymous. Saves both the searches and the prompt to the database."
+    )
+    @ApiResponses(
+        ApiResponse(responseCode = "200", description = "Job searches created successfully from prompt"),
+        ApiResponse(responseCode = "400", description = "Invalid request or empty prompt"),
+        ApiResponse(responseCode = "401", description = "Authentication required (anonymous auth allowed)"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    )
+    fun createSearchesFromPrompt(
+        @RequestBody @Parameter(description = "Request with free-form text prompt") request: CreateSearchesFromPromptRequest,
+        @Parameter(hidden = true) authentication: Authentication
+    ): ResponseEntity<CreateSearchesFromPromptResponse> = runBlocking {
+        try {
+            // Extract user ID from authentication (can be anonymous Firebase user)
+            val userId = authentication.principal as String
+
+            logger.info("Create searches from prompt request: userId=$userId")
+            logger.debug("Prompt text: ${request.prompt}")
+
+            // Validate prompt
+            if (request.prompt.isBlank()) {
+                logger.warn("Empty prompt provided by user: $userId")
+                return@runBlocking ResponseEntity.badRequest()
+                    .body(createPromptErrorResponse("Prompt cannot be empty"))
+            }
+
+            // Create job searches from prompt via service
+            val result = promptJobSearchCreationService.createJobSearchesFromPrompt(request.prompt, userId)
+
+            if (!result.success) {
+                logger.error("Failed to create searches from prompt: ${result.errorMessage}")
+                return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(createPromptErrorResponse(result.errorMessage ?: "Failed to create job searches"))
+            }
+
+            logger.info("Successfully created searches from prompt: userId=$userId, promptId=${result.promptId}, searchCount=${result.jobSearches.size}")
+
+            return@runBlocking ResponseEntity.ok(
+                CreateSearchesFromPromptResponse(
+                    promptId = result.promptId!!,
+                    prompt = result.promptText!!,
+                    recommendedSearches = result.jobSearches,
+                    createdAt = result.createdAt.toString()
+                )
+            )
+
+        } catch (e: IllegalArgumentException) {
+            logger.warn("Invalid prompt request: ${e.message}")
+            return@runBlocking ResponseEntity.badRequest()
+                .body(createPromptErrorResponse("Invalid request: ${e.message}"))
+        } catch (e: Exception) {
+            logger.error("Failed to create searches from prompt: ${e.message}", e)
+            return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(createPromptErrorResponse("Internal server error: ${e.message}"))
+        }
+    }
+
+    /**
+     * Create error response for prompt processing
+     */
+    private fun createPromptErrorResponse(message: String): CreateSearchesFromPromptResponse {
+        return CreateSearchesFromPromptResponse(
+            promptId = "",
+            prompt = "",
+            recommendedSearches = emptyList(),
+            createdAt = ""
+        )
     }
 
     @GetMapping("/user")

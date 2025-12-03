@@ -1,8 +1,12 @@
 package com.jobsearchcv.backend.config
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.jobsearchcv.backend.domain.model.JobSearchOut
+import com.jobsearchcv.backend.domain.model.JobSearchPrompt
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
+import org.slf4j.LoggerFactory
+import org.springframework.boot.ApplicationRunner
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.convert.converter.Converter
@@ -25,6 +29,10 @@ import java.util.*
 @Configuration
 @EnableMongoRepositories(basePackages = ["com.jobsalerts.core.repository"])
 class MongoConfig {
+
+    companion object {
+        private val logger = LoggerFactory.getLogger(MongoConfig::class.java)
+    }
 
     @Bean
     fun mappingMongoConverter(
@@ -49,6 +57,48 @@ class MongoConfig {
                 StringOffsetDateTimeWriteConverter(),
             )
         )
+    }
+
+    /**
+     * Ensures MongoDB indexes are created on application startup.
+     * This is idempotent - safe to run multiple times.
+     */
+    @Bean
+    fun initializeMongoIndexes(mongoTemplate: MongoTemplate) = ApplicationRunner {
+        try {
+            logger.info("Initializing MongoDB indexes...")
+
+            // Ensure indexes for JobSearchPrompt collection
+            val jobSearchPromptIndexOps = mongoTemplate.indexOps(JobSearchPrompt::class.java)
+            jobSearchPromptIndexOps.ensureIndex(
+                org.springframework.data.mongodb.core.index.Index()
+                    .on("user_id", org.springframework.data.domain.Sort.Direction.ASC)
+                    .named("user_id_idx")
+            )
+            jobSearchPromptIndexOps.ensureIndex(
+                org.springframework.data.mongodb.core.index.Index()
+                    .on("created_at", org.springframework.data.domain.Sort.Direction.DESC)
+                    .named("created_at_idx")
+            )
+            // Compound index is defined via @CompoundIndex annotation and will be created automatically
+            logger.info("✓ JobSearchPrompt indexes created/verified")
+
+            // Ensure indexes for JobSearchOut collection (including promptId)
+            val jobSearchOutIndexOps = mongoTemplate.indexOps(JobSearchOut::class.java)
+            jobSearchOutIndexOps.ensureIndex(
+                org.springframework.data.mongodb.core.index.Index()
+                    .on("prompt_id", org.springframework.data.domain.Sort.Direction.ASC)
+                    .named("prompt_id_idx")
+            )
+            logger.info("✓ JobSearchOut indexes created/verified (including prompt_id)")
+
+            logger.info("MongoDB indexes initialization completed successfully")
+
+        } catch (e: Exception) {
+            logger.error("Failed to initialize MongoDB indexes: ${e.message}", e)
+            // Don't throw - let the application start even if index creation fails
+            // Indexes can be created manually or will be created on first use
+        }
     }
 }
 
