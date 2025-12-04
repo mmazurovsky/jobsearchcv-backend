@@ -111,6 +111,67 @@ class BatchJobProcessingService(
     }
 
     /**
+     * Partial LLM processing pipeline for XCOM/PAGE channels.
+     * Steps: Translation → Enrichment → Storage (NO scoring)
+     * Returns enriched jobs as ScoredJobData with default compatibility score for consistency.
+     */
+    suspend fun processJobsForXcomOrPageChannel(
+        jobsData: List<ScrapedJobData>,
+        jobSearch: JobSearchOut?
+    ): List<ScoredJobData> = withContext(Dispatchers.IO) {
+        val jobSearchId = jobSearch?.id ?: "unknown"
+        try {
+            logger.info("[JobSearch: $jobSearchId] Processing ${jobsData.size} jobs for XCOM/PAGE channel (no scoring)")
+
+            // Step 1: Translation
+            val translatedJobs = translateJobsDataBatch(jobsData, jobSearchId)
+            logger.info("[JobSearch: $jobSearchId] Translated ${translatedJobs.size} jobs")
+
+            // Step 2: Enrichment (techstack, tags, salary extraction)
+            val enrichedJobs = enrichJobsDataBatch(translatedJobs, jobSearchId)
+            logger.info("[JobSearch: $jobSearchId] Enriched ${enrichedJobs.size} jobs")
+            enrichedJobs.filter { it.techstack.isEmpty() }.forEach { job ->
+                logger.warn("[JobSearch: $jobSearchId] No techstack for job ${job.id}, link: ${job.link}")
+            }
+
+            // Step 3: Save to processed_jobs
+            val processedJobs = enrichedJobs.map { job ->
+                jobDataConverter.enrichedToProcessedJobData(job)
+            }
+            processedJobRepository.bulkSaveOrUpdate(processedJobs)
+            logger.info("[JobSearch: $jobSearchId] Saved ${processedJobs.size} jobs to processed_jobs")
+
+            // Step 4: Convert to ScoredJobData with default score (100 = no filtering)
+            val scoredJobs = enrichedJobs.mapNotNull { enrichedJob ->
+                val processedJob = processedJobs.find { it.id == enrichedJob.id }
+                if (processedJob != null) {
+                    jobDataConverter.toScoredJobData(
+                        processedJob = processedJob,
+                        createdAgo = enrichedJob.createdAgo,
+                        scrapedAt = enrichedJob.scrapedAt,
+                        userId = enrichedJob.userId,
+                        jobSearchId = enrichedJob.jobSearchId,
+                        keywords = enrichedJob.keywords,
+                        compatibilityScore = 100, // Default: send all jobs
+                        filterReason = null
+                    )
+                } else {
+                    logger.error("[JobSearch: $jobSearchId] Missing processed job for ${enrichedJob.id}")
+                    null
+                }
+            }
+
+            logger.info("[JobSearch: $jobSearchId] Successfully processed ${scoredJobs.size} jobs for XCOM/PAGE")
+            return@withContext scoredJobs
+
+        } catch (e: Exception) {
+            logger.error("[JobSearch: $jobSearchId] Error in XCOM/PAGE processing pipeline", e)
+            io.sentry.Sentry.captureException(e)
+            return@withContext emptyList()
+        }
+    }
+
+    /**
      * Translates job titles and descriptions to English.
      * Restored from legacy translateJobsBatch method.
      */

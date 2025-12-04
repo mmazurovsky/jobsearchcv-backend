@@ -33,207 +33,72 @@ class IncomingJobsProcessingService(
     ) {
         return withContext(Dispatchers.IO) {
             try {
-                // Step 1: Fetch job search
+                // Fetch job search
                 val savedJobSearch = jobSearchRepository.findById(jobSearchId)
                 if (savedJobSearch == null) {
                     logger.error("Job search not found: {}", jobSearchId)
-                    Sentry.captureMessage(
-                        "Job search not found: $jobSearchId",
-                        SentryLevel.ERROR
-                    )
+                    Sentry.captureMessage("Job search not found: $jobSearchId", SentryLevel.ERROR)
                     return@withContext
                 }
-                logger.info("Processing job data for alert searchId={}", jobSearchId)
+                logger.info("Processing job data for searchId={}", jobSearchId)
 
+                // Handle empty results
                 if (scrapedJobs.isEmpty()) {
                     logger.info("No job data received for jobSearchId={}", jobSearchId)
-                    // Send no-results email for searches with 24h+ time periods
                     if (shouldSendNoResultsEmail(savedJobSearch)) {
-                        sendNoResultsEmail(
-                            userId,
-                            savedJobSearch,
-                            "No jobs were found matching your criteria"
-                        )
+                        sendNoResultsEmail(userId, savedJobSearch, "No jobs were found matching your criteria")
                     }
                     return@withContext
                 }
 
+                // Deduplicate jobs
                 val sentJobs = sentJobRepository.findByUserId(userId)
-
-
                 val sentJobUrls = sentJobs.map { it.jobUrl }.toSet()
                 val newJobs = scrapedJobs.filter { it.link !in sentJobUrls }
 
-                logger.info(
-                    "Received {} jobs from scraper, {} are new for user {}",
-                    scrapedJobs.size, newJobs.size, userId
-                )
+                logger.info("Received {} jobs, {} are new for user {}", scrapedJobs.size, newJobs.size, userId)
 
+                // Handle all duplicates
                 if (newJobs.isEmpty()) {
-                    // Notify user about the reason for no results
-                    val message =
-                        "All ${scrapedJobs.size} jobs found have already been sent to you previously."
-
                     if (shouldSendNoResultsEmail(savedJobSearch)) {
-                        sendNoResultsEmail(userId, savedJobSearch, message)
+                        sendNoResultsEmail(userId, savedJobSearch,
+                            "All ${scrapedJobs.size} jobs found have already been sent to you.")
                     }
                     return@withContext
                 }
 
-                // Step 4: Process jobs using efficient batch processing (includes saving to DB)
-                val scoredJobsData =
-                    batchJobProcessingService.processAndSaveJobsDataBatch(newJobs, savedJobSearch)
+                // Determine destination channel
+                val destinations = destinationRepository.findByUserId(userId)
+                val latestDestination = destinations.maxByOrNull { it.createdAt } ?: destinations.firstOrNull()
 
-                // Step 6: Filter by compatibility score > 59
-                val filteredJobs = scoredJobsData.filter {
-                    it.compatibilityScore > 70
-                }
-
-                logger.info(
-                    "{} jobs passed compatibility filter for jobSearchId={}, userId={}",
-                    filteredJobs.size, jobSearchId, userId
-                )
-
-                if (filteredJobs.isEmpty()) {
-                    val message =
-                        "I looked up jobs published recently and I didn't find good matches for you this time \uD83D\uDE14. Try again with different parameters or set up an alert to monitor freshly published jobs."
-
-                    if (shouldSendNoResultsEmail(savedJobSearch)) {
-                        sendNoResultsEmail(userId, savedJobSearch, message)
-                    }
+                if (latestDestination == null) {
+                    logger.error("No destination found for user $userId, skipping processing")
                     return@withContext
                 }
 
-                // Step 8: Route jobs based on destination
-                val sendJobs =
-                    sendJobsToUserDestinations(filteredJobs, savedJobSearch, userId, searchName)
+                val channel = latestDestination.channel
+                logger.info("Delegating to channel-specific processor: $channel")
 
-                // Only mark jobs as sent if they were actually successfully processed
-
-                logger.info(
-                    "Successfully processed and sent {} jobs for jobSearchId={}, userId={}",
-                    sendJobs.size, jobSearchId, userId
-                )
-
-                sendJobs.size
+                // Delegate to channel-specific processors
+                when (channel) {
+                    "email" -> processJobsForEmailChannel(
+                        newJobs, savedJobSearch, userId, latestDestination, searchName
+                    )
+                    "xcom" -> processJobsForXcomChannel(
+                        newJobs, savedJobSearch, userId, latestDestination
+                    )
+                    "page" -> processJobsForPageChannel(
+                        newJobs, savedJobSearch, userId, latestDestination
+                    )
+                    else -> {
+                        logger.warn("Unknown channel: $channel, skipping")
+                    }
+                }
 
             } catch (e: Exception) {
-                logger.error(
-                    "Error processing incoming job data for jobSearchId={}, userId={}",
-                    jobSearchId,
-                    userId,
-                    e
-                )
-
+                logger.error("Error processing incoming job data for jobSearchId={}, userId={}", jobSearchId, userId, e)
             }
         }
-    }
-
-    private suspend fun sendJobsToUserDestinations(
-        jobs: List<ScoredJobData>,
-        jobSearch: JobSearchOut?,
-        userId: String,
-        specialSearchName: String? = null
-    ): List<ScoredJobData> {
-        val destinations = destinationRepository.findByUserId(userId)
-        if (destinations.isEmpty()) {
-            logger.warn("No destinations found for user $userId, skipping email sending")
-            return emptyList()
-        }
-
-        // Find the latest destination by createdAt
-        var latestDestination = destinations.maxByOrNull { it.createdAt }
-        if (latestDestination == null) {
-            latestDestination = destinations.firstOrNull()
-        }
-
-        if (latestDestination == null) {
-            logger.error(
-                "Destination is null, skipping email sending for user $userId, jobSearchId=${jobSearch?.id}"
-            )
-            return emptyList()
-        }
-
-        logger.info("Using destination: channel=${latestDestination.channel}, value=${latestDestination.channelValue}")
-
-        val jobsToMarkAsSent = try {
-            logger.info("Sending ${jobs.size} jobs to user destinations for userId=$userId")
-
-            // Get user destinations
-
-
-            // Route based on channel type
-            when (latestDestination.channel) {
-                "email" -> {
-                    val recipientEmail = latestDestination.channelValue
-                    val location = jobSearch?.location
-                    val stringBuilder = StringBuilder()
-                    val jobTitle = jobSearch?.jobTitle ?: "Your Job Search"
-                    stringBuilder.append(jobTitle)
-                    if (location != null) {
-                        stringBuilder.append(" in $location")
-                    }
-                    val interval = specialSearchName ?: jobSearch?.timePeriod?.displayName
-                    if (interval != null) {
-                        stringBuilder.append(" in the last ${interval}")
-                    }
-
-                    val displaySearchName = stringBuilder.toString()
-                    val alertId = jobSearch?.id ?: "unknown"
-
-                    logger.info("Sending email to $recipientEmail for ${jobs.size} jobs, searchName=$specialSearchName")
-
-                    // Create email content using EmailTemplateService
-                    val hasPremiumAccess = subscriptionService.checkPremiumAccess(userId)
-                    val emailContent = emailTemplateService.createJobNotificationEmail(
-                        recipient = recipientEmail,
-                        searchName = displaySearchName,
-                        jobs = jobs,
-                        alertId = alertId,
-                        specialMessage = if (specialSearchName == "Monthly Overview") "This is an overview of jobs posted in the last month, you receive it only one time after job search is created \uD83D\uDE0A" else null,
-                        userId = userId,
-                        isFreeTier = !hasPremiumAccess
-                    )
-
-                    // Send email asynchronously using AsyncEmailService - fire and forget
-                    asyncEmailService.sendEmailAsync(emailContent)
-                    logger.info("Queued email to $recipientEmail with ${jobs.size} jobs")
-
-                    // Return jobs as successfully sent since we're fire-and-forget
-                    jobs
-                }
-                "xcom" -> {
-                    val username = latestDestination.channelValue
-                    logger.info("Enqueueing ${jobs.size} jobs for X.com posting (username: $username)")
-
-                    // Enqueue jobs for X.com posting with random delays
-                    val enqueuedCount = xcomQueueService.enqueueJobs(jobs, username, userId)
-                    logger.info("Successfully enqueued $enqueuedCount jobs for X.com posting")
-
-                    // Return jobs as successfully sent since they're now queued
-                    jobs
-                }
-                "page" -> {
-                    logger.info("Page channel: tracking ${jobs.size} jobs without active distribution for userId=$userId")
-                    // Jobs are already processed and saved to DB at this point
-                    // Return jobs so they get marked as sent below
-                    jobs
-                }
-                else -> {
-                    logger.info("Channel '${latestDestination.channel}' is not supported, skipping")
-                    emptyList()
-                }
-            }
-
-        } catch (e: Exception) {
-            logger.error("Error sending jobs to user destinations for userId=$userId", e)
-            emptyList()
-        }
-
-        if (jobsToMarkAsSent.isNotEmpty()) {
-            markJobsAsSent(jobsToMarkAsSent, userId, destination = latestDestination.channelValue)
-        }
-        return jobsToMarkAsSent
     }
 
     private suspend fun markJobsAsSent(
@@ -255,6 +120,129 @@ class IncomingJobsProcessingService(
 
         } catch (e: Exception) {
             logger.error("Error marking jobs as sent for user $userId", e)
+        }
+    }
+
+    private fun buildSearchDisplayName(jobSearch: JobSearchOut, specialSearchName: String?): String {
+        val stringBuilder = StringBuilder()
+        stringBuilder.append(jobSearch.jobTitle.ifBlank { "Your Job Search" })
+        jobSearch.location?.let { if (it.isNotBlank()) stringBuilder.append(" in $it") }
+        val interval = specialSearchName ?: jobSearch.timePeriod?.displayName
+        interval?.let { stringBuilder.append(" in the last $it") }
+        return stringBuilder.toString()
+    }
+
+    /**
+     * EMAIL Channel: Full LLM pipeline with scoring and filtering.
+     * Only sends jobs with compatibility score > 70.
+     */
+    private suspend fun processJobsForEmailChannel(
+        jobs: List<ScrapedJobData>,
+        jobSearch: JobSearchOut,
+        userId: String,
+        destination: Destination,
+        specialSearchName: String?
+    ) {
+        try {
+            logger.info("[EMAIL] Processing ${jobs.size} jobs for user $userId")
+
+            // Full LLM pipeline: Translation → Enrichment → Save → Scoring
+            val scoredJobs = batchJobProcessingService.processAndSaveJobsDataBatch(jobs, jobSearch)
+
+            // Filter by compatibility score > 70
+            val filteredJobs = scoredJobs.filter { it.compatibilityScore > 70 }
+            logger.info("[EMAIL] {} of {} jobs passed compatibility filter", filteredJobs.size, scoredJobs.size)
+
+            if (filteredJobs.isEmpty()) {
+                if (shouldSendNoResultsEmail(jobSearch)) {
+                    sendNoResultsEmail(userId, jobSearch,
+                        "No high-quality matches found this time")
+                }
+                return
+            }
+
+            // Build email and send
+            val recipientEmail = destination.channelValue
+            val displaySearchName = buildSearchDisplayName(jobSearch, specialSearchName)
+            val hasPremiumAccess = subscriptionService.checkPremiumAccess(userId)
+
+            val emailContent = emailTemplateService.createJobNotificationEmail(
+                recipient = recipientEmail,
+                searchName = displaySearchName,
+                jobs = filteredJobs,
+                alertId = jobSearch.id,
+                specialMessage = if (specialSearchName == "Monthly Overview")
+                    "This is an overview of jobs posted in the last month" else null,
+                userId = userId,
+                isFreeTier = !hasPremiumAccess
+            )
+
+            asyncEmailService.sendEmailAsync(emailContent)
+            logger.info("[EMAIL] Queued email to $recipientEmail with ${filteredJobs.size} jobs")
+
+            // Mark jobs as sent
+            markJobsAsSent(filteredJobs, userId, recipientEmail)
+            logger.info("[EMAIL] Successfully processed and sent ${filteredJobs.size} jobs")
+
+        } catch (e: Exception) {
+            logger.error("[EMAIL] Error processing jobs for user $userId", e)
+        }
+    }
+
+    /**
+     * XCOM Channel: Translation + Enrichment only (no scoring).
+     * Sends ALL jobs to X.com queue without filtering.
+     */
+    private suspend fun processJobsForXcomChannel(
+        jobs: List<ScrapedJobData>,
+        jobSearch: JobSearchOut,
+        userId: String,
+        destination: Destination
+    ) {
+        try {
+            logger.info("[XCOM] Processing ${jobs.size} jobs for user $userId")
+
+            // Partial pipeline: Translation → Enrichment → Save (NO scoring)
+            val enrichedJobs = batchJobProcessingService.processJobsForXcomOrPageChannel(jobs, jobSearch)
+            logger.info("[XCOM] Enriched and saved ${enrichedJobs.size} jobs")
+
+            // Enqueue ALL jobs to X.com (no filtering)
+            val username = destination.channelValue
+            val enqueuedCount = xcomQueueService.enqueueJobs(enrichedJobs, username, userId)
+            logger.info("[XCOM] Enqueued $enqueuedCount jobs for posting (username: $username)")
+
+            // Mark jobs as sent
+            markJobsAsSent(enrichedJobs, userId, username)
+            logger.info("[XCOM] Successfully processed and enqueued ${enrichedJobs.size} jobs")
+
+        } catch (e: Exception) {
+            logger.error("[XCOM] Error processing jobs for user $userId", e)
+        }
+    }
+
+    /**
+     * PAGE Channel: Translation + Enrichment only (no scoring).
+     * Saves ALL jobs to database for in-app viewing (no external delivery).
+     */
+    private suspend fun processJobsForPageChannel(
+        jobs: List<ScrapedJobData>,
+        jobSearch: JobSearchOut,
+        userId: String,
+        destination: Destination
+    ) {
+        try {
+            logger.info("[PAGE] Processing ${jobs.size} jobs for user $userId")
+
+            // Partial pipeline: Translation → Enrichment → Save (NO scoring)
+            val enrichedJobs = batchJobProcessingService.processJobsForXcomOrPageChannel(jobs, jobSearch)
+            logger.info("[PAGE] Enriched and saved ${enrichedJobs.size} jobs")
+
+            // Mark jobs as sent (already saved in DB for viewing)
+            markJobsAsSent(enrichedJobs, userId, destination.channelValue)
+            logger.info("[PAGE] Successfully processed and saved ${enrichedJobs.size} jobs")
+
+        } catch (e: Exception) {
+            logger.error("[PAGE] Error processing jobs for user $userId", e)
         }
     }
 
