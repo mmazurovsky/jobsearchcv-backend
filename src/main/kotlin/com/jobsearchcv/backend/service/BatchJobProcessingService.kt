@@ -5,8 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.jobsearchcv.backend.domain.model.*
 import com.jobsearchcv.backend.repository.ProcessedJobRepository
-import com.jobsearchcv.backend.service.client.DeepSeekClient
+import com.jobsearchcv.backend.service.client.OpenRouterClient
 import com.jobsearchcv.backend.service.client.LLMRequest
+import com.jobsearchcv.backend.service.client.LLMConfig
+import com.jobsearchcv.backend.service.batch.JobBatchCalculator
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import kotlinx.coroutines.*
@@ -47,17 +49,12 @@ data class BatchCompatibilityResult(
 @Service
 class BatchJobProcessingService(
     private val translationService: TranslationService,
-    private val deepSeekClient: DeepSeekClient,
+    private val openRouterClient: OpenRouterClient,
     private val objectMapper: ObjectMapper,
     private val jobDataConverter: JobDataConverter,
     private val processedJobRepository: ProcessedJobRepository,
 ) {
     private val logger = LoggerFactory.getLogger(this::class.java)
-
-    // Token limits for batching - conservative estimates for DeepSeek
-    private val maxInputTokens = 6000  // Reduced from 8000 to be more conservative
-    private val estimatedTokensPerChar = 0.25
-    private val jobDescriptionMaxLength = 4000  // Full description needed for accurate analysis
 
     // Semaphore to limit parallel LLM requests
     private val llmSemaphore = Semaphore(3)
@@ -68,7 +65,9 @@ class BatchJobProcessingService(
      */
     suspend fun processAndSaveJobsDataBatch(
         jobsData: List<ScrapedJobData>,
-        jobSearch: JobSearchOut?
+        jobSearch: JobSearchOut?,
+        enrichmentConfig: LLMConfig = LLMConfig.forEnrichment(),
+        scoringConfig: LLMConfig = LLMConfig.forScoring()
     ): List<ScoredJobData> = withContext(Dispatchers.IO) {
         val jobSearchId = jobSearch?.id ?: "unknown"
         try {
@@ -79,13 +78,13 @@ class BatchJobProcessingService(
             logger.info("[JobSearch: $jobSearchId] Translated ${translatedJobs.size} jobs")
 
             // Step 2: Enrichment (techstack and salary extraction)
-            val enrichedJobs = enrichJobsDataBatch(translatedJobs, jobSearchId)
+            val enrichedJobs = enrichJobsDataBatch(translatedJobs, jobSearchId, enrichmentConfig)
             logger.info("[JobSearch: $jobSearchId] Enriched ${enrichedJobs.size} jobs")
             enrichedJobs.filter { it.techstack.isEmpty() }.forEach { job ->
                 logger.warn("[JobSearch: $jobSearchId] Didn't get techstack for job ${job.id}, link: ${job.link}")
             }
 
-            // Step 3: Save processed jobs 
+            // Step 3: Save processed jobs
             val processedJobs = enrichedJobs.map { job ->
                 jobDataConverter.enrichedToProcessedJobData(job)
             }
@@ -95,7 +94,8 @@ class BatchJobProcessingService(
             val scoredJobs = scoreJobsDataBatch(
                 processedJobs,
                 enrichedJobs,
-                jobSearch
+                jobSearch,
+                scoringConfig
             ).sortedByDescending { it.compatibilityScore }
             logger.info("[JobSearch: $jobSearchId] Scored ${scoredJobs.size} jobs")
             logger.info("[JobSearch: $jobSearchId] Scores of scored jobs: ${scoredJobs.map { it.compatibilityScore }}")
@@ -117,7 +117,8 @@ class BatchJobProcessingService(
      */
     suspend fun processJobsForXcomOrPageChannel(
         jobsData: List<ScrapedJobData>,
-        jobSearch: JobSearchOut?
+        jobSearch: JobSearchOut?,
+        enrichmentConfig: LLMConfig = LLMConfig.forEnrichment()
     ): List<ScoredJobData> = withContext(Dispatchers.IO) {
         val jobSearchId = jobSearch?.id ?: "unknown"
         try {
@@ -128,7 +129,7 @@ class BatchJobProcessingService(
             logger.info("[JobSearch: $jobSearchId] Translated ${translatedJobs.size} jobs")
 
             // Step 2: Enrichment (techstack, tags, salary extraction)
-            val enrichedJobs = enrichJobsDataBatch(translatedJobs, jobSearchId)
+            val enrichedJobs = enrichJobsDataBatch(translatedJobs, jobSearchId, enrichmentConfig)
             logger.info("[JobSearch: $jobSearchId] Enriched ${enrichedJobs.size} jobs")
             enrichedJobs.filter { it.techstack.isEmpty() }.forEach { job ->
                 logger.warn("[JobSearch: $jobSearchId] No techstack for job ${job.id}, link: ${job.link}")
@@ -219,11 +220,32 @@ class BatchJobProcessingService(
      */
     private suspend fun enrichJobsDataBatch(
         translatedJobs: List<TranslatedJobData>,
-        jobSearchId: String
+        jobSearchId: String,
+        enrichmentConfig: LLMConfig
     ): List<EnrichedJobData> {
         try {
             // Step 1: Split into batches based on content length
-            val enrichmentBatches = splitJobsIntoEnrichmentBatches(translatedJobs)
+            val enrichmentPromptTemplate = buildEnrichmentPromptTemplate()
+            val enrichmentCalculator = JobBatchCalculator<TranslatedJobData, BatchEnrichmentRequest>(
+                llmConfig = enrichmentConfig,
+                jobSearchId = jobSearchId
+            )
+
+            val enrichmentBatches = enrichmentCalculator.createBatches(
+                jobs = translatedJobs,
+                promptTemplate = enrichmentPromptTemplate,
+                contentExtractor = { job ->
+                    "${job.title} ${job.description} ${job.company}"
+                },
+                requestBuilder = { job ->
+                    BatchEnrichmentRequest(
+                        jobId = job.id,
+                        title = job.title,
+                        description = job.description,
+                        company = job.company
+                    )
+                }
+            )
             logger.info("[JobSearch: $jobSearchId] Split ${translatedJobs.size} jobs into ${enrichmentBatches.size} enrichment batches")
 
             // Step 2: Process enrichment batches in parallel
@@ -235,7 +257,8 @@ class BatchJobProcessingService(
                                 batch,
                                 index + 1,
                                 enrichmentBatches.size,
-                                jobSearchId
+                                jobSearchId,
+                                enrichmentConfig
                             )
                         }
                     }
@@ -275,12 +298,39 @@ class BatchJobProcessingService(
     private suspend fun scoreJobsDataBatch(
         processedJobs: List<ProcessedJobData>,
         enrichedJobs: List<EnrichedJobData>,
-        jobSearch: JobSearchOut?
+        jobSearch: JobSearchOut?,
+        scoringConfig: LLMConfig
     ): List<ScoredJobData> {
         val jobSearchId = jobSearch?.id ?: "unknown"
         try {
             // Split into batches for compatibility scoring
-            val compatibilityBatches = splitJobsIntoCompatibilityBatches(enrichedJobs)
+            val scoringPromptTemplate = buildCompatibilityPromptTemplate(jobSearch)
+            val scoringCalculator = JobBatchCalculator<EnrichedJobData, BatchCompatibilityRequest>(
+                llmConfig = scoringConfig,
+                jobSearchId = jobSearchId
+            )
+
+            val compatibilityBatches = scoringCalculator.createBatches(
+                jobs = enrichedJobs,
+                promptTemplate = scoringPromptTemplate,
+                contentExtractor = { job ->
+                    val techstack = job.techstack.joinToString(", ")
+                    val tags = job.tags.joinToString(", ")
+                    "${job.title} ${job.description} ${job.company} $techstack $tags ${job.salary ?: ""}"
+                },
+                requestBuilder = { job ->
+                    BatchCompatibilityRequest(
+                        jobId = job.id,
+                        title = job.title,
+                        description = job.description,
+                        company = job.company,
+                        techstack = job.techstack,
+                        tags = job.tags,
+                        salary = job.salary,
+                        applicants = job.applicants
+                    )
+                }
+            )
             logger.info("[JobSearch: $jobSearchId] Split ${enrichedJobs.size} jobs into ${compatibilityBatches.size} compatibility batches")
 
             // Process compatibility batches in parallel
@@ -292,7 +342,8 @@ class BatchJobProcessingService(
                                 batch,
                                 jobSearch,
                                 index + 1,
-                                compatibilityBatches.size
+                                compatibilityBatches.size,
+                                scoringConfig
                             )
                         }
                     }
@@ -301,7 +352,6 @@ class BatchJobProcessingService(
 
             // Apply compatibility results to jobs
             val compatibilityMap = compatibilityResults.associateBy { it.jobId }
-            val processedJobMap = processedJobs.associateBy { it.id }
             val enrichedJobMap = enrichedJobs.associateBy { it.id }
 
             return processedJobs.mapNotNull { processedJob ->
@@ -354,107 +404,6 @@ class BatchJobProcessingService(
     }
 
     /**
-     * Splits translated jobs into enrichment batches based on token limits.
-     * Restored from legacy splitJobsIntoEnrichmentBatches method.
-     */
-    private fun splitJobsIntoEnrichmentBatches(jobs: List<TranslatedJobData>): List<List<BatchEnrichmentRequest>> {
-        val batches = mutableListOf<List<BatchEnrichmentRequest>>()
-        var currentBatch = mutableListOf<BatchEnrichmentRequest>()
-        var currentBatchTokens = 0
-
-        // Reserve tokens for base prompt and response
-        val basePromptTokens = 1000
-        val responseTokensPerJob = 50
-        val availableTokens = maxInputTokens - basePromptTokens
-
-        for (job in jobs) {
-            val request = BatchEnrichmentRequest(
-                jobId = job.id,
-                title = job.title,
-                description = job.description.take(jobDescriptionMaxLength),
-                company = job.company
-            )
-
-            // Estimate tokens for this job
-            val jobContent = "${request.title} ${request.description} ${request.company}"
-            val jobTokens = (jobContent.length * estimatedTokensPerChar).toInt()
-
-            // Check if adding this job would exceed token limit
-            if (currentBatch.isNotEmpty() &&
-                currentBatchTokens + jobTokens + ((currentBatch.size + 1) * responseTokensPerJob) > availableTokens
-            ) {
-
-                batches.add(currentBatch.toList())
-                currentBatch = mutableListOf(request)
-                currentBatchTokens = jobTokens
-            } else {
-                currentBatch.add(request)
-                currentBatchTokens += jobTokens
-            }
-        }
-
-        if (currentBatch.isNotEmpty()) {
-            batches.add(currentBatch)
-        }
-
-        return batches
-    }
-
-    /**
-     * Splits enriched jobs into compatibility batches based on token limits.
-     * Restored from legacy splitJobsIntoCompatibilityBatches method.
-     */
-    private fun splitJobsIntoCompatibilityBatches(jobs: List<EnrichedJobData>): List<List<BatchCompatibilityRequest>> {
-        val batches = mutableListOf<List<BatchCompatibilityRequest>>()
-        var currentBatch = mutableListOf<BatchCompatibilityRequest>()
-        var currentBatchTokens = 0
-
-        // Reserve tokens for base prompt and response
-        val basePromptTokens = 1500 // Compatibility prompt is longer
-        val responseTokensPerJob = 80
-        val availableTokens = maxInputTokens - basePromptTokens
-
-        for (job in jobs) {
-            val request = BatchCompatibilityRequest(
-                jobId = job.id,
-                title = job.title,
-                description = job.description.take(jobDescriptionMaxLength),
-                company = job.company,
-                techstack = job.techstack,
-                tags = job.tags,
-                salary = job.salary,
-                applicants = job.applicants,
-            )
-
-            // Estimate tokens for this job
-            val techstackText = request.techstack.joinToString(", ")
-            val tagsText = request.tags.joinToString(", ")
-            val jobContent =
-                "${request.title} ${request.description} ${request.company} $techstackText $tagsText ${request.salary ?: ""}"
-            val jobTokens = (jobContent.length * estimatedTokensPerChar).toInt()
-
-            // Check if adding this job would exceed token limit
-            if (currentBatch.isNotEmpty() &&
-                currentBatchTokens + jobTokens + ((currentBatch.size + 1) * responseTokensPerJob) > availableTokens
-            ) {
-
-                batches.add(currentBatch.toList())
-                currentBatch = mutableListOf(request)
-                currentBatchTokens = jobTokens
-            } else {
-                currentBatch.add(request)
-                currentBatchTokens += jobTokens
-            }
-        }
-
-        if (currentBatch.isNotEmpty()) {
-            batches.add(currentBatch)
-        }
-
-        return batches
-    }
-
-    /**
      * Processes a batch of enrichment requests using LLM.
      * Restored from legacy processEnrichmentBatch method.
      */
@@ -462,20 +411,26 @@ class BatchJobProcessingService(
         batch: List<BatchEnrichmentRequest>,
         batchIndex: Int,
         batchesSize: Int,
-        jobSearchId: String
+        jobSearchId: String,
+        config: LLMConfig
     ): List<BatchEnrichmentResult> {
         try {
             logger.info("[JobSearch: $jobSearchId] Processing enrichment batch $batchIndex/$batchesSize with ${batch.size} jobs")
 
             val prompt = buildEnrichmentPrompt(batch)
-            logger.info("[JobSearch: $jobSearchId] 🤖 Enrichment batch $batchIndex/$batchesSize - About to call DeepSeek API")
-            val request = LLMRequest(prompt = prompt)
-            val response = deepSeekClient.chat(request)
-            logger.info("[JobSearch: $jobSearchId] 🤖 Enrichment batch $batchIndex/$batchesSize - DeepSeek API call completed, success: ${response.success}")
+            logger.info("[JobSearch: $jobSearchId] 🤖 Enrichment batch $batchIndex/$batchesSize - About to call OpenRouter API")
+            val request = LLMRequest(
+                prompt = prompt,
+                temperature = config.temperature,
+                maxTokens = config.maxOutputTokens,
+                model = config.model
+            )
+            val response = openRouterClient.chat(request)
+            logger.info("[JobSearch: $jobSearchId] 🤖 Enrichment batch $batchIndex/$batchesSize - OpenRouter API call completed, success: ${response.success}")
 
             if (response.success && response.content != null) {
                 logger.debug(
-                    "[JobSearch: $jobSearchId] Enrichment batch $batchIndex/$batchesSize - DeepSeek response: ${
+                    "[JobSearch: $jobSearchId] Enrichment batch $batchIndex/$batchesSize - OpenRouter response: ${
                         response.content.take(
                             200
                         )
@@ -485,7 +440,7 @@ class BatchJobProcessingService(
                 logger.info("[JobSearch: $jobSearchId] Enrichment batch $batchIndex/$batchesSize - Successfully parsed ${results.size} results: ${results.map { it.techstack }}")
                 return results
             } else {
-                logger.error("[JobSearch: $jobSearchId] Enrichment batch $batchIndex/$batchesSize - DeepSeek API failed: ${response.errorMessage}")
+                logger.error("[JobSearch: $jobSearchId] Enrichment batch $batchIndex/$batchesSize - OpenRouter API failed: ${response.errorMessage}")
                 return batch.map { request ->
                     BatchEnrichmentResult(
                         jobId = request.jobId,
@@ -521,20 +476,26 @@ class BatchJobProcessingService(
         jobSearch: JobSearchOut?,
         batchIndex: Int,
         batchesSize: Int,
+        config: LLMConfig
     ): List<BatchCompatibilityResult> {
         val jobSearchId = jobSearch?.id ?: "unknown"
         try {
             logger.info("[JobSearch: $jobSearchId] Processing compatibility batch $batchIndex/$batchesSize with ${batch.size} jobs")
 
             val prompt = buildCompatibilityPrompt(batch, jobSearch)
-            logger.info("[JobSearch: $jobSearchId] 🤖 Compatibility batch $batchIndex/$batchesSize - About to call DeepSeek API")
-            val request = LLMRequest(prompt = prompt)
-            val response = deepSeekClient.chat(request)
-            logger.info("[JobSearch: $jobSearchId] 🤖 Compatibility batch $batchIndex/$batchesSize - DeepSeek API call completed, success: ${response.success}")
+            logger.info("[JobSearch: $jobSearchId] 🤖 Compatibility batch $batchIndex/$batchesSize - About to call OpenRouter API")
+            val request = LLMRequest(
+                prompt = prompt,
+                temperature = config.temperature,
+                maxTokens = config.maxOutputTokens,
+                model = config.model
+            )
+            val response = openRouterClient.chat(request)
+            logger.info("[JobSearch: $jobSearchId] 🤖 Compatibility batch $batchIndex/$batchesSize - OpenRouter API call completed, success: ${response.success}")
 
             if (response.success && response.content != null) {
                 logger.debug(
-                    "[JobSearch: $jobSearchId] Compatibility batch $batchIndex/$batchesSize - DeepSeek response: ${
+                    "[JobSearch: $jobSearchId] Compatibility batch $batchIndex/$batchesSize - OpenRouter response: ${
                         response.content.take(
                             200
                         )
@@ -545,12 +506,12 @@ class BatchJobProcessingService(
 
                 return results
             } else {
-                logger.error("[JobSearch: $jobSearchId] Compatibility batch $batchIndex/$batchesSize - DeepSeek API failed: ${response.errorMessage}")
+                logger.error("[JobSearch: $jobSearchId] Compatibility batch $batchIndex/$batchesSize - OpenRouter API failed: ${response.errorMessage}")
                 return batch.map { request ->
                     BatchCompatibilityResult(
                         jobId = request.jobId,
                         compatibilityScore = 0,
-                        filterReason = "DeepSeek API failed: ${response.errorMessage}"
+                        filterReason = "OpenRouter API failed: ${response.errorMessage}"
                     )
                 }
             }
@@ -568,6 +529,122 @@ class BatchJobProcessingService(
                 )
             }
         }
+    }
+
+    /**
+     * Builds the enrichment prompt template WITHOUT jobs data.
+     * Used to estimate base prompt token count for batching.
+     */
+    private fun buildEnrichmentPromptTemplate(): String {
+        return """You are a technical recruiter specializing in job analysis. You act like a JSON-only API.
+
+Extract technology stack and salary information from the following job postings.
+
+JOBS TO ANALYZE:
+[JOB DATA WILL BE INSERTED HERE]
+
+For each job, identify:
+1. TECHSTACK: List of technologies, programming languages, frameworks, tools mentioned in title and description, ordered by importance (most important first)
+2. TAGS: Relevant tags like communication language with level needed, seniority level, travel expectations, standby/on-call requirements, soft skills, certifications, visa requirements, or other important non-technical requirements
+3. SALARY: Any salary information like ranges, fixed amounts, hourly/daily rates (null if not mentioned)
+
+Return ONLY a valid JSON array with this exact structure (no markdown, no extra text):
+[
+  {
+    "job_id": "job-123",
+    "techstack": ["Python", "React", "AWS", "Docker"],
+    "tags": ["English C1", "German B1", "Senior", "Requires 80% travel"],
+    "salary": "80k-100k"
+  }
+]
+
+REQUIREMENTS:
+- job_id: string matching the Job ID from the input above
+- techstack: array of technology/skill strings from job title and job description
+- tags: array of non-tech requirement strings such as communication languages, seniority, travel, standby, visa, soft skills
+- salary: string with salary info or null if not mentioned
+- NO markdown formatting in response
+- NO additional text or explanations"""
+    }
+
+    /**
+     * Builds the compatibility prompt template WITHOUT jobs data.
+     * Used to estimate base prompt token count for batching.
+     */
+    private fun buildCompatibilityPromptTemplate(jobSearch: JobSearchOut?): String {
+        // Build search criteria (same logic as buildCompatibilityPrompt)
+        val criteriaLines = mutableListOf<String>()
+        jobSearch?.let { search ->
+            if (search.jobTitle.isNotBlank()) {
+                criteriaLines.add("Position Title/Keywords: ${search.jobTitle}")
+            }
+            search.jobTypes?.let { types ->
+                if (types.isNotEmpty()) {
+                    criteriaLines.add("Job Types: ${types.joinToString(", ") { it.label }}")
+                }
+            }
+            search.remoteTypes?.let { types ->
+                if (types.isNotEmpty()) {
+                    criteriaLines.add("Remote Work Types: ${types.joinToString(", ") { it.label }}")
+                }
+            }
+            if (!search.location.isNullOrBlank()) {
+                criteriaLines.add("Location: ${search.location}")
+            }
+            if (!search.filterText.isNullOrBlank()) {
+                criteriaLines.add("Filter text: ${search.filterText}")
+            }
+        }
+
+        val searchCriteria = if (criteriaLines.isNotEmpty()) {
+            criteriaLines.joinToString("\n")
+        } else {
+            "No specific criteria provided"
+        }
+
+        return """You are a senior technical recruiter specializing in job matching. You act like a JSON-only API.
+
+Evaluate jobs against search criteria with focus on accuracy and relevance.
+
+SEARCH CRITERIA:
+$searchCriteria
+
+EVALUATION PRIORITY (in order of importance):
+1. TITLE & KEYWORDS MATCH: Job title similarity to provided keywords, seniority level match
+2. TECHSTACK & KEYWORDS MATCH: Job techstack similarity to provided keywords
+3. REMOTE WORK TYPE: Match between job's remote policy and required remote type
+4. JOB TYPE: Match between job type (full-time, contract, etc.) and requirements
+5. NUMBER OF APPLICANTS: Filter out jobs with more than 70 applicants
+6. DESCRIPTION KEYWORDS: How well job description matches search keywords
+7. SALARY: Match for salary if specified in requirements
+8. TAGS & TECHSTACK ALIGNING WITH FILTER TEXT: Tags (languages, seniority, travel, standby) and techstack should be compared to filter text, if some tags or techstack imply the job should be filtered out according to filter text, do so
+
+SCORING GUIDELINES:
+- 90-100: Perfect match (title + techstack + tags are not conflicting with filter text at all)
+- 70-89: Strong match (partial title/techstack match, tags are not conflicting with filter text at all)
+- 50-69: Good match (some title/techstack/description match, most of tags are not conflicting with filter text)
+- 30-49: Weak match (weak alignment overall)
+- 0-29: Poor/no match (no significant alignment)
+
+JOBS TO EVALUATE:
+[JOB DATA WILL BE INSERTED HERE]
+
+Return ONLY a valid JSON array with this exact structure (no markdown, no extra text):
+[
+  {
+    "job_id": "job-123",
+    "compatibility_score": 85,
+    "filter_reason": null
+  }
+]
+
+REQUIREMENTS:
+- job_id: string matching the Job ID from the input above
+- compatibility_score: integer 0-100 based on evaluation criteria
+- filter_reason: null if job passes, otherwise short explanation why filtered out
+- If compatibility_score is 0, filter_reason MUST explain why
+- NO markdown formatting in response
+- NO additional text or explanations"""
     }
 
     /**

@@ -44,17 +44,17 @@ class OpenRouterClient(
     
     private val objectMapper: ObjectMapper = jacksonObjectMapper()
 
-    suspend fun chat(request: LLMRequest): DeepSeekResponse {
+    suspend fun chat(request: LLMRequest): LLMResponse {
         return withContext(Dispatchers.IO) {
             try {
-                logger.info("🤖 OpenRouter API call started - Model: {}, Temperature: {}, MaxTokens: {}", 
+                logger.info("🤖 OpenRouter API call started - Model: {}, Temperature: {}, MaxTokens: {}",
                     request.model, request.temperature, request.maxTokens)
                 logger.info("🤖 OpenRouter API prompt length: {} characters", request.prompt.length)
                 logger.debug("🤖 OpenRouter API prompt: {}", request.prompt.take(500) + "...")
-                
+
                 if (openRouterApiKey.isNullOrBlank()) {
                     logger.error("❌ OpenRouter API key not configured")
-                    return@withContext DeepSeekResponse(
+                    return@withContext LLMResponse(
                         success = false,
                         errorMessage = "OpenRouter API key not configured"
                     )
@@ -63,17 +63,17 @@ class OpenRouterClient(
                 logger.info("🌐 Calling OpenRouter API...")
                 val response = callAPIWithRetry(request)
                 logger.info("✅ OpenRouter API response received - Status: {}", response.statusCode())
-                
+
                 when (response.statusCode()) {
                     200 -> {
                         val content = parseSuccessResponse(response.body())
                         logger.info("✅ OpenRouter API success - Response length: {} characters", content.length)
                         logger.debug("🤖 OpenRouter API response content: {}", content.take(500) + "...")
-                        DeepSeekResponse(success = true, content = content)
+                        LLMResponse(success = true, content = content)
                     }
                     400 -> {
                         logger.error("❌ OpenRouter API bad request (400): {}", response.body())
-                        DeepSeekResponse(
+                        LLMResponse(
                             success = false,
                             errorMessage = "Bad request: Check prompt format and parameters",
                             statusCode = 400
@@ -81,7 +81,7 @@ class OpenRouterClient(
                     }
                     401 -> {
                         logger.error("❌ OpenRouter API unauthorized (401): Invalid API key")
-                        DeepSeekResponse(
+                        LLMResponse(
                             success = false,
                             errorMessage = "Unauthorized: Invalid API key",
                             statusCode = 401
@@ -89,7 +89,7 @@ class OpenRouterClient(
                     }
                     429 -> {
                         logger.error("❌ OpenRouter API rate limit exceeded (429)")
-                        DeepSeekResponse(
+                        LLMResponse(
                             success = false,
                             errorMessage = "Rate limit exceeded: Try again later",
                             statusCode = 429
@@ -97,7 +97,7 @@ class OpenRouterClient(
                     }
                     500, 502, 503, 504 -> {
                         logger.error("❌ OpenRouter API server error ({}): {}", response.statusCode(), response.body())
-                        DeepSeekResponse(
+                        LLMResponse(
                             success = false,
                             errorMessage = "Server error: OpenRouter API is temporarily unavailable",
                             statusCode = response.statusCode()
@@ -105,7 +105,7 @@ class OpenRouterClient(
                     }
                     else -> {
                         logger.error("❌ OpenRouter API unexpected status ({}): {}", response.statusCode(), response.body())
-                        DeepSeekResponse(
+                        LLMResponse(
                             success = false,
                             errorMessage = "API request failed with status ${response.statusCode()}",
                             statusCode = response.statusCode()
@@ -114,7 +114,7 @@ class OpenRouterClient(
                 }
             } catch (e: Exception) {
                 logger.error("💥 Error calling OpenRouter API", e)
-                DeepSeekResponse(
+                LLMResponse(
                     success = false,
                     errorMessage = "Failed to call OpenRouter API: ${e.message}"
                 )
