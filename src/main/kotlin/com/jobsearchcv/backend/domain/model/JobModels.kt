@@ -34,6 +34,11 @@ data class JobSearchIn(
 }
 
 @Document(collection = "job_searches")
+@CompoundIndexes(
+    CompoundIndex(name = "user_approved_idx", def = "{'user_id': 1, 'is_approved': 1}"),
+    CompoundIndex(name = "user_subscribed_idx", def = "{'user_id': 1, 'is_subscribed': 1}"),
+    CompoundIndex(name = "user_approved_subscribed_idx", def = "{'user_id': 1, 'is_approved': 1, 'is_subscribed': 1}")
+)
 @Schema(description = "Saved job search configuration with metadata")
 data class JobSearchOut(
     @Id 
