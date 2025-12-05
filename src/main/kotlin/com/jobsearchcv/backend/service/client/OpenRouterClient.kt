@@ -186,8 +186,40 @@ class OpenRouterClient(
     }
 
     private fun parseSuccessResponse(responseBody: String): String {
-        val responseJson = objectMapper.readTree(responseBody)
-        return responseJson.path("choices").get(0).path("message").path("content").asText()
+        try {
+            val responseJson = objectMapper.readTree(responseBody)
+            val choices = responseJson.path("choices")
+
+            // Check if choices array exists and is not empty
+            if (choices.isMissingNode || !choices.isArray || choices.size() == 0) {
+                logger.error("❌ OpenRouter API response missing or empty 'choices' array. Response: {}", responseBody)
+                throw IllegalStateException("OpenRouter API response missing or empty 'choices' array")
+            }
+
+            val firstChoice = choices.get(0)
+            if (firstChoice == null) {
+                logger.error("❌ OpenRouter API response first choice is null. Response: {}", responseBody)
+                throw IllegalStateException("OpenRouter API response first choice is null")
+            }
+
+            val message = firstChoice.path("message")
+            if (message.isMissingNode) {
+                logger.error("❌ OpenRouter API response missing 'message' field. Response: {}", responseBody)
+                throw IllegalStateException("OpenRouter API response missing 'message' field")
+            }
+
+            val content = message.path("content")
+            if (content.isMissingNode) {
+                logger.error("❌ OpenRouter API response missing 'content' field. Response: {}", responseBody)
+                throw IllegalStateException("OpenRouter API response missing 'content' field")
+            }
+
+            return content.asText()
+        } catch (e: Exception) {
+            logger.error("❌ Failed to parse OpenRouter API response: {}", e.message, e)
+            logger.error("❌ Response body was: {}", responseBody)
+            throw e
+        }
     }
 
     fun isAvailable(): Boolean {

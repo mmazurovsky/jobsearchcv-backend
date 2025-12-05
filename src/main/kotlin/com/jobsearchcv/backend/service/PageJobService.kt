@@ -18,10 +18,11 @@ class PageJobService(
      * Get page jobs for a user from the last 1440 minutes (24 hours)
      * @param userId User ID to fetch jobs for
      * @param minutesBack Number of minutes to look back (default: 1440 = 24 hours)
+     * @param seniority Optional seniority level to filter by (e.g., "entry-level", "mid-level", "senior")
      * @return List of jobs sorted by sent_at descending
      */
-    fun getPageJobsForUser(userId: String, minutesBack: Long = 1440): List<PageJobResponse> {
-        logger.info("Fetching page jobs for userId=$userId from last $minutesBack minutes")
+    fun getPageJobsForUser(userId: String, minutesBack: Long = 1440, seniority: String? = null): List<PageJobResponse> {
+        logger.info("Fetching page jobs for userId=$userId from last $minutesBack minutes, seniority=$seniority")
 
         // 1. Get sent jobs from last N minutes
         val sentAtAfter = OffsetDateTime.now().minusMinutes(minutesBack)
@@ -46,10 +47,28 @@ class PageJobService(
         val processedJobs = processedJobRepository.findByInternalIds(internalIds)
         logger.info("Found ${processedJobs.size} processed jobs for ${internalIds.size} internal IDs")
 
-        // 4. Create a map for quick lookup: internalId -> ProcessedJobData
-        val processedJobMap = processedJobs.associateBy { it.internalId }
+        // 4. Filter by seniority if provided
+        val filteredJobs = if (seniority != null) {
+            // Normalize seniority parameter for comparison (e.g., "entry-level" → "entrylevel")
+            val normalizedSeniority = seniority.lowercase().replace(Regex("[-_ ]"), "")
 
-        // 5. Build response preserving sentAt order (already sorted by sent_at desc)
+            processedJobs.filter { job ->
+                job.tags.any { tag ->
+                    // Normalize tag for comparison (handles "entry-level", "entry level", "entry_level", "Entry Level", etc.)
+                    val normalizedTag = tag.lowercase().replace(Regex("[-_ ]"), "")
+                    normalizedTag.contains(normalizedSeniority)
+                }
+            }.also { filtered ->
+                logger.info("Filtered to ${filtered.size} jobs matching seniority='$seniority' (normalized: '$normalizedSeniority')")
+            }
+        } else {
+            processedJobs
+        }
+
+        // 5. Create a map for quick lookup: internalId -> ProcessedJobData
+        val processedJobMap = filteredJobs.associateBy { it.internalId }
+
+        // 6. Build response preserving sentAt order (already sorted by sent_at desc)
         val responses = sentJobs.mapNotNull { sentJob ->
             val internalId = sentJob.internalId ?: return@mapNotNull null
             val processedJob = processedJobMap[internalId] ?: return@mapNotNull null
