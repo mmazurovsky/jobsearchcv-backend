@@ -1,0 +1,2568 @@
+version: "1.0"
+technologies:
+  # ============================================
+  # PROGRAMMING LANGUAGES
+  # ============================================
+
+  - id: java
+    name: Java
+    aliases: ["java", "jdk", "java-se", "java-ee", "jakarta-ee", "j2ee"]
+    category: language
+    subcategory: backend
+    primary: true
+    related:
+      - id: kotlin
+        similarity: 0.85
+        reason: "JVM language, interoperable"
+      - id: scala
+        similarity: 0.75
+        reason: "JVM language"
+      - id: groovy
+        similarity: 0.70
+        reason: "JVM language"
+      - id: csharp
+        similarity: 0.60
+        reason: "Similar OOP paradigm"
+
+  - id: python
+    name: Python
+    aliases: ["python", "python3", "py", "cpython", "pypy", "python2"]
+    category: language
+    subcategory: backend
+    primary: true
+    related:
+      - id: ruby
+        similarity: 0.75
+        reason: "Dynamic typing, similar syntax"
+      - id: javascript
+        similarity: 0.65
+        reason: "Scripting languages"
+      - id: go
+        similarity: 0.50
+        reason: "Modern backend"
+
+  - id: javascript
+    name: JavaScript
+    aliases: ["javascript", "js", "es6", "es2015", "es2020", "ecmascript", "es5"]
+    category: language
+    subcategory: frontend
+    primary: true
+    related:
+      - id: typescript
+        similarity: 0.95
+        reason: "TypeScript is JavaScript superset"
+      - id: coffeescript
+        similarity: 0.70
+        reason: "Compiles to JavaScript"
+
+  - id: typescript
+    name: TypeScript
+    aliases: ["typescript", "ts"]
+    category: language
+    subcategory: frontend
+    primary: true
+    related:
+      - id: javascript
+        similarity: 0.95
+        reason: "Superset of JavaScript"
+      - id: flow
+        similarity: 0.75
+        reason: "Type checking for JS"
+
+  - id: csharp
+    name: "C#"
+    aliases: ["c#", "csharp", "c-sharp", "cs"]
+    category: language
+    subcategory: backend
+    primary: true
+    related:
+      - id: java
+        similarity: 0.60
+        reason: "Similar OOP paradigm"
+      - id: fsharp
+        similarity: 0.70
+        reason: ".NET ecosystem"
+
+  - id: go
+    name: Go
+    aliases: ["go", "golang"]
+    category: language
+    subcategory: backend
+    primary: true
+    related:
+      - id: rust
+        similarity: 0.65
+        reason: "Modern systems programming"
+      - id: python
+        similarity: 0.50
+        reason: "Backend development"
+
+  - id: rust
+    name: Rust
+    aliases: ["rust", "rustlang"]
+    category: language
+    subcategory: systems
+    primary: true
+    related:
+      - id: cpp
+        similarity: 0.70
+        reason: "Systems programming"
+      - id: go
+        similarity: 0.65
+        reason: "Modern systems languages"
+
+  - id: php
+    name: PHP
+    aliases: ["php", "php7", "php8", "php5"]
+    category: language
+    subcategory: backend
+    primary: true
+    related:
+      - id: python
+        similarity: 0.60
+        reason: "Web backend"
+      - id: ruby
+        similarity: 0.65
+        reason: "Dynamic web backend"
+
+  - id: ruby
+    name: Ruby
+    aliases: ["ruby"]
+    category: language
+    subcategory: backend
+    primary: true
+    related:
+      - id: python
+        similarity: 0.75
+        reason: "Dynamic typing"
+      - id: php
+        similarity: 0.65
+        reason: "Web backend"
+
+  - id: kotlin
+    name: Kotlin
+    aliases: ["kotlin"]
+    category: language
+    subcategory: backend
+    primary: true
+    related:
+      - id: java
+        similarity: 0.85
+        reason: "JVM language"
+      - id: scala
+        similarity: 0.70
+        reason: "JVM language"
+      - id: swift
+        similarity: 0.60
+        reason: "Modern syntax"
+
+  - id: swift
+    name: Swift
+    aliases: ["swift"]
+    category: language
+    subcategory: mobile
+    primary: true
+    related:
+      - id: objective-c
+        similarity: 0.70
+        reason: "iOS development"
+      - id: kotlin
+        similarity: 0.60
+        reason: "Modern mobile"
+
+  - id: cpp
+    name: "C++"
+    aliases: ["c++", "cpp", "cplusplus", "cxx"]
+    category: language
+    subcategory: systems
+    primary: true
+    related:
+      - id: c
+        similarity: 0.85
+        reason: "C++ extends C"
+      - id: rust
+        similarity: 0.70
+        reason: "Systems programming"
+
+  - id: c
+    name: C
+    aliases: ["c", "c-lang"]
+    category: language
+    subcategory: systems
+    primary: true
+    related:
+      - id: cpp
+        similarity: 0.85
+        reason: "C++ extends C"
+
+  - id: scala
+    name: Scala
+    aliases: ["scala"]
+    category: language
+    subcategory: backend
+    primary: true
+    related:
+      - id: java
+        similarity: 0.75
+        reason: "JVM language"
+      - id: kotlin
+        similarity: 0.70
+        reason: "JVM language"
+
+  - id: r
+    name: R
+    aliases: ["r", "r-lang"]
+    category: language
+    subcategory: analytics
+    primary: true
+    related:
+      - id: python
+        similarity: 0.70
+        reason: "Data analysis"
+
+  - id: objective-c
+    name: Objective-C
+    aliases: ["objective-c", "objc", "objectivec"]
+    category: language
+    subcategory: mobile
+    primary: true
+    related:
+      - id: swift
+        similarity: 0.70
+        reason: "iOS development"
+
+  - id: dart
+    name: Dart
+    aliases: ["dart"]
+    category: language
+    subcategory: mobile
+    primary: true
+    related:
+      - id: javascript
+        similarity: 0.65
+        reason: "Similar syntax"
+
+  - id: elixir
+    name: Elixir
+    aliases: ["elixir"]
+    category: language
+    subcategory: backend
+    primary: true
+    related:
+      - id: erlang
+        similarity: 0.85
+        reason: "Runs on BEAM VM"
+
+  - id: erlang
+    name: Erlang
+    aliases: ["erlang"]
+    category: language
+    subcategory: backend
+    primary: true
+    related:
+      - id: elixir
+        similarity: 0.85
+        reason: "Same VM"
+
+  - id: perl
+    name: Perl
+    aliases: ["perl"]
+    category: language
+    subcategory: scripting
+    primary: true
+    related:
+      - id: python
+        similarity: 0.60
+        reason: "Scripting"
+
+  - id: lua
+    name: Lua
+    aliases: ["lua"]
+    category: language
+    subcategory: scripting
+    primary: true
+    related: []
+
+  - id: haskell
+    name: Haskell
+    aliases: ["haskell"]
+    category: language
+    subcategory: functional
+    primary: true
+    related:
+      - id: scala
+        similarity: 0.60
+        reason: "Functional programming"
+
+  - id: clojure
+    name: Clojure
+    aliases: ["clojure"]
+    category: language
+    subcategory: functional
+    primary: true
+    related:
+      - id: scala
+        similarity: 0.65
+        reason: "Functional JVM"
+
+  - id: fsharp
+    name: "F#"
+    aliases: ["f#", "fsharp", "f-sharp"]
+    category: language
+    subcategory: functional
+    primary: true
+    related:
+      - id: csharp
+        similarity: 0.70
+        reason: ".NET ecosystem"
+
+  - id: groovy
+    name: Groovy
+    aliases: ["groovy"]
+    category: language
+    subcategory: backend
+    primary: true
+    related:
+      - id: java
+        similarity: 0.70
+        reason: "JVM language"
+
+  - id: coffeescript
+    name: CoffeeScript
+    aliases: ["coffeescript", "coffee"]
+    category: language
+    subcategory: frontend
+    primary: true
+    related:
+      - id: javascript
+        similarity: 0.70
+        reason: "Compiles to JS"
+
+  - id: shell
+    name: Shell
+    aliases: ["bash", "shell", "sh", "zsh", "shell-scripting"]
+    category: language
+    subcategory: scripting
+    primary: true
+    related: []
+
+  - id: powershell
+    name: PowerShell
+    aliases: ["powershell", "pwsh"]
+    category: language
+    subcategory: scripting
+    primary: true
+    related:
+      - id: shell
+        similarity: 0.65
+        reason: "Scripting"
+
+  # ============================================
+  # WEB FRAMEWORKS - BACKEND
+  # ============================================
+
+  - id: spring
+    name: Spring Framework
+    aliases: ["spring", "spring-framework", "spring-boot", "springboot", "spring-mvc"]
+    category: framework
+    subcategory: backend
+    primary: false
+    parent_technology: java
+    related:
+      - id: micronaut
+        similarity: 0.75
+        reason: "Modern JVM framework"
+      - id: quarkus
+        similarity: 0.75
+        reason: "Modern JVM framework"
+
+  - id: django
+    name: Django
+    aliases: ["django"]
+    category: framework
+    subcategory: backend
+    primary: false
+    parent_technology: python
+    related:
+      - id: flask
+        similarity: 0.70
+        reason: "Python web frameworks"
+      - id: fastapi
+        similarity: 0.65
+        reason: "Python web frameworks"
+
+  - id: flask
+    name: Flask
+    aliases: ["flask"]
+    category: framework
+    subcategory: backend
+    primary: false
+    parent_technology: python
+    related:
+      - id: django
+        similarity: 0.70
+        reason: "Python web frameworks"
+      - id: fastapi
+        similarity: 0.75
+        reason: "Python micro frameworks"
+
+  - id: fastapi
+    name: FastAPI
+    aliases: ["fastapi", "fast-api"]
+    category: framework
+    subcategory: backend
+    primary: false
+    parent_technology: python
+    related:
+      - id: flask
+        similarity: 0.75
+        reason: "Python async frameworks"
+      - id: django
+        similarity: 0.65
+        reason: "Python web frameworks"
+
+  - id: express
+    name: Express.js
+    aliases: ["express", "expressjs", "express.js"]
+    category: framework
+    subcategory: backend
+    primary: false
+    parent_technology: javascript
+    related:
+      - id: nestjs
+        similarity: 0.70
+        reason: "Node.js frameworks"
+      - id: koa
+        similarity: 0.80
+        reason: "Node.js micro frameworks"
+
+  - id: nestjs
+    name: NestJS
+    aliases: ["nest", "nestjs", "nest.js"]
+    category: framework
+    subcategory: backend
+    primary: false
+    parent_technology: typescript
+    related:
+      - id: express
+        similarity: 0.70
+        reason: "Node.js frameworks"
+      - id: angular
+        similarity: 0.60
+        reason: "Similar architecture"
+
+  - id: rails
+    name: Ruby on Rails
+    aliases: ["rails", "ruby-on-rails", "ror", "rubyonrails"]
+    category: framework
+    subcategory: backend
+    primary: false
+    parent_technology: ruby
+    related:
+      - id: django
+        similarity: 0.70
+        reason: "Full-stack MVC"
+      - id: laravel
+        similarity: 0.75
+        reason: "Full-stack MVC"
+
+  - id: laravel
+    name: Laravel
+    aliases: ["laravel"]
+    category: framework
+    subcategory: backend
+    primary: false
+    parent_technology: php
+    related:
+      - id: symfony
+        similarity: 0.75
+        reason: "PHP frameworks"
+      - id: rails
+        similarity: 0.75
+        reason: "Full-stack MVC"
+
+  - id: dotnet
+    name: .NET
+    aliases: [".net", "dotnet", ".net-core", "dotnet-core", "asp.net", "aspnet", "asp.net-core", "aspnet-core"]
+    category: framework
+    subcategory: backend
+    primary: false
+    parent_technology: csharp
+    related:
+      - id: spring
+        similarity: 0.60
+        reason: "Enterprise backend"
+
+  - id: symfony
+    name: Symfony
+    aliases: ["symfony"]
+    category: framework
+    subcategory: backend
+    primary: false
+    parent_technology: php
+    related:
+      - id: laravel
+        similarity: 0.75
+        reason: "PHP frameworks"
+
+  - id: koa
+    name: Koa
+    aliases: ["koa", "koajs", "koa.js"]
+    category: framework
+    subcategory: backend
+    primary: false
+    parent_technology: javascript
+    related:
+      - id: express
+        similarity: 0.80
+        reason: "Node.js frameworks"
+
+  - id: micronaut
+    name: Micronaut
+    aliases: ["micronaut"]
+    category: framework
+    subcategory: backend
+    primary: false
+    parent_technology: java
+    related:
+      - id: spring
+        similarity: 0.75
+        reason: "JVM frameworks"
+      - id: quarkus
+        similarity: 0.80
+        reason: "Modern JVM"
+
+  - id: quarkus
+    name: Quarkus
+    aliases: ["quarkus"]
+    category: framework
+    subcategory: backend
+    primary: false
+    parent_technology: java
+    related:
+      - id: spring
+        similarity: 0.75
+        reason: "JVM frameworks"
+      - id: micronaut
+        similarity: 0.80
+        reason: "Modern JVM"
+
+  - id: phoenix
+    name: Phoenix
+    aliases: ["phoenix", "phoenix-framework"]
+    category: framework
+    subcategory: backend
+    primary: false
+    parent_technology: elixir
+    related:
+      - id: rails
+        similarity: 0.65
+        reason: "MVC frameworks"
+
+  - id: sinatra
+    name: Sinatra
+    aliases: ["sinatra"]
+    category: framework
+    subcategory: backend
+    primary: false
+    parent_technology: ruby
+    related:
+      - id: flask
+        similarity: 0.75
+        reason: "Micro frameworks"
+
+  # ============================================
+  # FRONTEND FRAMEWORKS
+  # ============================================
+
+  - id: react
+    name: React
+    aliases: ["react", "reactjs", "react.js", "react-js"]
+    category: framework
+    subcategory: frontend
+    primary: false
+    parent_technology: javascript
+    related:
+      - id: vue
+        similarity: 0.75
+        reason: "Component-based UI"
+      - id: angular
+        similarity: 0.70
+        reason: "Frontend SPA"
+      - id: svelte
+        similarity: 0.65
+        reason: "Modern UI"
+
+  - id: vue
+    name: Vue.js
+    aliases: ["vue", "vuejs", "vue.js", "vue3", "vue2"]
+    category: framework
+    subcategory: frontend
+    primary: false
+    parent_technology: javascript
+    related:
+      - id: react
+        similarity: 0.75
+        reason: "Component-based UI"
+      - id: angular
+        similarity: 0.70
+        reason: "Frontend SPA"
+
+  - id: angular
+    name: Angular
+    aliases: ["angular", "angularjs", "angular2", "angular2+"]
+    category: framework
+    subcategory: frontend
+    primary: false
+    parent_technology: typescript
+    related:
+      - id: react
+        similarity: 0.70
+        reason: "Frontend SPA"
+      - id: vue
+        similarity: 0.70
+        reason: "Frontend SPA"
+
+  - id: svelte
+    name: Svelte
+    aliases: ["svelte", "sveltekit"]
+    category: framework
+    subcategory: frontend
+    primary: false
+    parent_technology: javascript
+    related:
+      - id: react
+        similarity: 0.65
+        reason: "Modern UI"
+      - id: vue
+        similarity: 0.70
+        reason: "Modern UI"
+
+  - id: nextjs
+    name: Next.js
+    aliases: ["next", "nextjs", "next.js"]
+    category: framework
+    subcategory: frontend
+    primary: false
+    parent_technology: react
+    related:
+      - id: gatsby
+        similarity: 0.75
+        reason: "React frameworks"
+      - id: nuxt
+        similarity: 0.70
+        reason: "SSR frameworks"
+
+  - id: nuxt
+    name: Nuxt.js
+    aliases: ["nuxt", "nuxtjs", "nuxt.js"]
+    category: framework
+    subcategory: frontend
+    primary: false
+    parent_technology: vue
+    related:
+      - id: nextjs
+        similarity: 0.70
+        reason: "SSR frameworks"
+
+  - id: gatsby
+    name: Gatsby
+    aliases: ["gatsby", "gatsbyjs"]
+    category: framework
+    subcategory: frontend
+    primary: false
+    parent_technology: react
+    related:
+      - id: nextjs
+        similarity: 0.75
+        reason: "React frameworks"
+
+  - id: ember
+    name: Ember.js
+    aliases: ["ember", "emberjs", "ember.js"]
+    category: framework
+    subcategory: frontend
+    primary: false
+    parent_technology: javascript
+    related:
+      - id: angular
+        similarity: 0.65
+        reason: "Frontend frameworks"
+
+  - id: backbone
+    name: Backbone.js
+    aliases: ["backbone", "backbonejs", "backbone.js"]
+    category: framework
+    subcategory: frontend
+    primary: false
+    parent_technology: javascript
+    related:
+      - id: angular
+        similarity: 0.50
+        reason: "Frontend frameworks"
+
+  # ============================================
+  # DATABASES - RELATIONAL
+  # ============================================
+
+  - id: postgresql
+    name: PostgreSQL
+    aliases: ["postgresql", "postgres", "psql", "pg"]
+    category: database
+    subcategory: relational
+    primary: false
+    related:
+      - id: mysql
+        similarity: 0.85
+        reason: "SQL relational databases"
+      - id: mariadb
+        similarity: 0.80
+        reason: "SQL databases"
+      - id: oracle
+        similarity: 0.70
+        reason: "Enterprise SQL"
+
+  - id: mysql
+    name: MySQL
+    aliases: ["mysql"]
+    category: database
+    subcategory: relational
+    primary: false
+    related:
+      - id: postgresql
+        similarity: 0.85
+        reason: "SQL databases"
+      - id: mariadb
+        similarity: 0.95
+        reason: "MariaDB is MySQL fork"
+
+  - id: mariadb
+    name: MariaDB
+    aliases: ["mariadb", "maria-db"]
+    category: database
+    subcategory: relational
+    primary: false
+    related:
+      - id: mysql
+        similarity: 0.95
+        reason: "MySQL fork"
+      - id: postgresql
+        similarity: 0.80
+        reason: "SQL databases"
+
+  - id: oracle
+    name: Oracle Database
+    aliases: ["oracle", "oracle-db", "oracle-database"]
+    category: database
+    subcategory: relational
+    primary: false
+    related:
+      - id: postgresql
+        similarity: 0.70
+        reason: "Enterprise SQL"
+      - id: mssql
+        similarity: 0.75
+        reason: "Enterprise SQL"
+
+  - id: mssql
+    name: Microsoft SQL Server
+    aliases: ["mssql", "ms-sql", "sql-server", "sqlserver"]
+    category: database
+    subcategory: relational
+    primary: false
+    related:
+      - id: oracle
+        similarity: 0.75
+        reason: "Enterprise SQL"
+      - id: postgresql
+        similarity: 0.70
+        reason: "SQL databases"
+
+  - id: sqlite
+    name: SQLite
+    aliases: ["sqlite", "sqlite3"]
+    category: database
+    subcategory: relational
+    primary: false
+    related:
+      - id: postgresql
+        similarity: 0.60
+        reason: "SQL databases"
+
+  # ============================================
+  # DATABASES - NOSQL
+  # ============================================
+
+  - id: mongodb
+    name: MongoDB
+    aliases: ["mongodb", "mongo"]
+    category: database
+    subcategory: nosql
+    primary: false
+    related:
+      - id: couchdb
+        similarity: 0.75
+        reason: "Document databases"
+      - id: dynamodb
+        similarity: 0.65
+        reason: "NoSQL databases"
+
+  - id: redis
+    name: Redis
+    aliases: ["redis"]
+    category: database
+    subcategory: cache
+    primary: false
+    related:
+      - id: memcached
+        similarity: 0.80
+        reason: "In-memory caching"
+      - id: elasticsearch
+        similarity: 0.40
+        reason: "Fast data access"
+
+  - id: elasticsearch
+    name: Elasticsearch
+    aliases: ["elasticsearch", "elastic-search", "elastic"]
+    category: database
+    subcategory: search
+    primary: false
+    related:
+      - id: solr
+        similarity: 0.80
+        reason: "Search engines"
+      - id: opensearch
+        similarity: 0.95
+        reason: "Elasticsearch fork"
+
+  - id: cassandra
+    name: Cassandra
+    aliases: ["cassandra", "apache-cassandra"]
+    category: database
+    subcategory: nosql
+    primary: false
+    related:
+      - id: mongodb
+        similarity: 0.65
+        reason: "NoSQL databases"
+
+  - id: dynamodb
+    name: DynamoDB
+    aliases: ["dynamodb", "dynamo-db"]
+    category: database
+    subcategory: nosql
+    primary: false
+    related:
+      - id: mongodb
+        similarity: 0.65
+        reason: "NoSQL databases"
+
+  - id: couchdb
+    name: CouchDB
+    aliases: ["couchdb", "couch-db"]
+    category: database
+    subcategory: nosql
+    primary: false
+    related:
+      - id: mongodb
+        similarity: 0.75
+        reason: "Document databases"
+
+  - id: memcached
+    name: Memcached
+    aliases: ["memcached"]
+    category: database
+    subcategory: cache
+    primary: false
+    related:
+      - id: redis
+        similarity: 0.80
+        reason: "In-memory caching"
+
+  - id: solr
+    name: Apache Solr
+    aliases: ["solr", "apache-solr"]
+    category: database
+    subcategory: search
+    primary: false
+    related:
+      - id: elasticsearch
+        similarity: 0.80
+        reason: "Search engines"
+
+  - id: opensearch
+    name: OpenSearch
+    aliases: ["opensearch"]
+    category: database
+    subcategory: search
+    primary: false
+    related:
+      - id: elasticsearch
+        similarity: 0.95
+        reason: "Elasticsearch fork"
+
+  - id: neo4j
+    name: Neo4j
+    aliases: ["neo4j"]
+    category: database
+    subcategory: graph
+    primary: false
+    related: []
+
+  # ============================================
+  # CLOUD PLATFORMS
+  # ============================================
+
+  - id: aws
+    name: Amazon Web Services
+    aliases: ["aws", "amazon-web-services"]
+    category: cloud
+    subcategory: platform
+    primary: false
+    related:
+      - id: azure
+        similarity: 0.80
+        reason: "Major cloud platforms"
+      - id: gcp
+        similarity: 0.80
+        reason: "Major cloud platforms"
+
+  - id: azure
+    name: Microsoft Azure
+    aliases: ["azure", "microsoft-azure"]
+    category: cloud
+    subcategory: platform
+    primary: false
+    related:
+      - id: aws
+        similarity: 0.80
+        reason: "Major cloud platforms"
+      - id: gcp
+        similarity: 0.80
+        reason: "Major cloud platforms"
+
+  - id: gcp
+    name: Google Cloud Platform
+    aliases: ["gcp", "google-cloud", "google-cloud-platform"]
+    category: cloud
+    subcategory: platform
+    primary: false
+    related:
+      - id: aws
+        similarity: 0.80
+        reason: "Major cloud platforms"
+      - id: azure
+        similarity: 0.80
+        reason: "Major cloud platforms"
+
+  - id: lambda
+    name: AWS Lambda
+    aliases: ["lambda", "aws-lambda"]
+    category: cloud
+    subcategory: serverless
+    primary: false
+    parent_technology: aws
+    related:
+      - id: azure-functions
+        similarity: 0.85
+        reason: "Serverless functions"
+
+  - id: s3
+    name: AWS S3
+    aliases: ["s3", "aws-s3", "simple-storage-service"]
+    category: cloud
+    subcategory: storage
+    primary: false
+    parent_technology: aws
+    related:
+      - id: azure-blob
+        similarity: 0.85
+        reason: "Cloud storage"
+
+  - id: ec2
+    name: AWS EC2
+    aliases: ["ec2", "aws-ec2"]
+    category: cloud
+    subcategory: compute
+    primary: false
+    parent_technology: aws
+    related:
+      - id: azure-vms
+        similarity: 0.85
+        reason: "Virtual machines"
+
+  - id: azure-functions
+    name: Azure Functions
+    aliases: ["azure-functions"]
+    category: cloud
+    subcategory: serverless
+    primary: false
+    parent_technology: azure
+    related:
+      - id: lambda
+        similarity: 0.85
+        reason: "Serverless functions"
+
+  - id: azure-blob
+    name: Azure Blob Storage
+    aliases: ["azure-blob", "blob-storage"]
+    category: cloud
+    subcategory: storage
+    primary: false
+    parent_technology: azure
+    related:
+      - id: s3
+        similarity: 0.85
+        reason: "Cloud storage"
+
+  - id: azure-vms
+    name: Azure Virtual Machines
+    aliases: ["azure-vms", "azure-virtual-machines"]
+    category: cloud
+    subcategory: compute
+    primary: false
+    parent_technology: azure
+    related:
+      - id: ec2
+        similarity: 0.85
+        reason: "Virtual machines"
+
+  - id: heroku
+    name: Heroku
+    aliases: ["heroku"]
+    category: cloud
+    subcategory: paas
+    primary: false
+    related:
+      - id: aws
+        similarity: 0.60
+        reason: "Cloud platforms"
+
+  - id: digitalocean
+    name: DigitalOcean
+    aliases: ["digitalocean", "digital-ocean"]
+    category: cloud
+    subcategory: platform
+    primary: false
+    related:
+      - id: aws
+        similarity: 0.65
+        reason: "Cloud platforms"
+
+  # ============================================
+  # DEVOPS & CONTAINERIZATION
+  # ============================================
+
+  - id: docker
+    name: Docker
+    aliases: ["docker", "docker-compose", "dockerfile"]
+    category: devops
+    subcategory: containerization
+    primary: false
+    related:
+      - id: kubernetes
+        similarity: 0.75
+        reason: "Container ecosystem"
+      - id: podman
+        similarity: 0.85
+        reason: "Container runtimes"
+
+  - id: kubernetes
+    name: Kubernetes
+    aliases: ["kubernetes", "k8s"]
+    category: devops
+    subcategory: orchestration
+    primary: false
+    related:
+      - id: docker
+        similarity: 0.75
+        reason: "Container ecosystem"
+      - id: openshift
+        similarity: 0.80
+        reason: "Kubernetes platforms"
+
+  - id: jenkins
+    name: Jenkins
+    aliases: ["jenkins"]
+    category: devops
+    subcategory: ci-cd
+    primary: false
+    related:
+      - id: github-actions
+        similarity: 0.75
+        reason: "CI/CD tools"
+      - id: gitlab-ci
+        similarity: 0.80
+        reason: "CI/CD tools"
+
+  - id: terraform
+    name: Terraform
+    aliases: ["terraform"]
+    category: devops
+    subcategory: iac
+    primary: false
+    related:
+      - id: ansible
+        similarity: 0.65
+        reason: "Infrastructure automation"
+      - id: cloudformation
+        similarity: 0.70
+        reason: "Infrastructure as Code"
+
+  - id: ansible
+    name: Ansible
+    aliases: ["ansible"]
+    category: devops
+    subcategory: iac
+    primary: false
+    related:
+      - id: terraform
+        similarity: 0.65
+        reason: "Infrastructure automation"
+      - id: puppet
+        similarity: 0.75
+        reason: "Configuration management"
+
+  - id: github-actions
+    name: GitHub Actions
+    aliases: ["github-actions", "githubactions"]
+    category: devops
+    subcategory: ci-cd
+    primary: false
+    related:
+      - id: jenkins
+        similarity: 0.75
+        reason: "CI/CD tools"
+      - id: gitlab-ci
+        similarity: 0.80
+        reason: "CI/CD tools"
+
+  - id: gitlab-ci
+    name: GitLab CI
+    aliases: ["gitlab-ci", "gitlab-cicd"]
+    category: devops
+    subcategory: ci-cd
+    primary: false
+    related:
+      - id: jenkins
+        similarity: 0.80
+        reason: "CI/CD tools"
+      - id: github-actions
+        similarity: 0.80
+        reason: "CI/CD tools"
+
+  - id: circleci
+    name: CircleCI
+    aliases: ["circleci", "circle-ci"]
+    category: devops
+    subcategory: ci-cd
+    primary: false
+    related:
+      - id: jenkins
+        similarity: 0.75
+        reason: "CI/CD tools"
+
+  - id: travis-ci
+    name: Travis CI
+    aliases: ["travis-ci", "travis"]
+    category: devops
+    subcategory: ci-cd
+    primary: false
+    related:
+      - id: jenkins
+        similarity: 0.75
+        reason: "CI/CD tools"
+
+  - id: podman
+    name: Podman
+    aliases: ["podman"]
+    category: devops
+    subcategory: containerization
+    primary: false
+    related:
+      - id: docker
+        similarity: 0.85
+        reason: "Container runtimes"
+
+  - id: openshift
+    name: OpenShift
+    aliases: ["openshift"]
+    category: devops
+    subcategory: orchestration
+    primary: false
+    related:
+      - id: kubernetes
+        similarity: 0.80
+        reason: "Kubernetes platforms"
+
+  - id: puppet
+    name: Puppet
+    aliases: ["puppet"]
+    category: devops
+    subcategory: iac
+    primary: false
+    related:
+      - id: ansible
+        similarity: 0.75
+        reason: "Configuration management"
+
+  - id: chef
+    name: Chef
+    aliases: ["chef"]
+    category: devops
+    subcategory: iac
+    primary: false
+    related:
+      - id: ansible
+        similarity: 0.75
+        reason: "Configuration management"
+
+  - id: cloudformation
+    name: CloudFormation
+    aliases: ["cloudformation", "aws-cloudformation"]
+    category: devops
+    subcategory: iac
+    primary: false
+    parent_technology: aws
+    related:
+      - id: terraform
+        similarity: 0.70
+        reason: "Infrastructure as Code"
+
+  # ============================================
+  # MOBILE DEVELOPMENT
+  # ============================================
+
+  - id: android
+    name: Android
+    aliases: ["android"]
+    category: mobile
+    subcategory: platform
+    primary: false
+    related:
+      - id: ios
+        similarity: 0.65
+        reason: "Mobile platforms"
+
+  - id: ios
+    name: iOS
+    aliases: ["ios"]
+    category: mobile
+    subcategory: platform
+    primary: false
+    related:
+      - id: android
+        similarity: 0.65
+        reason: "Mobile platforms"
+
+  - id: flutter
+    name: Flutter
+    aliases: ["flutter"]
+    category: mobile
+    subcategory: framework
+    primary: false
+    parent_technology: dart
+    related:
+      - id: react-native
+        similarity: 0.75
+        reason: "Cross-platform mobile"
+
+  - id: react-native
+    name: React Native
+    aliases: ["react-native", "reactnative"]
+    category: mobile
+    subcategory: framework
+    primary: false
+    parent_technology: javascript
+    related:
+      - id: flutter
+        similarity: 0.75
+        reason: "Cross-platform mobile"
+      - id: react
+        similarity: 0.80
+        reason: "React ecosystem"
+
+  - id: xamarin
+    name: Xamarin
+    aliases: ["xamarin"]
+    category: mobile
+    subcategory: framework
+    primary: false
+    parent_technology: csharp
+    related:
+      - id: flutter
+        similarity: 0.65
+        reason: "Cross-platform mobile"
+
+  - id: ionic
+    name: Ionic
+    aliases: ["ionic"]
+    category: mobile
+    subcategory: framework
+    primary: false
+    parent_technology: javascript
+    related:
+      - id: react-native
+        similarity: 0.65
+        reason: "Cross-platform mobile"
+
+  # ============================================
+  # DATA ENGINEERING & BIG DATA
+  # ============================================
+
+  - id: spark
+    name: Apache Spark
+    aliases: ["spark", "apache-spark", "pyspark"]
+    category: data-engineering
+    subcategory: processing
+    primary: false
+    related:
+      - id: hadoop
+        similarity: 0.80
+        reason: "Big data processing"
+
+  - id: hadoop
+    name: Hadoop
+    aliases: ["hadoop", "apache-hadoop"]
+    category: data-engineering
+    subcategory: processing
+    primary: false
+    related:
+      - id: spark
+        similarity: 0.80
+        reason: "Big data processing"
+
+  - id: kafka
+    name: Apache Kafka
+    aliases: ["kafka", "apache-kafka"]
+    category: messaging
+    subcategory: streaming
+    primary: false
+    related:
+      - id: rabbitmq
+        similarity: 0.70
+        reason: "Message brokers"
+      - id: pulsar
+        similarity: 0.75
+        reason: "Streaming platforms"
+
+  - id: airflow
+    name: Apache Airflow
+    aliases: ["airflow", "apache-airflow"]
+    category: data-engineering
+    subcategory: orchestration
+    primary: false
+    related:
+      - id: prefect
+        similarity: 0.75
+        reason: "Workflow orchestration"
+
+  - id: dbt
+    name: dbt
+    aliases: ["dbt", "data-build-tool"]
+    category: data-engineering
+    subcategory: transformation
+    primary: false
+    related: []
+
+  - id: snowflake
+    name: Snowflake
+    aliases: ["snowflake"]
+    category: database
+    subcategory: data-warehouse
+    primary: false
+    related:
+      - id: bigquery
+        similarity: 0.80
+        reason: "Cloud data warehouses"
+
+  - id: bigquery
+    name: BigQuery
+    aliases: ["bigquery", "big-query"]
+    category: database
+    subcategory: data-warehouse
+    primary: false
+    parent_technology: gcp
+    related:
+      - id: snowflake
+        similarity: 0.80
+        reason: "Cloud data warehouses"
+
+  - id: redshift
+    name: Amazon Redshift
+    aliases: ["redshift", "aws-redshift"]
+    category: database
+    subcategory: data-warehouse
+    primary: false
+    parent_technology: aws
+    related:
+      - id: snowflake
+        similarity: 0.75
+        reason: "Data warehouses"
+
+  - id: prefect
+    name: Prefect
+    aliases: ["prefect"]
+    category: data-engineering
+    subcategory: orchestration
+    primary: false
+    related:
+      - id: airflow
+        similarity: 0.75
+        reason: "Workflow orchestration"
+
+  # ============================================
+  # MACHINE LEARNING & AI
+  # ============================================
+
+  - id: tensorflow
+    name: TensorFlow
+    aliases: ["tensorflow", "tf"]
+    category: ai-ml
+    subcategory: framework
+    primary: false
+    parent_technology: python
+    related:
+      - id: pytorch
+        similarity: 0.85
+        reason: "Deep learning frameworks"
+      - id: keras
+        similarity: 0.90
+        reason: "TensorFlow high-level API"
+
+  - id: pytorch
+    name: PyTorch
+    aliases: ["pytorch", "torch"]
+    category: ai-ml
+    subcategory: framework
+    primary: false
+    parent_technology: python
+    related:
+      - id: tensorflow
+        similarity: 0.85
+        reason: "Deep learning frameworks"
+
+  - id: keras
+    name: Keras
+    aliases: ["keras"]
+    category: ai-ml
+    subcategory: framework
+    primary: false
+    parent_technology: tensorflow
+    related:
+      - id: tensorflow
+        similarity: 0.90
+        reason: "TensorFlow API"
+
+  - id: scikit-learn
+    name: scikit-learn
+    aliases: ["scikit-learn", "sklearn", "scikit"]
+    category: ai-ml
+    subcategory: library
+    primary: false
+    parent_technology: python
+    related:
+      - id: pandas
+        similarity: 0.70
+        reason: "Data science tools"
+
+  - id: pandas
+    name: pandas
+    aliases: ["pandas"]
+    category: data-engineering
+    subcategory: library
+    primary: false
+    parent_technology: python
+    related:
+      - id: numpy
+        similarity: 0.80
+        reason: "Data analysis"
+
+  - id: numpy
+    name: NumPy
+    aliases: ["numpy"]
+    category: data-engineering
+    subcategory: library
+    primary: false
+    parent_technology: python
+    related:
+      - id: pandas
+        similarity: 0.80
+        reason: "Data analysis"
+
+  - id: huggingface
+    name: Hugging Face
+    aliases: ["huggingface", "hugging-face", "transformers"]
+    category: ai-ml
+    subcategory: library
+    primary: false
+    parent_technology: python
+    related:
+      - id: pytorch
+        similarity: 0.70
+        reason: "NLP frameworks"
+
+  - id: openai
+    name: OpenAI
+    aliases: ["openai", "gpt", "chatgpt"]
+    category: ai-ml
+    subcategory: service
+    primary: false
+    related:
+      - id: huggingface
+        similarity: 0.60
+        reason: "AI services"
+
+  # ============================================
+  # MESSAGING & QUEUES
+  # ============================================
+
+  - id: rabbitmq
+    name: RabbitMQ
+    aliases: ["rabbitmq", "rabbit-mq"]
+    category: messaging
+    subcategory: queue
+    primary: false
+    related:
+      - id: kafka
+        similarity: 0.70
+        reason: "Message brokers"
+      - id: activemq
+        similarity: 0.75
+        reason: "Message queues"
+
+  - id: activemq
+    name: ActiveMQ
+    aliases: ["activemq", "active-mq"]
+    category: messaging
+    subcategory: queue
+    primary: false
+    related:
+      - id: rabbitmq
+        similarity: 0.75
+        reason: "Message queues"
+
+  - id: pulsar
+    name: Apache Pulsar
+    aliases: ["pulsar", "apache-pulsar"]
+    category: messaging
+    subcategory: streaming
+    primary: false
+    related:
+      - id: kafka
+        similarity: 0.75
+        reason: "Streaming platforms"
+
+  - id: sqs
+    name: AWS SQS
+    aliases: ["sqs", "aws-sqs"]
+    category: messaging
+    subcategory: queue
+    primary: false
+    parent_technology: aws
+    related:
+      - id: rabbitmq
+        similarity: 0.70
+        reason: "Message queues"
+
+  # ============================================
+  # API & PROTOCOLS
+  # ============================================
+
+  - id: rest
+    name: REST API
+    aliases: ["rest", "restful", "rest-api"]
+    category: api
+    subcategory: architecture
+    primary: false
+    related:
+      - id: graphql
+        similarity: 0.60
+        reason: "API paradigms"
+
+  - id: graphql
+    name: GraphQL
+    aliases: ["graphql", "graph-ql"]
+    category: api
+    subcategory: query-language
+    primary: false
+    related:
+      - id: rest
+        similarity: 0.60
+        reason: "API paradigms"
+
+  - id: grpc
+    name: gRPC
+    aliases: ["grpc", "g-rpc"]
+    category: api
+    subcategory: rpc
+    primary: false
+    related:
+      - id: rest
+        similarity: 0.55
+        reason: "API technologies"
+
+  - id: websocket
+    name: WebSocket
+    aliases: ["websocket", "websockets", "ws"]
+    category: api
+    subcategory: protocol
+    primary: false
+    related: []
+
+  - id: soap
+    name: SOAP
+    aliases: ["soap"]
+    category: api
+    subcategory: protocol
+    primary: false
+    related:
+      - id: rest
+        similarity: 0.50
+        reason: "Web services"
+
+  # ============================================
+  # TESTING
+  # ============================================
+
+  - id: jest
+    name: Jest
+    aliases: ["jest"]
+    category: testing
+    subcategory: unit
+    primary: false
+    parent_technology: javascript
+    related:
+      - id: mocha
+        similarity: 0.75
+        reason: "JS testing frameworks"
+
+  - id: pytest
+    name: pytest
+    aliases: ["pytest"]
+    category: testing
+    subcategory: unit
+    primary: false
+    parent_technology: python
+    related:
+      - id: unittest
+        similarity: 0.75
+        reason: "Python testing"
+
+  - id: junit
+    name: JUnit
+    aliases: ["junit"]
+    category: testing
+    subcategory: unit
+    primary: false
+    parent_technology: java
+    related:
+      - id: testng
+        similarity: 0.80
+        reason: "Java testing"
+
+  - id: selenium
+    name: Selenium
+    aliases: ["selenium"]
+    category: testing
+    subcategory: e2e
+    primary: false
+    related:
+      - id: cypress
+        similarity: 0.75
+        reason: "Browser automation"
+
+  - id: cypress
+    name: Cypress
+    aliases: ["cypress"]
+    category: testing
+    subcategory: e2e
+    primary: false
+    parent_technology: javascript
+    related:
+      - id: selenium
+        similarity: 0.75
+        reason: "Browser automation"
+
+  - id: mocha
+    name: Mocha
+    aliases: ["mocha"]
+    category: testing
+    subcategory: unit
+    primary: false
+    parent_technology: javascript
+    related:
+      - id: jest
+        similarity: 0.75
+        reason: "JS testing"
+
+  - id: testng
+    name: TestNG
+    aliases: ["testng"]
+    category: testing
+    subcategory: unit
+    primary: false
+    parent_technology: java
+    related:
+      - id: junit
+        similarity: 0.80
+        reason: "Java testing"
+
+  - id: unittest
+    name: unittest
+    aliases: ["unittest"]
+    category: testing
+    subcategory: unit
+    primary: false
+    parent_technology: python
+    related:
+      - id: pytest
+        similarity: 0.75
+        reason: "Python testing"
+
+  - id: playwright
+    name: Playwright
+    aliases: ["playwright"]
+    category: testing
+    subcategory: e2e
+    primary: false
+    related:
+      - id: cypress
+        similarity: 0.80
+        reason: "Browser automation"
+
+  # ============================================
+  # TOOLS & VERSION CONTROL
+  # ============================================
+
+  - id: git
+    name: Git
+    aliases: ["git"]
+    category: tools
+    subcategory: version-control
+    primary: false
+    related: []
+
+  - id: github
+    name: GitHub
+    aliases: ["github"]
+    category: tools
+    subcategory: version-control
+    primary: false
+    related:
+      - id: gitlab
+        similarity: 0.85
+        reason: "Git hosting"
+
+  - id: gitlab
+    name: GitLab
+    aliases: ["gitlab"]
+    category: tools
+    subcategory: version-control
+    primary: false
+    related:
+      - id: github
+        similarity: 0.85
+        reason: "Git hosting"
+
+  - id: bitbucket
+    name: Bitbucket
+    aliases: ["bitbucket"]
+    category: tools
+    subcategory: version-control
+    primary: false
+    related:
+      - id: github
+        similarity: 0.80
+        reason: "Git hosting"
+
+  - id: jira
+    name: Jira
+    aliases: ["jira"]
+    category: tools
+    subcategory: project-management
+    primary: false
+    related:
+      - id: trello
+        similarity: 0.65
+        reason: "Project management"
+
+  - id: confluence
+    name: Confluence
+    aliases: ["confluence"]
+    category: tools
+    subcategory: documentation
+    primary: false
+    related:
+      - id: notion
+        similarity: 0.70
+        reason: "Documentation"
+
+  - id: slack
+    name: Slack
+    aliases: ["slack"]
+    category: tools
+    subcategory: communication
+    primary: false
+    related:
+      - id: teams
+        similarity: 0.80
+        reason: "Team communication"
+
+  - id: teams
+    name: Microsoft Teams
+    aliases: ["teams", "microsoft-teams"]
+    category: tools
+    subcategory: communication
+    primary: false
+    related:
+      - id: slack
+        similarity: 0.80
+        reason: "Team communication"
+
+  # ============================================
+  # NON-TECHNICAL DOMAINS
+  # ============================================
+
+  - id: accounting
+    name: Accounting
+    aliases: ["accounting", "accountant", "bookkeeping", "cpa", "certified-public-accountant"]
+    category: domain
+    subcategory: finance
+    primary: true
+    related:
+      - id: finance
+        similarity: 0.75
+        reason: "Overlapping financial knowledge"
+      - id: auditing
+        similarity: 0.80
+        reason: "Financial review"
+      - id: tax
+        similarity: 0.75
+        reason: "Financial compliance"
+
+  - id: finance
+    name: Finance
+    aliases: ["finance", "financial", "financial-analysis", "financial-analyst"]
+    category: domain
+    subcategory: finance
+    primary: true
+    related:
+      - id: accounting
+        similarity: 0.75
+        reason: "Financial knowledge"
+      - id: investment-banking
+        similarity: 0.70
+        reason: "Financial services"
+
+  - id: auditing
+    name: Auditing
+    aliases: ["auditing", "auditor", "audit"]
+    category: domain
+    subcategory: finance
+    primary: true
+    related:
+      - id: accounting
+        similarity: 0.80
+        reason: "Financial review"
+
+  - id: tax
+    name: Tax
+    aliases: ["tax", "taxation", "tax-accounting"]
+    category: domain
+    subcategory: finance
+    primary: true
+    related:
+      - id: accounting
+        similarity: 0.75
+        reason: "Financial compliance"
+
+  - id: investment-banking
+    name: Investment Banking
+    aliases: ["investment-banking", "investment-banker"]
+    category: domain
+    subcategory: finance
+    primary: true
+    related:
+      - id: finance
+        similarity: 0.70
+        reason: "Financial services"
+
+  - id: marketing
+    name: Marketing
+    aliases: ["marketing", "digital-marketing", "marketing-strategy"]
+    category: domain
+    subcategory: business
+    primary: true
+    related:
+      - id: sales
+        similarity: 0.70
+        reason: "Customer acquisition"
+      - id: content-marketing
+        similarity: 0.85
+        reason: "Marketing specialty"
+
+  - id: content-marketing
+    name: Content Marketing
+    aliases: ["content-marketing", "content-strategy"]
+    category: domain
+    subcategory: business
+    primary: true
+    related:
+      - id: marketing
+        similarity: 0.85
+        reason: "Marketing specialty"
+
+  - id: seo
+    name: SEO
+    aliases: ["seo", "search-engine-optimization"]
+    category: domain
+    subcategory: business
+    primary: true
+    related:
+      - id: marketing
+        similarity: 0.80
+        reason: "Marketing specialty"
+
+  - id: sem
+    name: SEM
+    aliases: ["sem", "search-engine-marketing"]
+    category: domain
+    subcategory: business
+    primary: true
+    related:
+      - id: seo
+        similarity: 0.75
+        reason: "Search marketing"
+
+  - id: data-science
+    name: Data Science
+    aliases: ["data-science", "data-scientist"]
+    category: domain
+    subcategory: analytics
+    primary: true
+    related:
+      - id: machine-learning
+        similarity: 0.90
+        reason: "ML is core to data science"
+      - id: statistics
+        similarity: 0.80
+        reason: "Statistical analysis"
+      - id: python
+        similarity: 0.65
+        reason: "Common programming language"
+
+  - id: machine-learning
+    name: Machine Learning
+    aliases: ["machine-learning", "ml", "ml-engineer"]
+    category: domain
+    subcategory: analytics
+    primary: true
+    related:
+      - id: data-science
+        similarity: 0.90
+        reason: "ML is core to data science"
+      - id: ai
+        similarity: 0.85
+        reason: "AI techniques"
+
+  - id: ai
+    name: Artificial Intelligence
+    aliases: ["ai", "artificial-intelligence"]
+    category: domain
+    subcategory: analytics
+    primary: true
+    related:
+      - id: machine-learning
+        similarity: 0.85
+        reason: "AI techniques"
+
+  - id: statistics
+    name: Statistics
+    aliases: ["statistics", "statistical-analysis"]
+    category: domain
+    subcategory: analytics
+    primary: true
+    related:
+      - id: data-science
+        similarity: 0.80
+        reason: "Statistical methods"
+
+  - id: data-analytics
+    name: Data Analytics
+    aliases: ["data-analytics", "data-analyst"]
+    category: domain
+    subcategory: analytics
+    primary: true
+    related:
+      - id: data-science
+        similarity: 0.75
+        reason: "Data analysis"
+      - id: business-intelligence
+        similarity: 0.80
+        reason: "Business analytics"
+
+  - id: business-intelligence
+    name: Business Intelligence
+    aliases: ["business-intelligence", "bi"]
+    category: domain
+    subcategory: analytics
+    primary: true
+    related:
+      - id: data-analytics
+        similarity: 0.80
+        reason: "Business analytics"
+
+  - id: hr
+    name: Human Resources
+    aliases: ["hr", "human-resources", "people-operations"]
+    category: domain
+    subcategory: business
+    primary: true
+    related:
+      - id: recruiting
+        similarity: 0.85
+        reason: "HR function"
+      - id: payroll
+        similarity: 0.60
+        reason: "HR function"
+
+  - id: recruiting
+    name: Recruiting
+    aliases: ["recruiting", "recruitment", "talent-acquisition", "recruiter"]
+    category: domain
+    subcategory: business
+    primary: true
+    related:
+      - id: hr
+        similarity: 0.85
+        reason: "HR function"
+
+  - id: payroll
+    name: Payroll
+    aliases: ["payroll"]
+    category: domain
+    subcategory: business
+    primary: true
+    related:
+      - id: hr
+        similarity: 0.60
+        reason: "HR function"
+
+  - id: sales
+    name: Sales
+    aliases: ["sales", "account-executive", "sales-rep"]
+    category: domain
+    subcategory: business
+    primary: true
+    related:
+      - id: marketing
+        similarity: 0.70
+        reason: "Customer acquisition"
+      - id: business-development
+        similarity: 0.80
+        reason: "Revenue generation"
+
+  - id: business-development
+    name: Business Development
+    aliases: ["business-development", "biz-dev", "bd"]
+    category: domain
+    subcategory: business
+    primary: true
+    related:
+      - id: sales
+        similarity: 0.80
+        reason: "Revenue generation"
+
+  - id: healthcare
+    name: Healthcare
+    aliases: ["healthcare", "medical"]
+    category: domain
+    subcategory: healthcare
+    primary: true
+    related:
+      - id: nursing
+        similarity: 0.75
+        reason: "Healthcare profession"
+
+  - id: nursing
+    name: Nursing
+    aliases: ["nursing", "nurse", "rn"]
+    category: domain
+    subcategory: healthcare
+    primary: true
+    related:
+      - id: healthcare
+        similarity: 0.75
+        reason: "Healthcare profession"
+
+  - id: clinical-research
+    name: Clinical Research
+    aliases: ["clinical-research", "clinical-trials"]
+    category: domain
+    subcategory: healthcare
+    primary: true
+    related:
+      - id: healthcare
+        similarity: 0.70
+        reason: "Healthcare field"
+
+  - id: operations-management
+    name: Operations Management
+    aliases: ["operations-management", "operations", "ops"]
+    category: domain
+    subcategory: business
+    primary: true
+    related:
+      - id: supply-chain
+        similarity: 0.80
+        reason: "Operations field"
+
+  - id: supply-chain
+    name: Supply Chain
+    aliases: ["supply-chain", "logistics", "scm"]
+    category: domain
+    subcategory: business
+    primary: true
+    related:
+      - id: operations-management
+        similarity: 0.80
+        reason: "Operations field"
+
+  - id: customer-service
+    name: Customer Service
+    aliases: ["customer-service", "customer-support"]
+    category: domain
+    subcategory: business
+    primary: true
+    related:
+      - id: technical-support
+        similarity: 0.75
+        reason: "Support roles"
+
+  - id: technical-support
+    name: Technical Support
+    aliases: ["technical-support", "tech-support"]
+    category: domain
+    subcategory: business
+    primary: true
+    related:
+      - id: customer-service
+        similarity: 0.75
+        reason: "Support roles"
+
+  - id: project-management
+    name: Project Management
+    aliases: ["project-management", "pm", "project-manager"]
+    category: domain
+    subcategory: business
+    primary: true
+    related:
+      - id: product-management
+        similarity: 0.70
+        reason: "Management roles"
+
+  - id: product-management
+    name: Product Management
+    aliases: ["product-management", "product-manager"]
+    category: domain
+    subcategory: business
+    primary: true
+    related:
+      - id: project-management
+        similarity: 0.70
+        reason: "Management roles"
+
+  - id: legal
+    name: Legal
+    aliases: ["legal", "lawyer", "attorney"]
+    category: domain
+    subcategory: legal
+    primary: true
+    related:
+      - id: compliance
+        similarity: 0.75
+        reason: "Legal field"
+
+  - id: compliance
+    name: Compliance
+    aliases: ["compliance", "regulatory"]
+    category: domain
+    subcategory: legal
+    primary: true
+    related:
+      - id: legal
+        similarity: 0.75
+        reason: "Legal field"
+
+  # ============================================
+  # DOMAIN-SPECIFIC TOOLS
+  # ============================================
+
+  - id: quickbooks
+    name: QuickBooks
+    aliases: ["quickbooks", "qb", "intuit-quickbooks"]
+    category: tool
+    subcategory: accounting
+    primary: false
+    parent_technology: accounting
+    related:
+      - id: sap
+        similarity: 0.65
+        reason: "Accounting software"
+      - id: netsuite
+        similarity: 0.70
+        reason: "Accounting software"
+
+  - id: sap
+    name: SAP
+    aliases: ["sap"]
+    category: tool
+    subcategory: erp
+    primary: false
+    related:
+      - id: oracle-erp
+        similarity: 0.80
+        reason: "ERP systems"
+
+  - id: netsuite
+    name: NetSuite
+    aliases: ["netsuite"]
+    category: tool
+    subcategory: erp
+    primary: false
+    related:
+      - id: quickbooks
+        similarity: 0.70
+        reason: "Accounting software"
+
+  - id: oracle-erp
+    name: Oracle ERP
+    aliases: ["oracle-erp"]
+    category: tool
+    subcategory: erp
+    primary: false
+    related:
+      - id: sap
+        similarity: 0.80
+        reason: "ERP systems"
+
+  - id: salesforce
+    name: Salesforce
+    aliases: ["salesforce", "sfdc", "salesforce-crm"]
+    category: tool
+    subcategory: crm
+    primary: false
+    parent_technology: sales
+    related:
+      - id: hubspot-crm
+        similarity: 0.80
+        reason: "CRM platforms"
+
+  - id: hubspot-crm
+    name: HubSpot CRM
+    aliases: ["hubspot", "hubspot-crm"]
+    category: tool
+    subcategory: crm
+    primary: false
+    related:
+      - id: salesforce
+        similarity: 0.80
+        reason: "CRM platforms"
+
+  - id: google-analytics
+    name: Google Analytics
+    aliases: ["google-analytics", "ga", "ga4"]
+    category: tool
+    subcategory: analytics
+    primary: false
+    parent_technology: marketing
+    related:
+      - id: adobe-analytics
+        similarity: 0.80
+        reason: "Web analytics"
+
+  - id: adobe-analytics
+    name: Adobe Analytics
+    aliases: ["adobe-analytics"]
+    category: tool
+    subcategory: analytics
+    primary: false
+    related:
+      - id: google-analytics
+        similarity: 0.80
+        reason: "Web analytics"
+
+  - id: tableau
+    name: Tableau
+    aliases: ["tableau"]
+    category: tool
+    subcategory: bi
+    primary: false
+    related:
+      - id: power-bi
+        similarity: 0.85
+        reason: "BI tools"
+
+  - id: power-bi
+    name: Power BI
+    aliases: ["power-bi", "powerbi"]
+    category: tool
+    subcategory: bi
+    primary: false
+    related:
+      - id: tableau
+        similarity: 0.85
+        reason: "BI tools"
+
+  - id: workday
+    name: Workday
+    aliases: ["workday"]
+    category: tool
+    subcategory: hr
+    primary: false
+    parent_technology: hr
+    related:
+      - id: bamboohr
+        similarity: 0.75
+        reason: "HR platforms"
+
+  - id: bamboohr
+    name: BambooHR
+    aliases: ["bamboohr", "bamboo-hr"]
+    category: tool
+    subcategory: hr
+    primary: false
+    parent_technology: hr
+    related:
+      - id: workday
+        similarity: 0.75
+        reason: "HR platforms"
+
+  - id: adp
+    name: ADP
+    aliases: ["adp"]
+    category: tool
+    subcategory: hr
+    primary: false
+    parent_technology: payroll
+    related:
+      - id: workday
+        similarity: 0.65
+        reason: "HR systems"
+
+  - id: zendesk
+    name: Zendesk
+    aliases: ["zendesk"]
+    category: tool
+    subcategory: support
+    primary: false
+    parent_technology: customer-service
+    related:
+      - id: intercom
+        similarity: 0.80
+        reason: "Support platforms"
+
+  - id: intercom
+    name: Intercom
+    aliases: ["intercom"]
+    category: tool
+    subcategory: support
+    primary: false
+    parent_technology: customer-service
+    related:
+      - id: zendesk
+        similarity: 0.80
+        reason: "Support platforms"
+
+  - id: asana
+    name: Asana
+    aliases: ["asana"]
+    category: tool
+    subcategory: project-management
+    primary: false
+    parent_technology: project-management
+    related:
+      - id: monday
+        similarity: 0.80
+        reason: "PM tools"
+      - id: jira
+        similarity: 0.75
+        reason: "PM tools"
+
+  - id: monday
+    name: Monday.com
+    aliases: ["monday", "monday.com"]
+    category: tool
+    subcategory: project-management
+    primary: false
+    parent_technology: project-management
+    related:
+      - id: asana
+        similarity: 0.80
+        reason: "PM tools"
+
+  - id: trello
+    name: Trello
+    aliases: ["trello"]
+    category: tool
+    subcategory: project-management
+    primary: false
+    parent_technology: project-management
+    related:
+      - id: jira
+        similarity: 0.65
+        reason: "PM tools"
+
+  - id: notion
+    name: Notion
+    aliases: ["notion"]
+    category: tool
+    subcategory: documentation
+    primary: false
+    related:
+      - id: confluence
+        similarity: 0.70
+        reason: "Documentation"
+
+  - id: excel
+    name: Excel
+    aliases: ["excel", "microsoft-excel"]
+    category: tool
+    subcategory: productivity
+    primary: false
+    related:
+      - id: google-sheets
+        similarity: 0.85
+        reason: "Spreadsheets"
+
+  - id: google-sheets
+    name: Google Sheets
+    aliases: ["google-sheets", "sheets"]
+    category: tool
+    subcategory: productivity
+    primary: false
+    related:
+      - id: excel
+        similarity: 0.85
+        reason: "Spreadsheets"
+
+  - id: agile
+    name: Agile
+    aliases: ["agile", "agile-methodology"]
+    category: methodology
+    subcategory: project-management
+    primary: false
+    related:
+      - id: scrum
+        similarity: 0.85
+        reason: "Agile frameworks"
+
+  - id: scrum
+    name: Scrum
+    aliases: ["scrum"]
+    category: methodology
+    subcategory: project-management
+    primary: false
+    related:
+      - id: agile
+        similarity: 0.85
+        reason: "Agile frameworks"
+      - id: kanban
+        similarity: 0.70
+        reason: "Agile methods"
+
+  - id: kanban
+    name: Kanban
+    aliases: ["kanban"]
+    category: methodology
+    subcategory: project-management
+    primary: false
+    related:
+      - id: scrum
+        similarity: 0.70
+        reason: "Agile methods"
+
+  - id: lean-six-sigma
+    name: Lean Six Sigma
+    aliases: ["lean-six-sigma", "six-sigma", "lean"]
+    category: methodology
+    subcategory: operations
+    primary: false
+    parent_technology: operations-management
+    related: []
+
+  - id: pmp
+    name: PMP
+    aliases: ["pmp", "project-management-professional"]
+    category: certification
+    subcategory: project-management
+    primary: false
+    parent_technology: project-management
+    related: []
+
+  - id: hipaa
+    name: HIPAA
+    aliases: ["hipaa"]
+    category: compliance
+    subcategory: healthcare
+    primary: false
+    parent_technology: healthcare
+    related: []
+
+  - id: gdpr
+    name: GDPR
+    aliases: ["gdpr"]
+    category: compliance
+    subcategory: legal
+    primary: false
+    related:
+      - id: hipaa
+        similarity: 0.60
+        reason: "Privacy regulations"
+
+  - id: gaap
+    name: GAAP
+    aliases: ["gaap"]
+    category: standard
+    subcategory: accounting
+    primary: false
+    parent_technology: accounting
+    related:
+      - id: ifrs
+        similarity: 0.80
+        reason: "Accounting standards"
+
+  - id: ifrs
+    name: IFRS
+    aliases: ["ifrs"]
+    category: standard
+    subcategory: accounting
+    primary: false
+    parent_technology: accounting
+    related:
+      - id: gaap
+        similarity: 0.80
+        reason: "Accounting standards"
+
+  - id: sql
+    name: SQL
+    aliases: ["sql", "structured-query-language"]
+    category: language
+    subcategory: query
+    primary: false
+    related:
+      - id: nosql
+        similarity: 0.50
+        reason: "Database query"
+
+  - id: nosql
+    name: NoSQL
+    aliases: ["nosql"]
+    category: database
+    subcategory: nosql
+    primary: false
+    related:
+      - id: sql
+        similarity: 0.50
+        reason: "Database paradigms"

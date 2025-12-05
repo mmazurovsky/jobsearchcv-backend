@@ -53,6 +53,7 @@ class BatchJobProcessingService(
     private val objectMapper: ObjectMapper,
     private val jobDataConverter: JobDataConverter,
     private val processedJobRepository: ProcessedJobRepository,
+    private val deterministicJobFilterService: DeterministicJobFilterService
 ) {
     private val logger = LoggerFactory.getLogger(this::class.java)
 
@@ -303,7 +304,52 @@ class BatchJobProcessingService(
     ): List<ScoredJobData> {
         val jobSearchId = jobSearch?.id ?: "unknown"
         try {
-            // Split into batches for compatibility scoring
+            // **NEW: Apply deterministic pre-filter**
+            val preFilterResult = if (jobSearch != null) {
+                deterministicJobFilterService.applyPreFilter(enrichedJobs, jobSearch)
+            } else {
+                // No job search criteria, pass all jobs
+                com.jobsearchcv.backend.domain.model.PreFilterResult(
+                    passedJobs = enrichedJobs.map { com.jobsearchcv.backend.domain.model.PreFilteredJob(it, null, null) },
+                    filteredJobs = emptyList(),
+                    passedCount = enrichedJobs.size,
+                    filteredCount = 0
+                )
+            }
+
+            logger.info(
+                "[JobSearch: $jobSearchId] Pre-filter: {} passed, {} filtered",
+                preFilterResult.passedCount,
+                preFilterResult.filteredCount
+            )
+
+            // Extract only jobs that passed pre-filter for LLM scoring
+            val jobsToScore = preFilterResult.passedJobs.map { it.job }
+
+            if (jobsToScore.isEmpty()) {
+                logger.info("[JobSearch: $jobSearchId] All jobs filtered by pre-filter, skipping LLM scoring")
+
+                // Return filtered jobs with score 0
+                return preFilterResult.filteredJobs.mapNotNull { filteredJob ->
+                    val processedJob = processedJobs.find { it.id == filteredJob.job.id }
+                    if (processedJob != null) {
+                        jobDataConverter.toScoredJobData(
+                            processedJob = processedJob,
+                            createdAgo = filteredJob.job.createdAgo,
+                            scrapedAt = filteredJob.job.scrapedAt,
+                            userId = filteredJob.job.userId,
+                            jobSearchId = filteredJob.job.jobSearchId,
+                            keywords = filteredJob.job.keywords,
+                            compatibilityScore = 0,
+                            filterReason = "Deterministic filter: ${filteredJob.filterReason}"
+                        )
+                    } else {
+                        null
+                    }
+                }
+            }
+
+            // Split into batches for compatibility scoring (only jobs that passed pre-filter)
             val scoringPromptTemplate = buildCompatibilityPromptTemplate(jobSearch)
             val scoringCalculator = JobBatchCalculator<EnrichedJobData, BatchCompatibilityRequest>(
                 llmConfig = scoringConfig,
@@ -311,7 +357,7 @@ class BatchJobProcessingService(
             )
 
             val compatibilityBatches = scoringCalculator.createBatches(
-                jobs = enrichedJobs,
+                jobs = jobsToScore,  // **CHANGED: Only score jobs that passed pre-filter**
                 promptTemplate = scoringPromptTemplate,
                 contentExtractor = { job ->
                     val techstack = job.techstack.joinToString(", ")
@@ -331,7 +377,7 @@ class BatchJobProcessingService(
                     )
                 }
             )
-            logger.info("[JobSearch: $jobSearchId] Split ${enrichedJobs.size} jobs into ${compatibilityBatches.size} compatibility batches")
+            logger.info("[JobSearch: $jobSearchId] Split ${jobsToScore.size} jobs into ${compatibilityBatches.size} compatibility batches")
 
             // Process compatibility batches in parallel
             val compatibilityResults = coroutineScope {
@@ -350,19 +396,34 @@ class BatchJobProcessingService(
                 }.awaitAll().flatten()
             }
 
-            // Apply compatibility results to jobs
+            // Combine results: filtered (score=0) + LLM-scored
             val compatibilityMap = compatibilityResults.associateBy { it.jobId }
             val enrichedJobMap = enrichedJobs.associateBy { it.id }
+            val preFilterMap = (preFilterResult.passedJobs + preFilterResult.filteredJobs)
+                .associateBy { it.job.id }
 
             return processedJobs.mapNotNull { processedJob ->
                 val enrichedJob = enrichedJobMap[processedJob.id]
-                val compatibility = compatibilityMap[processedJob.id]
-                val compatibilityScore = compatibility?.compatibilityScore
+                val preFilterJob = preFilterMap[processedJob.id]
+                val llmCompatibility = compatibilityMap[processedJob.id]
 
-                if (compatibilityScore == null || enrichedJob == null) {
-                    logger.error("[JobSearch: $jobSearchId] Missing data for ${processedJob.title} ${processedJob.link}")
+                if (enrichedJob == null) {
+                    logger.error("[JobSearch: $jobSearchId] Missing enriched job for ${processedJob.id}")
                     null
                 } else {
+                    val finalScore: Int
+                    val finalReason: String?
+
+                    if (preFilterJob?.filterReason != null) {
+                        // Job was filtered by deterministic filter
+                        finalScore = 0
+                        finalReason = "Deterministic filter: ${preFilterJob.filterReason}"
+                    } else {
+                        // Job passed pre-filter, use LLM score
+                        finalScore = llmCompatibility?.compatibilityScore ?: 0
+                        finalReason = llmCompatibility?.filterReason
+                    }
+
                     jobDataConverter.toScoredJobData(
                         processedJob = processedJob,
                         createdAgo = enrichedJob.createdAgo,
@@ -370,11 +431,10 @@ class BatchJobProcessingService(
                         userId = enrichedJob.userId,
                         jobSearchId = enrichedJob.jobSearchId,
                         keywords = enrichedJob.keywords,
-                        compatibilityScore = compatibility.compatibilityScore,
-                        filterReason = compatibility.filterReason
+                        compatibilityScore = finalScore,
+                        filterReason = finalReason
                     )
                 }
-
             }
 
         } catch (e: Exception) {
@@ -604,27 +664,28 @@ REQUIREMENTS:
 
         return """You are a senior technical recruiter specializing in job matching. You act like a JSON-only API.
 
-Evaluate jobs against search criteria with focus on accuracy and relevance.
+IMPORTANT CONTEXT:
+These jobs have already passed a deterministic technology pre-filter, meaning they contain at least one primary required technology with high similarity (≥70%). Your role is to perform nuanced evaluation focusing on non-technical factors and overall fit quality.
 
 SEARCH CRITERIA:
 $searchCriteria
 
 EVALUATION PRIORITY (in order of importance):
-1. TITLE & KEYWORDS MATCH: Job title similarity to provided keywords, seniority level match
-2. TECHSTACK & KEYWORDS MATCH: Job techstack similarity to provided keywords
-3. REMOTE WORK TYPE: Match between job's remote policy and required remote type
-4. JOB TYPE: Match between job type (full-time, contract, etc.) and requirements
-5. NUMBER OF APPLICANTS: Filter out jobs with more than 70 applicants
-6. DESCRIPTION KEYWORDS: How well job description matches search keywords
-7. SALARY: Match for salary if specified in requirements
-8. TAGS & TECHSTACK ALIGNING WITH FILTER TEXT: Tags (languages, seniority, travel, standby) and techstack should be compared to filter text, if some tags or techstack imply the job should be filtered out according to filter text, do so
+1. SENIORITY LEVEL MATCH: Does the job's seniority (junior/mid/senior/lead/principal) match the search requirements?
+2. TAGS ALIGNMENT WITH FILTER TEXT: Do tags (language requirements, travel expectations, visa requirements, standby/on-call, certifications) align with or contradict filter text requirements?
+3. JOB TITLE RELEVANCE: Is the job title relevant to the searched position? (e.g., "Backend Developer" for "Java Developer" is good, "DevOps Engineer" might be less relevant)
+4. REMOTE WORK TYPE: Does the job's remote policy (on-site/hybrid/remote) match requirements?
+5. JOB TYPE: Does the job type (full-time/contract/part-time) match requirements?
+6. NUMBER OF APPLICANTS: Filter out jobs with more than 70 applicants (too much competition)
+7. DESCRIPTION QUALITY: Is the job description detailed and professional, or vague and low-quality?
+8. SALARY EXPECTATIONS: If salary is specified in requirements, does the job's salary align?
 
 SCORING GUIDELINES:
-- 90-100: Perfect match (title + techstack + tags are not conflicting with filter text at all)
-- 70-89: Strong match (partial title/techstack match, tags are not conflicting with filter text at all)
-- 50-69: Good match (some title/techstack/description match, most of tags are not conflicting with filter text)
-- 30-49: Weak match (weak alignment overall)
-- 0-29: Poor/no match (no significant alignment)
+- 90-100: Excellent fit (perfect seniority match, all tags align, great title match, meets all criteria)
+- 70-89: Strong fit (good seniority match, most tags align, relevant title, meets most criteria)
+- 50-69: Moderate fit (acceptable seniority, some tag conflicts, somewhat relevant title)
+- 30-49: Weak fit (seniority mismatch, several tag conflicts, or marginal relevance)
+- 0-29: Poor fit (major seniority mismatch, critical tag conflicts like language requirements, or irrelevant title)
 
 JOBS TO EVALUATE:
 [JOB DATA WILL BE INSERTED HERE]
@@ -640,7 +701,7 @@ Return ONLY a valid JSON array with this exact structure (no markdown, no extra 
 
 REQUIREMENTS:
 - job_id: string matching the Job ID from the input above
-- compatibility_score: integer 0-100 based on evaluation criteria
+- compatibility_score: integer 0-100 based on evaluation criteria above
 - filter_reason: null if job passes, otherwise short explanation why filtered out
 - If compatibility_score is 0, filter_reason MUST explain why
 - NO markdown formatting in response
@@ -762,27 +823,28 @@ Applicants: ${job.applicants}
 
         return """You are a senior technical recruiter specializing in job matching. You act like a JSON-only API.
 
-Evaluate jobs against search criteria with focus on accuracy and relevance.
+IMPORTANT CONTEXT:
+These jobs have already passed a deterministic technology pre-filter, meaning they contain at least one primary required technology with high similarity (≥70%). Your role is to perform nuanced evaluation focusing on non-technical factors and overall fit quality.
 
 SEARCH CRITERIA:
 $searchCriteria
 
 EVALUATION PRIORITY (in order of importance):
-1. TITLE & KEYWORDS MATCH: Job title similarity to provided keywords, seniority level match
-2. TECHSTACK & KEYWORDS MATCH: Job techstack similarity to provided keywords  
-3. REMOTE WORK TYPE: Match between job's remote policy and required remote type
-4. JOB TYPE: Match between job type (full-time, contract, etc.) and requirements
-5. NUMBER OF APPLICANTS: Filter out jobs with more than 70 applicants
-6. DESCRIPTION KEYWORDS: How well job description matches search keywords
-7. SALARY: Match for salary if specified in requirements
-8. TAGS & TECHSTACK ALIGNING WITH FILTER TEXT: Tags (languages, seniority, travel, standby) and techstack should be compared to filter text, if some tags or techstack imply the job should be filtered out according to filter text, do so
+1. SENIORITY LEVEL MATCH: Does the job's seniority (junior/mid/senior/lead/principal) match the search requirements?
+2. TAGS ALIGNMENT WITH FILTER TEXT: Do tags (language requirements, travel expectations, visa requirements, standby/on-call, certifications) align with or contradict filter text requirements?
+3. JOB TITLE RELEVANCE: Is the job title relevant to the searched position? (e.g., "Backend Developer" for "Java Developer" is good, "DevOps Engineer" might be less relevant)
+4. REMOTE WORK TYPE: Does the job's remote policy (on-site/hybrid/remote) match requirements?
+5. JOB TYPE: Does the job type (full-time/contract/part-time) match requirements?
+6. NUMBER OF APPLICANTS: Filter out jobs with more than 70 applicants (too much competition)
+7. DESCRIPTION QUALITY: Is the job description detailed and professional, or vague and low-quality?
+8. SALARY EXPECTATIONS: If salary is specified in requirements, does the job's salary align?
 
 SCORING GUIDELINES:
-- 90-100: Perfect match (title + techstack + tags are not conflicting with filter text at all)
-- 70-89: Strong match (partial title/techstack match, tags are not conflicting with filter text at all)
-- 50-69: Good match (some title/techstack/description match, most of tags are not conflicting with filter text)
-- 30-49: Weak match (weak alignment overall)
-- 0-29: Poor/no match (no significant alignment)
+- 90-100: Excellent fit (perfect seniority match, all tags align, great title match, meets all criteria)
+- 70-89: Strong fit (good seniority match, most tags align, relevant title, meets most criteria)
+- 50-69: Moderate fit (acceptable seniority, some tag conflicts, somewhat relevant title)
+- 30-49: Weak fit (seniority mismatch, several tag conflicts, or marginal relevance)
+- 0-29: Poor fit (major seniority mismatch, critical tag conflicts like language requirements, or irrelevant title)
 
 JOBS TO EVALUATE:
 $jobsText
@@ -795,7 +857,7 @@ Return ONLY a valid JSON array with this exact structure (no markdown, no extra 
     "filter_reason": null
   },
   {
-    "job_id": "job-456", 
+    "job_id": "job-456",
     "compatibility_score": 0,
     "filter_reason": "Requires German language"
   }
@@ -803,7 +865,7 @@ Return ONLY a valid JSON array with this exact structure (no markdown, no extra 
 
 REQUIREMENTS:
 - job_id: string matching the Job ID from the input above
-- compatibility_score: integer 0-100 based on evaluation criteria
+- compatibility_score: integer 0-100 based on evaluation criteria above
 - filter_reason: null if job passes, otherwise short explanation why filtered out
 - If compatibility_score is 0, filter_reason MUST explain why
 - NO markdown formatting in response
