@@ -158,7 +158,7 @@ class EmailTemplateService(
             appendLine("                                        <table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\">")
             appendLine("                                            <tr>")
             appendLine("                                                <td style=\"font-size: 16px; color: #333333; line-height: 24px; padding-bottom: 16px;\">")
-            appendLine("                                                    Users on the Free plan only receive job overviews once a month. Premium users receive alerts at their specified frequency (every 5 minutes to daily). <strong>Upgrade to Premium to get your new job faster.</strong>")
+            appendLine("                                                    Users on the Free plan only receive job overviews once a month. Premium users receive alerts at their specified frequency. <strong>Upgrade to Premium to get your new job faster.</strong>")
             appendLine("                                                </td>")
             appendLine("                                            </tr>")
             appendLine("                                            <tr>")
@@ -256,7 +256,7 @@ class EmailTemplateService(
                 val upgradeUrl = "$stripeCheckoutUrl?client_reference_id=$userId"
                 appendLine("---")
                 appendLine()
-                appendLine("Users on the Free plan only receive job overviews once a month. Premium users receive alerts at their specified frequency (every 5 minutes to daily). Upgrade to Premium to get your new job faster.")
+                appendLine("Users on the Free plan only receive job overviews once a month. Premium users receive alerts at their specified frequency. Upgrade to Premium to get your new job faster.")
                 appendLine()
                 appendLine("Upgrade to Premium: $upgradeUrl")
                 appendLine()

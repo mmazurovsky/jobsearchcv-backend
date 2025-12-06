@@ -24,6 +24,10 @@ data class UserPreferences(
     @Schema(description = "Whether user is subscribed to marketing and product updates newsletter", example = "false", required = true)
     val isMarketingSubscribed: Boolean = false,
 
+    @field:Field("free_monthly_overview_sent_at")
+    @Schema(description = "Timestamp when free monthly overview was sent (one-time for free users)")
+    val freeMonthlyOverviewSentAt: java.time.Instant? = null,
+
     @field:Field("created_at")
     @Schema(description = "Timestamp when the preferences were created", required = true)
     val createdAt: OffsetDateTime = OffsetDateTime.now(),
