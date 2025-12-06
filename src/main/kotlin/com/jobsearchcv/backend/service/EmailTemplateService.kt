@@ -47,8 +47,8 @@ class EmailTemplateService(
         userId: String,
         isFreeTier: Boolean
     ): String = buildString {
-        val scores = jobs.map { it.compatibilityScore }.sortedDescending().joinToString(", ")
-        appendLine("<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">")
+        val highestScore = jobs.maxOfOrNull { it.compatibilityScore } ?: 0
+        appendLine("<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\")")
         appendLine("<html xmlns=\"http://www.w3.org/1999/xhtml\">")
         appendLine("<head>")
         appendLine("    <meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\" />")
@@ -65,7 +65,7 @@ class EmailTemplateService(
         appendLine("                        <td style=\"padding: 20px;\">")
         appendLine("                            <table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" width=\"100%\">")
         appendLine("                                <tr>")
-        appendLine("                                    <td style=\"font-size: 24px; font-weight: bold; padding-bottom: 24px;\">🎉 Found ${jobs.size} new jobs with compatibility scores: $scores!</td>")
+        appendLine("                                    <td style=\"font-size: 24px; font-weight: bold; padding-bottom: 24px;\">🎉 Found ${jobs.size} new jobs with highest compatibility score: $highestScore!</td>")
         appendLine("                                </tr>")
         if (specialMessage != null) {
             appendLine("                                <tr>")
@@ -239,8 +239,8 @@ class EmailTemplateService(
         val messageBody = TelegramMessages.getJobNotificationMessage(searchName, jobs, null)
 
         return buildString {
-            val scores = jobs.map { it.compatibilityScore }.sortedDescending().joinToString(", ")
-            appendLine("🎉 Found ${jobs.size} new jobs with compatibility scores: $scores!")
+            val highestScore = jobs.maxOfOrNull { it.compatibilityScore } ?: 0
+            appendLine("🎉 Found ${jobs.size} new jobs with highest compatibility score: $highestScore!")
             appendLine()
             if (specialMessage != null) {
                 appendLine(specialMessage)
