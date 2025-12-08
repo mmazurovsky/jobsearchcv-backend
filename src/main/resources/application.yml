@@ -138,6 +138,34 @@ stripe:
   # - Weekly Payment Link: ${STRIPE_CHECKOUT_WEEKLY_URL}?client_reference_id={userId}
   # - Customer Portal: ${STRIPE_CUSTOMER_PORTAL_URL}
 
+# Redis Streams Configuration
+redis:
+  host: ${REDIS_HOST:localhost}
+  port: ${REDIS_PORT:6379}
+  password: ${REDIS_PASSWORD:}
+
+  connection:
+    timeout-ms: ${REDIS_CONNECTION_TIMEOUT_MS:5000}
+    command-timeout-ms: ${REDIS_COMMAND_TIMEOUT_MS:10000}
+
+  streams:
+    enabled: ${ENABLE_REDIS_STREAMS:false}
+    consumer-group: ${REDIS_CONSUMER_GROUP:backend-processors}
+    request-stream: ${REDIS_REQUEST_STREAM:job-search:requests}
+    result-stream: ${REDIS_RESULT_STREAM:job-search:results}
+    dlq-stream: ${REDIS_DLQ_STREAM:job-search:dlq}
+
+  producer:
+    max-retry-attempts: ${REDIS_PRODUCER_MAX_RETRIES:3}
+    retry-delay-ms: ${REDIS_PRODUCER_RETRY_DELAY_MS:1000}
+
+  consumer:
+    max-retries: ${REDIS_CONSUMER_MAX_RETRIES:3}
+    claim-timeout-ms: ${REDIS_CONSUMER_CLAIM_TIMEOUT_MS:60000}
+    claim-interval-ms: ${REDIS_CONSUMER_CLAIM_INTERVAL_MS:30000}
+
+  fallback-to-http: ${FALLBACK_TO_HTTP:true}
+
 ---
 # Local profile configuration
 spring:
