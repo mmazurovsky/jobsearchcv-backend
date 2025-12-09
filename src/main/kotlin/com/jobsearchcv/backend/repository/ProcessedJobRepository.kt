@@ -20,6 +20,7 @@ interface ProcessedJobRepository {
     fun countAll(): Long
     fun findByLinkPattern(pattern: String): List<ProcessedJobData>
     fun findById(id: String): ProcessedJobData?
+    fun findByIds(ids: Set<String>): List<ProcessedJobData>
     fun findByInternalId(internalId: String): ProcessedJobData?
     fun findByInternalIds(internalIds: Set<String>): List<ProcessedJobData>
     fun findByInternalIdsWithSeniority(internalIds: Set<String>, seniority: String): List<ProcessedJobData>
@@ -155,6 +156,18 @@ class ProcessedJobRepositoryImpl(
     override fun findById(id: String): ProcessedJobData? {
         val query = Query(Criteria.where("_id").`is`(id))
         return mongoTemplate.findOne(query, ProcessedJobData::class.java)
+    }
+
+    /**
+     * Finds multiple jobs by their external job IDs (_id field).
+     * Used to re-fetch jobs after bulk upsert to get actual internal IDs from database.
+     */
+    override fun findByIds(ids: Set<String>): List<ProcessedJobData> {
+        if (ids.isEmpty()) {
+            return emptyList()
+        }
+        val query = Query(Criteria.where("_id").`in`(ids))
+        return mongoTemplate.find(query, ProcessedJobData::class.java)
     }
 
     /**

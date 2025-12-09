@@ -91,9 +91,15 @@ class BatchJobProcessingService(
             }
             processedJobRepository.bulkSaveOrUpdate(processedJobs)
 
+            // Step 3.5: Re-fetch jobs from database to get actual internal IDs
+            // (MongoDB's setOnInsert means in-memory objects may have wrong internal IDs for existing jobs)
+            val jobIds = processedJobs.map { it.id }.toSet()
+            val savedJobs = processedJobRepository.findByIds(jobIds)
+            logger.info("[JobSearch: $jobSearchId] Re-fetched ${savedJobs.size} jobs from database with correct internal IDs")
+
             // Step 4: Compatibility Scoring
             val scoredJobs = scoreJobsDataBatch(
-                processedJobs,
+                savedJobs,
                 enrichedJobs,
                 jobSearch,
                 scoringConfig
@@ -143,9 +149,16 @@ class BatchJobProcessingService(
             processedJobRepository.bulkSaveOrUpdate(processedJobs)
             logger.info("[JobSearch: $jobSearchId] Saved ${processedJobs.size} jobs to processed_jobs")
 
-            // Step 4: Convert to ScoredJobData with default score (100 = no filtering)
+            // Step 4: Re-fetch jobs from database to get actual internal IDs
+            // (MongoDB's setOnInsert means in-memory objects may have wrong internal IDs for existing jobs)
+            val jobIds = processedJobs.map { it.id }.toSet()
+            val savedJobs = processedJobRepository.findByIds(jobIds)
+            val savedJobsMap = savedJobs.associateBy { it.id }
+            logger.info("[JobSearch: $jobSearchId] Re-fetched ${savedJobs.size} jobs from database with correct internal IDs")
+
+            // Step 5: Convert to ScoredJobData with default score (100 = no filtering)
             val scoredJobs = enrichedJobs.mapNotNull { enrichedJob ->
-                val processedJob = processedJobs.find { it.id == enrichedJob.id }
+                val processedJob = savedJobsMap[enrichedJob.id]
                 if (processedJob != null) {
                     jobDataConverter.toScoredJobData(
                         processedJob = processedJob,
