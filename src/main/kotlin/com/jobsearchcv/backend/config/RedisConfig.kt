@@ -58,14 +58,17 @@ class RedisConfig {
 
     @PostConstruct
     fun initialize() {
+        log.info("=" + "=".repeat(79))
+        log.info("REDIS STREAMS CONFIGURATION ACTIVATED")
+        log.info("=" + "=".repeat(79))
         log.info(
-            "Redis Streams configuration initialized: " +
-                    "host=$redisHost, port=$redisPort, " +
-                    "consumer-group=$consumerGroup, " +
-                    "request-stream=$requestStream, " +
-                    "result-stream=$resultStream, " +
-                    "dlq-stream=$dlqStream"
+            "Redis connection: host=$redisHost, port=$redisPort, " +
+                    "password=${if (redisPassword.isNullOrBlank()) "NOT SET" else "***SET***"}"
         )
+        log.info("Consumer group: $consumerGroup")
+        log.info("Streams: request=$requestStream, result=$resultStream, dlq=$dlqStream")
+        log.info("Connection timeouts: connection=${connectionTimeoutMs}ms, command=${commandTimeoutMs}ms")
+        log.info("=" + "=".repeat(79))
 
         // Validate configuration
         require(redisHost.isNotBlank()) { "redis.host must not be blank" }

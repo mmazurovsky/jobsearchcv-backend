@@ -59,6 +59,9 @@ class RedisJobSearchConsumer(
         // Ensure consumer group exists
         createConsumerGroupIfNotExists()
 
+        // Process any pending messages for THIS consumer before starting
+        processPendingMessagesOnStartup()
+
         // Start listening to stream
         startStreamListener()
 
@@ -90,6 +93,42 @@ class RedisJobSearchConsumer(
         } catch (e: Exception) {
             log.error("Failed to ensure consumer group exists", e)
             throw IllegalStateException("Cannot initialize Redis consumer", e)
+        }
+    }
+
+    /**
+     * Process any pending messages for THIS consumer on startup.
+     * This ensures we complete any work that was interrupted by a crash/restart.
+     */
+    private fun processPendingMessagesOnStartup() {
+        try {
+            val streamOps = redisTemplate.opsForStream<String, String>()
+            val consumer = Consumer.from(consumerGroup, consumerName)
+
+            // Read pending messages for this consumer (use "0" to start from beginning of PEL)
+            val pendingMessages = streamOps.read(
+                consumer,
+                StreamReadOptions.empty().count(100), // Process up to 100 pending messages
+                StreamOffset.create(resultStream, ReadOffset.from("0"))
+            )
+
+            if (pendingMessages.isEmpty()) {
+                log.info("No pending messages found for consumer: $consumerName")
+                return
+            }
+
+            log.info("Found ${pendingMessages.size} pending messages for consumer: $consumerName, processing...")
+
+            pendingMessages.forEach { message ->
+                @Suppress("UNCHECKED_CAST")
+                handleMessage(message as MapRecord<String, String, String>)
+            }
+
+            log.info("Finished processing ${pendingMessages.size} pending messages")
+
+        } catch (e: Exception) {
+            log.error("Error processing pending messages on startup", e)
+            // Don't throw - continue with normal startup
         }
     }
 
@@ -197,9 +236,8 @@ class RedisJobSearchConsumer(
             // Move to DLQ
             moveToDlq(messageId, fields, error.message ?: "Unknown error", deliveryCount)
 
-            // ACK original message to remove from pending
-            redisTemplate.opsForStream<String, String>()
-                .acknowledge(resultStream, consumerGroup, messageId)
+            // ACK and delete original message after moving to DLQ
+            acknowledgeAndDelete(messageId)
 
             // Alert via Sentry
             Sentry.captureException(error)
