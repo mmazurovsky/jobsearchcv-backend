@@ -39,7 +39,10 @@ class PageJobController(
             return ResponseEntity.badRequest().build()
         }
 
-        val jobs = pageJobService.getPageJobsForUser(userId, minutesBack, seniority)
+        // Normalize seniority - treat blank strings as null (no filtering)
+        val normalizedSeniority = seniority?.takeIf { it.isNotBlank() }
+
+        val jobs = pageJobService.getPageJobsForUser(userId, minutesBack, normalizedSeniority)
         return ResponseEntity.ok(jobs)
     }
 }

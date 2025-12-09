@@ -62,6 +62,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-quartz")
+    implementation("org.springframework.boot:spring-boot-starter-cache")
 
     // ── Redis (Lettuce client) ──────────────────────────────
     implementation("org.springframework.boot:spring-boot-starter-data-redis")

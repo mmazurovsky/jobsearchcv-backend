@@ -22,6 +22,7 @@ interface ProcessedJobRepository {
     fun findById(id: String): ProcessedJobData?
     fun findByInternalId(internalId: String): ProcessedJobData?
     fun findByInternalIds(internalIds: Set<String>): List<ProcessedJobData>
+    fun findByInternalIdsWithSeniority(internalIds: Set<String>, seniority: String): List<ProcessedJobData>
     fun findInternalIdsForJobIds(jobIds: Set<String>): Map<String, String>
 }
 
@@ -173,6 +174,40 @@ class ProcessedJobRepositoryImpl(
         }
 
         val query = Query(Criteria.where("internal_id").`in`(internalIds))
+        return mongoTemplate.find(query, ProcessedJobData::class.java)
+    }
+
+    /**
+     * Finds multiple jobs by their internal IDs, filtered by seniority level at the database level.
+     * Uses regex pattern matching on tags array for efficient filtering.
+     *
+     * @param internalIds Set of internal IDs to search for
+     * @param seniority Seniority level to filter by (e.g., "entry-level", "mid-level", "senior")
+     * @return List of ProcessedJobData matching both internal IDs and seniority
+     */
+    override fun findByInternalIdsWithSeniority(internalIds: Set<String>, seniority: String): List<ProcessedJobData> {
+        if (internalIds.isEmpty()) {
+            return emptyList()
+        }
+
+        // Create a flexible regex pattern that matches variations of seniority in tags
+        // For example, "entry-level" should match: "entry-level", "entry level", "entry_level", "entrylevel", "Entry-Level", etc.
+        // Split input into words and join with optional separator pattern
+        val words = seniority.lowercase().split(Regex("[-_ ]+"))
+        val seniorityRegex = if (words.size > 1) {
+            // Multi-word: "entry" and "level" → "entry[-_ ]?level"
+            words.joinToString("[-_ ]?") { Regex.escape(it) }
+        } else {
+            // Single word: just escape it
+            Regex.escape(seniority.lowercase())
+        }
+
+        val query = Query(
+            Criteria.where("internal_id").`in`(internalIds)
+                .and("tags").regex(seniorityRegex, "i")
+        )
+
+        logger.debug("Seniority filter regex: $seniorityRegex")
         return mongoTemplate.find(query, ProcessedJobData::class.java)
     }
 }

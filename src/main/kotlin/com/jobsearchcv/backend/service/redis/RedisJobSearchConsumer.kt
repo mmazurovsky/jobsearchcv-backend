@@ -112,7 +112,7 @@ class RedisJobSearchConsumer(
                 StreamOffset.create(resultStream, ReadOffset.from("0"))
             )
 
-            if (pendingMessages.isEmpty()) {
+            if (pendingMessages?.isEmpty() != false) {
                 log.info("No pending messages found for consumer: $consumerName")
                 return
             }
