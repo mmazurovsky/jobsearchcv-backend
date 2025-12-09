@@ -243,7 +243,9 @@ class IncomingJobsProcessingService(
             logger.info("[PAGE] Successfully processed and saved ${enrichedJobs.size} jobs")
 
             // Create X.com overview post after jobs are marked as sent
-            createPageOverviewPost(enrichedJobs, jobSearch, userId, destination)
+            if (false) {
+                createPageOverviewPost(enrichedJobs, jobSearch, userId, destination)
+            }
 
         } catch (e: Exception) {
             logger.error("[PAGE] Error processing jobs for user $userId", e)
