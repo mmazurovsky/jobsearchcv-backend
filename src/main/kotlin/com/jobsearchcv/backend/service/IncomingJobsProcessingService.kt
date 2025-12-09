@@ -223,6 +223,7 @@ class IncomingJobsProcessingService(
     /**
      * PAGE Channel: Translation + Enrichment only (no scoring).
      * Saves ALL jobs to database for in-app viewing (no external delivery).
+     * Creates ONE X.com post with batch overview after jobs are marked as sent.
      */
     private suspend fun processJobsForPageChannel(
         jobs: List<ScrapedJobData>,
@@ -241,8 +242,62 @@ class IncomingJobsProcessingService(
             markJobsAsSent(enrichedJobs, userId, destination.channelValue)
             logger.info("[PAGE] Successfully processed and saved ${enrichedJobs.size} jobs")
 
+            // Create X.com overview post after jobs are marked as sent
+            createPageOverviewPost(enrichedJobs, jobSearch, userId, destination)
+
         } catch (e: Exception) {
             logger.error("[PAGE] Error processing jobs for user $userId", e)
+        }
+    }
+
+    /**
+     * Creates an X.com overview post for a batch of PAGE channel jobs
+     * Post is only created if pagePath and channelValue are configured
+     * Errors are logged but do not fail the job processing pipeline
+     */
+    private suspend fun createPageOverviewPost(
+        enrichedJobs: List<ScoredJobData>,
+        jobSearch: JobSearchOut,
+        userId: String,
+        destination: Destination
+    ) {
+        try {
+            // Validation checks
+            if (enrichedJobs.isEmpty()) {
+                logger.info("[PAGE] No jobs to post overview for, skipping X.com post")
+                return
+            }
+
+            if (destination.pagePath.isNullOrBlank()) {
+                logger.info("[PAGE] No pagePath configured for destination ${destination.id}, skipping X.com post")
+                return
+            }
+
+            if (destination.channelValue.isBlank()) {
+                logger.warn("[PAGE] Empty channelValue for destination ${destination.id}, skipping X.com post")
+                return
+            }
+
+            // Enqueue overview post with hashtags
+            val success = xcomQueueService.enqueuePageOverviewPost(
+                jobCount = enrichedJobs.size,
+                jobSearch = jobSearch,
+                username = destination.channelValue,
+                pagePath = destination.pagePath,
+                hashtags = destination.socialMediaTags,
+                userId = userId
+            )
+
+            if (success) {
+                logger.info("[PAGE] Successfully enqueued X.com overview post for ${enrichedJobs.size} jobs (pagePath: ${destination.pagePath})")
+            } else {
+                logger.error("[PAGE] Failed to enqueue X.com overview post for ${enrichedJobs.size} jobs")
+            }
+
+        } catch (e: Exception) {
+            // Log error but don't propagate - X.com post creation should not fail job processing
+            logger.error("[PAGE] Error creating X.com overview post for user $userId", e)
+            io.sentry.Sentry.captureException(e)
         }
     }
 

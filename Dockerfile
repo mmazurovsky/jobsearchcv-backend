@@ -16,8 +16,8 @@ RUN ./gradlew dependencies --no-daemon
 # Copy source code
 COPY src src
 
-# Build application
-RUN ./gradlew bootJar --no-daemon
+# Build application (skip tests - run in CI/CD before deployment)
+RUN ./gradlew bootJar --no-daemon -x test --parallel
 
 FROM eclipse-temurin:21-jre-alpine
 
