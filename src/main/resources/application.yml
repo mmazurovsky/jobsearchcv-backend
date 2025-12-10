@@ -83,6 +83,15 @@ logging:
 DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:}
 OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:}
 
+# LLM Model Configuration
+llm:
+  models:
+    # Regular user models (free tier)
+    enrichment: ${LLM_ENRICHMENT_MODEL}
+    scoring: ${LLM_SCORING_MODEL}
+    # Admin models (premium tier)
+    admin-enrichment: ${LLM_ADMIN_ENRICHMENT_MODEL}
+    admin-scoring: ${LLM_ADMIN_SCORING_MODEL}
 
 # Resend Email Configuration
 resend:
@@ -160,6 +169,7 @@ redis:
     retry-delay-ms: ${REDIS_PRODUCER_RETRY_DELAY_MS:1000}
 
   consumer:
+    name: ${REDIS_CONSUMER_NAME:backend-consumer}
     max-retries: ${REDIS_CONSUMER_MAX_RETRIES:3}
     claim-timeout-ms: ${REDIS_CONSUMER_CLAIM_TIMEOUT_MS:60000}
     claim-interval-ms: ${REDIS_CONSUMER_CLAIM_INTERVAL_MS:30000}

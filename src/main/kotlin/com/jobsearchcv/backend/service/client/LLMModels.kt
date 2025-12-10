@@ -40,16 +40,16 @@ data class LLMConfig(
 
     companion object {
         // Default config for enrichment (structured data extraction)
-        fun forEnrichment() = LLMConfig(
-            model = "meta-llama/llama-3.3-70b-instruct:free",
+        fun forEnrichment(modelOverride: String? = null) = LLMConfig(
+            model = modelOverride ?: "meta-llama/llama-3.3-70b-instruct:free",
             temperature = 0.1,            // Low for deterministic JSON extraction
             modelContextTokens = 50000,   // Total model context window
             maxOutputTokens = 10000        // ~30 jobs × 50 tokens/job
         )
 
         // Default config for scoring (compatibility evaluation)
-        fun forScoring() = LLMConfig(
-            model = "meta-llama/llama-3.3-70b-instruct:free",
+        fun forScoring(modelOverride: String? = null) = LLMConfig(
+            model = modelOverride ?: "meta-llama/llama-3.3-70b-instruct:free",
             temperature = 0.3,            // Slightly higher for nuanced scoring
             modelContextTokens = 50000,   // Total model context window
             maxOutputTokens = 10000        // ~30 jobs × 80 tokens/job

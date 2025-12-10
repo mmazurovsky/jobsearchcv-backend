@@ -19,9 +19,7 @@ import org.springframework.data.redis.connection.stream.*
 import org.springframework.data.redis.core.RedisTemplate
 import org.springframework.data.redis.stream.*
 import org.springframework.stereotype.Service
-import java.net.InetAddress
 import java.time.Duration
-import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 @Service
@@ -37,6 +35,8 @@ class RedisJobSearchConsumer(
     private val consumerGroup: String,
     @Value("\${redis.streams.dlq-stream:job-search:dlq}")
     private val dlqStream: String,
+    @Value("\${redis.consumer.name:backend-consumer}")
+    private val consumerName: String,
     @Value("\${redis.consumer.max-retries:3}")
     private val maxRetries: Int,
     @Value("\${redis.consumer.claim-timeout-ms:60000}")
@@ -47,7 +47,6 @@ class RedisJobSearchConsumer(
 
     private val log = LoggerFactory.getLogger(this::class.java)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val consumerName = generateConsumerName()
     private val processingMessages = ConcurrentHashMap<String, Long>() // messageId -> startTime
 
     private var subscription: Subscription? = null
@@ -372,15 +371,5 @@ class RedisJobSearchConsumer(
             log.warn("Failed to get delivery count for messageId=$messageId", e)
             1
         }
-    }
-
-    private fun generateConsumerName(): String {
-        val hostname = try {
-            InetAddress.getLocalHost().hostName
-        } catch (e: Exception) {
-            "unknown-host"
-        }
-        val uuid = UUID.randomUUID().toString().substring(0, 8)
-        return "backend-$hostname-$uuid"
     }
 }
