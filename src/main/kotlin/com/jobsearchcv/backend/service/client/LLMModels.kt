@@ -43,7 +43,7 @@ data class LLMConfig(
         fun forEnrichment(modelOverride: String? = null) = LLMConfig(
             model = modelOverride ?: "meta-llama/llama-3.3-70b-instruct:free",
             temperature = 0.1,            // Low for deterministic JSON extraction
-            modelContextTokens = 50000,   // Total model context window
+            modelContextTokens = 80000,  // Increased from 50K to support larger batches
             maxOutputTokens = 10000        // ~30 jobs × 50 tokens/job
         )
 
@@ -51,7 +51,7 @@ data class LLMConfig(
         fun forScoring(modelOverride: String? = null) = LLMConfig(
             model = modelOverride ?: "meta-llama/llama-3.3-70b-instruct:free",
             temperature = 0.3,            // Slightly higher for nuanced scoring
-            modelContextTokens = 50000,   // Total model context window
+            modelContextTokens = 80000,  // Increased from 50K to support larger batches
             maxOutputTokens = 10000        // ~30 jobs × 80 tokens/job
         )
     }

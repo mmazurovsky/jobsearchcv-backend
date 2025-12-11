@@ -59,7 +59,8 @@ class BatchJobProcessingService(
     private val logger = LoggerFactory.getLogger(this::class.java)
 
     // Semaphore to limit parallel LLM requests
-    private val llmSemaphore = Semaphore(3)
+    // Increased from 3 to 12 to support higher concurrency (5-20 concurrent searches)
+    private val llmSemaphore = Semaphore(10)
 
     /**
      * Selects appropriate LLM configs based on admin status

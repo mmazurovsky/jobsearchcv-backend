@@ -27,8 +27,9 @@ class OpenRouterClient(
         private val logger: Logger = LoggerFactory.getLogger(OpenRouterClient::class.java)
         private const val MAX_RETRIES = 3
         private const val INITIAL_DELAY_MS = 1000L
-        private const val CONNECT_TIMEOUT_SECONDS = 30L
-        private const val REQUEST_TIMEOUT_SECONDS = 60L
+        // Reduced timeouts from 30s/60s to 15s/45s for faster failure detection
+        private const val CONNECT_TIMEOUT_SECONDS = 15L
+        private const val REQUEST_TIMEOUT_SECONDS = 45L
         private const val OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
         
         // Default models - easy to change
