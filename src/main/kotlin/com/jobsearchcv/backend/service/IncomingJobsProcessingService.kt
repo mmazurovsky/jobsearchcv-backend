@@ -242,8 +242,8 @@ class IncomingJobsProcessingService(
             markJobsAsSent(enrichedJobs, userId, destination.channelValue)
             logger.info("[PAGE] Successfully processed and saved ${enrichedJobs.size} jobs")
 
-            // Create X.com overview post after jobs are marked as sent
-            if (false) {
+            // Create X.com overview post after jobs are marked as sent (if enabled)
+            if (destination.postOnX == true) {
                 createPageOverviewPost(enrichedJobs, jobSearch, userId, destination)
             }
 

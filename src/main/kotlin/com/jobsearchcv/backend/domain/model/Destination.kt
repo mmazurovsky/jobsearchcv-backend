@@ -29,6 +29,9 @@ data class Destination(
     @field:Field("social_media_tags")
     @Schema(description = "Hashtags to include in social media posts", example = "[\"#techjobs\", \"#remotework\", \"#hiring\"]", required = false)
     val socialMediaTags: List<String>? = null,
+    @field:Field("post_on_x")
+    @Schema(description = "Whether to post page overviews on X (Twitter). Only applicable for PAGE channel destinations.", example = "true", required = false)
+    val postOnX: Boolean? = null,
     @field:Field("created_at")
     @Schema(description = "Timestamp when the destination was created", required = true)
     val createdAt: OffsetDateTime = OffsetDateTime.now()
@@ -43,7 +46,8 @@ data class Destination(
             channel: Channel,
             channelValue: String,
             pagePath: String? = null,
-            socialMediaTags: List<String>? = null
+            socialMediaTags: List<String>? = null,
+            postOnX: Boolean? = null
         ): Destination {
             return Destination(
                 id = UUID.randomUUID().toString(),
@@ -52,6 +56,7 @@ data class Destination(
                 channelValue = channelValue,
                 pagePath = pagePath,
                 socialMediaTags = socialMediaTags,
+                postOnX = postOnX,
                 createdAt = OffsetDateTime.now()
             )
         }

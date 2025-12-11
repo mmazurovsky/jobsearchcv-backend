@@ -86,10 +86,11 @@ OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:}
 # LLM Model Configuration
 llm:
   models:
-    # Regular user models (free tier)
+    # Free models (used for ADMIN searches - internal testing)
     enrichment: ${LLM_ENRICHMENT_MODEL}
     scoring: ${LLM_SCORING_MODEL}
-    # Admin models (premium tier)
+    # Premium models (used for NON-ADMIN searches - real users)
+    # Note: Property names have "admin" prefix for historical reasons
     admin-enrichment: ${LLM_ADMIN_ENRICHMENT_MODEL}
     admin-scoring: ${LLM_ADMIN_SCORING_MODEL}
 

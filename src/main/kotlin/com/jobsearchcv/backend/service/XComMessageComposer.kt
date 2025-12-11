@@ -67,7 +67,8 @@ class XComMessageComposer(
         val baseMessage = StringBuilder().apply {
             append("Found $jobCount new ${jobSearch.jobTitle} $jobWord in ${jobSearch.location} published on Linkedin in the last ${jobSearch.timePeriod.displayName}. ")
             append("Be early to apply! ")
-            appendLine("Overview with all the jobs published in the last 24 hours is available here: $pageUrl")
+            appendLine("Overview with all the jobs published in the last 24 hours is available here:")
+            appendLine(pageUrl)
         }.toString()
 
         // Try with hashtags first

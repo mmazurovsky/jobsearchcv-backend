@@ -22,15 +22,16 @@ class PageJobService(
      *
      * @param userId User ID to fetch jobs for
      * @param minutesBack Number of minutes to look back (default: 1440 = 24 hours)
-     * @param seniority Optional seniority level to filter by (e.g., "entry-level", "mid-level", "senior")
+     * @param tags Optional list of tags to filter by (e.g., ["entry-level", "remote"])
+     * @param techstack Optional list of techstack items to filter by (e.g., ["Kotlin", "Spring Boot"])
      * @return List of jobs sorted by sent_at descending
      */
     @Cacheable(
         value = [CacheConfig.PAGE_JOBS_CACHE],
-        key = "#userId + '_' + #minutesBack + '_' + (#seniority ?: 'all')"
+        key = "#userId + '_' + #minutesBack + '_' + (#tags != null ? #tags.toString() : 'all') + '_' + (#techstack != null ? #techstack.toString() : 'all')"
     )
-    fun getPageJobsForUser(userId: String, minutesBack: Long = 1440, seniority: String? = null): List<PageJobResponse> {
-        logger.info("Fetching page jobs for userId=$userId from last $minutesBack minutes, seniority=$seniority")
+    fun getPageJobsForUser(userId: String, minutesBack: Long = 1440, tags: List<String>? = null, techstack: List<String>? = null): List<PageJobResponse> {
+        logger.info("Fetching page jobs for userId=$userId from last $minutesBack minutes, tags=$tags, techstack=$techstack")
 
         // 1. Get sent jobs from last N minutes
         val sentAtAfter = OffsetDateTime.now().minusMinutes(minutesBack)
@@ -51,10 +52,10 @@ class PageJobService(
             return emptyList()
         }
 
-        // 3. Fetch processed jobs by internal IDs, with optional seniority filtering at database level
-        val processedJobs = if (seniority != null) {
-            processedJobRepository.findByInternalIdsWithSeniority(internalIds, seniority).also { filtered ->
-                logger.info("Found ${filtered.size} processed jobs matching seniority='$seniority' for ${internalIds.size} internal IDs")
+        // 3. Fetch processed jobs by internal IDs, with optional tags/techstack filtering at database level
+        val processedJobs = if (!tags.isNullOrEmpty() || !techstack.isNullOrEmpty()) {
+            processedJobRepository.findByInternalIdsWithFilters(internalIds, tags, techstack).also { filtered ->
+                logger.info("Found ${filtered.size} processed jobs matching tags=$tags, techstack=$techstack for ${internalIds.size} internal IDs")
             }
         } else {
             processedJobRepository.findByInternalIds(internalIds).also { all ->

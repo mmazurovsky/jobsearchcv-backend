@@ -63,19 +63,21 @@ class BatchJobProcessingService(
 
     /**
      * Selects appropriate LLM configs based on admin status
+     * Admin searches use free models (for internal testing/admin purposes)
+     * Non-admin searches use premium models (for real users)
      */
     private fun selectLLMConfigs(isAdmin: Boolean?): Pair<LLMConfig, LLMConfig> {
         return if (isAdmin == true) {
-            // Admin search: use premium models
-            Pair(
-                LLMConfig.forEnrichment(llmModelConfig.adminEnrichment),
-                LLMConfig.forScoring(llmModelConfig.adminScoring)
-            )
-        } else {
-            // Regular search: use free models
+            // Admin search: use free models (internal testing)
             Pair(
                 LLMConfig.forEnrichment(llmModelConfig.enrichment),
                 LLMConfig.forScoring(llmModelConfig.scoring)
+            )
+        } else {
+            // Non-admin search: use premium models (real users)
+            Pair(
+                LLMConfig.forEnrichment(llmModelConfig.adminEnrichment),
+                LLMConfig.forScoring(llmModelConfig.adminScoring)
             )
         }
     }
