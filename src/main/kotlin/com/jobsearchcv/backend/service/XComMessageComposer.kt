@@ -66,15 +66,14 @@ class XComMessageComposer(
         // Build base message using StringBuilder
         val baseMessage = StringBuilder().apply {
             append("Found $jobCount new ${jobSearch.jobTitle} $jobWord in ${jobSearch.location} published on Linkedin in the last ${jobSearch.timePeriod.displayName}. ")
-            append("Be early to apply! ")
-            appendLine("Overview with all the jobs published in the last 24 hours is available here:")
-            appendLine(pageUrl)
+            append("\nBe early to apply!\n")
+            append("🔗 $pageUrl")
         }.toString()
 
         // Try with hashtags first
         if (selectedHashtags.isNotEmpty()) {
             val messageWithHashtags = StringBuilder(baseMessage).apply {
-                appendLine(" ${selectedHashtags.joinToString(" ")}")
+                append("\n${selectedHashtags.joinToString(" ") { "#$it" }}")
             }.toString()
 
             if (messageWithHashtags.length <= 280) {
@@ -88,7 +87,7 @@ class XComMessageComposer(
         }
 
         // Truncate base message if still too long
-        val suffix = "Be early to apply! Overview with all the jobs published in the last 24 hours is available here: $pageUrl"
+        val suffix = "Be early to apply!\n🔗 $pageUrl"
         val availableSpace = 280 - suffix.length - 3 // -3 for "... "
         val prefix = baseMessage.substringBefore("Be early to apply!")
 

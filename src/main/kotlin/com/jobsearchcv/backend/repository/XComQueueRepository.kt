@@ -2,6 +2,7 @@ package com.jobsearchcv.backend.repository
 
 import com.jobsearchcv.backend.domain.model.QueueStatus
 import com.jobsearchcv.backend.domain.model.XComQueueJob
+import org.springframework.data.domain.Sort
 import org.springframework.data.mongodb.core.MongoTemplate
 import org.springframework.data.mongodb.core.query.Criteria
 import org.springframework.data.mongodb.core.query.Query
@@ -40,7 +41,9 @@ class XComQueueRepositoryImpl(
         val query = Query(
             Criteria.where("status").`is`(QueueStatus.PENDING.name)
                 .and("scheduled_at").lte(scheduledBefore)
-        ).limit(10) // Fetch up to 10 jobs per batch
+        )
+            .with(Sort.by(Sort.Direction.DESC, "scheduled_at"))
+            .limit(10) // Fetch up to 10 jobs per batch
         return mongoTemplate.find(query, XComQueueJob::class.java)
     }
 

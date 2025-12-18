@@ -174,7 +174,7 @@ class IncomingJobsProcessingService(
                 specialMessage = if (specialSearchName == "Monthly Overview")
                     "This is an overview of jobs posted in the last month" else null,
                 userId = userId,
-                isFreeTier = !hasPremiumAccess
+                isFreeTier = !hasPremiumAccess && jobSearch.isAdmin != true
             )
 
             asyncEmailService.sendEmailAsync(emailContent)

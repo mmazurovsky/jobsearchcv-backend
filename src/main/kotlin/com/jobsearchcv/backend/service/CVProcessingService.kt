@@ -162,18 +162,18 @@ Instructions
 Job Search Recommendation Specific Rules
 - Use only acceptable job types when constructing "jobTypes": Full-time, Part-time, Contract, Temporary, Internship. Default to Full-time.
 - Use only these remote types in "remoteTypes": Remote, On-site, Hybrid. Default to Remote.
-- Only use the following time periods for "timePeriod": 20 minutes, 30 minutes, 1 hour, 4 hours, 24 hours. Default to 20 minutes for the primary search, 30 minutes for the secondary search, and 4 hours for any additional searches.
+- Only use the following time periods for "timePeriod": 20 minutes, 30 minutes, 1 hour, 4 hours, 24 hours. Default to 30 minutes.
 
 Sub-categories / Special Rules
-- Output 3-5 recommended_searches
+- Output only 1 recommended_search (singular, not multiple)
 - Remote remoteTypes can be used ONLY with country
 - Hybrid and On-site remoteTypes can be used ONLY with city or state
-- For first search use same title as latest title in CV or title specified first in CV. For secondary search use title one level higher than first one. Additional titles should not contain levels in them and should be different from primary and secondary
+- Use the same title as latest title in CV or title specified first in CV
 - Use only city, state, or country granularity for location—never more specific, never more broad.
 - jobTitle must contain only ONE job title, never combine multiple roles.
   Good examples: "Frontend Software Developer", "Product Manager", "Data Scientist"
   Bad examples: "Software Developer and Scrum Master", "Frontend or Backend Developer", "Developer/Designer"
-- At least one job search must use Hybrid remoteType and a specific city or state if the user's location is certain and sufficiently granular.
+- Use Remote remoteType with a specific city or state if the user's location is certain and sufficiently granular, otherwise use Remote with country.
 - Skill weights: 80+ for frequently mentioned, specified earlier in CV; 40 for specified later in CV, specified only once; 60-79 for others.
 
 Context

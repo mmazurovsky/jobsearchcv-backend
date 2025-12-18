@@ -157,7 +157,7 @@ class CVController(
     @PostMapping("/createSearchesFromPrompt")
     @Operation(
         summary = "Create job searches from free-form text prompt",
-        description = "Analyzes a text prompt with AI and generates 3-5 recommended job searches. Available to all authenticated users including anonymous. Saves both the searches and the prompt to the database."
+        description = "Analyzes a text prompt with AI and generates 1 recommended job search. Available to all authenticated users including anonymous. Saves both the search and the prompt to the database."
     )
     @ApiResponses(
         ApiResponse(responseCode = "200", description = "Job searches created successfully from prompt"),
