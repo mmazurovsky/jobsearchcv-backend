@@ -3,6 +3,7 @@ package com.jobsearchcv.backend.service
 import com.jobsearchcv.backend.domain.model.*
 import com.jobsearchcv.backend.repository.JobSearchRepository
 import com.jobsearchcv.backend.repository.SentJobRepository
+import com.jobsearchcv.backend.repository.ScoredJobRepository
 import com.jobsearchcv.backend.repository.DestinationRepository
 import com.jobsearchcv.backend.service.XComQueueService
 import io.sentry.Sentry
@@ -15,6 +16,7 @@ import java.time.OffsetDateTime
 @Service
 class IncomingJobsProcessingService(
     private val sentJobRepository: SentJobRepository,
+    private val scoredJobRepository: ScoredJobRepository,
     private val jobSearchRepository: JobSearchRepository,
     private val batchJobProcessingService: BatchJobProcessingService,
     private val destinationRepository: DestinationRepository,
@@ -123,6 +125,42 @@ class IncomingJobsProcessingService(
         }
     }
 
+    private suspend fun saveScoredJobs(
+        jobs: List<ScoredJobData>,
+        userId: String,
+        jobSearchId: String,
+        destination: String?,
+        status: String?
+    ) {
+        try {
+            val scoredJobEntities = jobs.map { job ->
+                ScoredJobOut(
+                    userId = userId,
+                    jobSearchId = jobSearchId,
+                    internalId = job.internalId,
+                    title = job.title,
+                    company = job.company,
+                    location = job.location,
+                    jobUrl = job.link,
+                    description = job.description,
+                    applicants = job.applicants,
+                    techstack = job.techstack,
+                    tags = job.tags,
+                    salary = job.salary,
+                    compatibilityScore = job.compatibilityScore,
+                    status = status,
+                    destination = destination,
+                    savedAt = OffsetDateTime.now(),
+                )
+            }
+            scoredJobRepository.saveAll(scoredJobEntities)
+            logger.info("Saved ${scoredJobEntities.size} scored jobs for user $userId with status=$status")
+
+        } catch (e: Exception) {
+            logger.error("Error saving scored jobs for user $userId", e)
+        }
+    }
+
     private fun buildSearchDisplayName(jobSearch: JobSearchOut, specialSearchName: String?): String {
         val stringBuilder = StringBuilder()
         stringBuilder.append(jobSearch.jobTitle.ifBlank { "Your Job Search" })
@@ -180,7 +218,8 @@ class IncomingJobsProcessingService(
             asyncEmailService.sendEmailAsync(emailContent)
             logger.info("[EMAIL] Queued email to $recipientEmail with ${filteredJobs.size} jobs")
 
-            // Mark jobs as sent
+            // Save scored jobs and mark as sent
+            saveScoredJobs(filteredJobs, userId, jobSearch.id, recipientEmail, "unseen")
             markJobsAsSent(filteredJobs, userId, recipientEmail)
             logger.info("[EMAIL] Successfully processed and sent ${filteredJobs.size} jobs")
 
@@ -210,8 +249,6 @@ class IncomingJobsProcessingService(
             val username = destination.channelValue
             val enqueuedCount = xcomQueueService.enqueueJobs(enrichedJobs, username, userId)
             logger.info("[XCOM] Enqueued $enqueuedCount jobs for posting (username: $username)")
-
-            // Mark jobs as sent
             markJobsAsSent(enrichedJobs, userId, username)
             logger.info("[XCOM] Successfully processed and enqueued ${enrichedJobs.size} jobs")
 
@@ -238,7 +275,6 @@ class IncomingJobsProcessingService(
             val enrichedJobs = batchJobProcessingService.processJobsForXcomOrPageChannel(jobs, jobSearch)
             logger.info("[PAGE] Enriched and saved ${enrichedJobs.size} jobs")
 
-            // Mark jobs as sent (already saved in DB for viewing)
             markJobsAsSent(enrichedJobs, userId, destination.channelValue)
             logger.info("[PAGE] Successfully processed and saved ${enrichedJobs.size} jobs")
 

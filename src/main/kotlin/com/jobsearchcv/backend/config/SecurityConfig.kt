@@ -50,6 +50,7 @@ class SecurityConfig(
                     .requestMatchers("/api/cv/**").authenticated()
                     .requestMatchers("/api/job-searches/**").authenticated()
                     .requestMatchers("/api/destinations/**").authenticated()
+                    .requestMatchers("/api/scored-jobs/**").authenticated()
                     // All other endpoints require authentication by default
                     .anyRequest().authenticated()
             }

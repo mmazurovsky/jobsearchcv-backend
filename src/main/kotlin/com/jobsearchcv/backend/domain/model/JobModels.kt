@@ -10,6 +10,7 @@ import org.springframework.data.mongodb.core.index.CompoundIndex
 import org.springframework.data.mongodb.core.index.CompoundIndexes
 import org.springframework.data.mongodb.core.mapping.Document
 import java.time.OffsetDateTime
+import java.util.UUID
 
 @Schema(description = "Job search input configuration")
 data class JobSearchIn(
@@ -165,6 +166,58 @@ data class SentJobOut(
     @Indexed(unique = false) @field:Field("job_url") val jobUrl: String,
     @Indexed(unique = false) @field:Field("sent_at") val sentAt: OffsetDateTime = OffsetDateTime.now(),
     @Indexed(unique = false) @field:Field("internal_id") val internalId: String? = null,
+)
+
+@Document(collection = "scored_jobs")
+@CompoundIndexes(
+    CompoundIndex(name = "user_sent_at_idx", def = "{'user_id': 1, 'sent_at': -1}"),
+    CompoundIndex(name = "user_status_sent_at_idx", def = "{'user_id': 1, 'status': 1, 'sent_at': -1}")
+)
+@Schema(description = "Scored job with full enrichment data")
+data class ScoredJobOut(
+    @Id val id: String = UUID.randomUUID().toString(),
+    @Indexed @field:Field("user_id") val userId: String,
+    @Indexed @field:Field("job_search_id") val jobSearchId: String,
+    @Indexed @field:Field("internal_id") val internalId: String,
+
+    // Job details
+    val title: String,
+    val company: String,
+    val location: String,
+    @field:Field("job_url") val jobUrl: String,
+    val description: String,
+    val applicants: String,
+
+    // Enrichment data
+    val techstack: List<String>,
+    val tags: List<String> = emptyList(),
+    val salary: String?,
+
+    // Scoring data
+    @field:Field("compatibility_score") val compatibilityScore: Int?,
+
+    // Metadata
+    @field:Field("status") val status: String?,
+    @field:Field("destination") val destination: String?,
+    @Indexed @field:Field("saved_at") val savedAt: OffsetDateTime
+)
+
+@Schema(description = "Scored job response with full details")
+data class ScoredJobResponse(
+    val id: String,
+    val userId: String,
+    val jobSearchId: String,
+    val internalId: String,
+    val title: String,
+    val company: String,
+    val location: String,
+    val techstack: List<String>,
+    val tags: List<String>,
+    val salary: String?,
+    val compatibilityScore: Int?,
+    val status: String?,
+    val destination: String?,
+    val savedAt: OffsetDateTime
 )
 
 data class SearchJobsParams(
