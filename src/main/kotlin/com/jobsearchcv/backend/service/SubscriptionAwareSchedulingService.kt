@@ -28,7 +28,8 @@ internal class InternalJobSearchScheduler(
     private val scraperJobService: ScraperJobService,
     private val destinationRepository: DestinationRepository,
     private val jobSearchRepository: JobSearchRepository,
-    private val timePeriodResolver: (JobSearchOut) -> TimePeriod
+    private val timePeriodResolver: (JobSearchOut) -> TimePeriod,
+    private val firebaseAuthService: FirebaseAuthService
 ) {
 
     companion object {
@@ -40,12 +41,23 @@ internal class InternalJobSearchScheduler(
     }
 
     /**
-     * Checks if a user has any destinations configured for receiving job notifications
+     * Checks if a user has any destinations configured for receiving job notifications.
+     * For email: checks Firebase for user email
+     * For xcom/page: checks destination collection
      */
     private suspend fun hasDestinations(userId: String): Boolean {
         return try {
+            // Check if user has email in Firebase (primary channel)
+            val hasFirebaseEmail = firebaseAuthService.getUserEmail(userId) != null
+
+            // Check if user has xcom/page destinations in collection
             val destinations = destinationRepository.findByUserId(userId)
-            destinations.isNotEmpty()
+            val hasOtherChannels = destinations.isNotEmpty()
+
+            val hasAnyDestination = hasFirebaseEmail || hasOtherChannels
+            logger.debug("User $userId has destinations: $hasAnyDestination (firebase email: $hasFirebaseEmail, other channels: $hasOtherChannels)")
+
+            hasAnyDestination
         } catch (e: Exception) {
             logger.error("Error checking destinations for user: $userId", e)
             false
@@ -184,7 +196,8 @@ class SubscriptionAwareSchedulingService(
     private val subscriptionService: SubscriptionService,
     private val scraperJobService: ScraperJobService,
     private val destinationRepository: DestinationRepository,
-    private val jobSearchRepository: JobSearchRepository
+    private val jobSearchRepository: JobSearchRepository,
+    private val firebaseAuthService: FirebaseAuthService
 ) {
 
     // Internal scheduler instance - not injectable from outside
@@ -193,10 +206,12 @@ class SubscriptionAwareSchedulingService(
             scheduler,
             scraperJobService,
             destinationRepository,
-            jobSearchRepository
-        ) { jobSearch ->
-            getEffectiveTimePeriodForJobSearch(jobSearch)
-        }
+            jobSearchRepository,
+            { jobSearch ->
+                getEffectiveTimePeriodForJobSearch(jobSearch)
+            },
+            firebaseAuthService
+        )
 
     companion object {
         private val logger = LoggerFactory.getLogger(SubscriptionAwareSchedulingService::class.java)
@@ -214,12 +229,10 @@ class SubscriptionAwareSchedulingService(
     }
 
     /**
-     * CRITICAL: Only schedule jobs for users with active Stripe subscriptions
-     * Users without Stripe subscription (FREE tier) should NOT get any job searches scheduled
-     * This prevents free monthly job overviews
+     * Checks if a user has an active subscription for scheduling job searches
+     * Only users with active Stripe subscriptions can have scheduled job searches
      */
     private fun shouldScheduleJobSearchForUser(userId: String): Boolean {
-        // Admin job searches bypass this check
         val hasPremiumAccess = subscriptionService.checkPremiumAccess(userId)
         if (!hasPremiumAccess) {
             logger.info("Skipping job search scheduling for user {} - no active subscription", userId)
@@ -230,12 +243,14 @@ class SubscriptionAwareSchedulingService(
 
     /**
      * Schedules a job search with subscription-aware time period logic
-     * - CRITICAL: Only schedules for users with active Stripe subscription (PREMIUM tier)
-     * - Users without subscription (FREE tier) will NOT have job searches scheduled
+     * - Only schedules for users with active Stripe subscription (PREMIUM tier)
      * - Premium users (weekly or monthly, including trial): Use their selected time period
      * - Only schedules if both isApproved and isSubscribed are true
      */
     suspend fun scheduleJobSearchWithSubscriptionLogic(jobSearch: JobSearchOut): SchedulingResult {
+
+        // TEMPORARY: Disable job search scheduling
+        if (false) {
         try {
             // Check if job search should be scheduled (isApproved and isSubscribed)
             if (!shouldScheduleJobSearch(jobSearch)) {
@@ -254,7 +269,7 @@ class SubscriptionAwareSchedulingService(
                 return SchedulingResult.Skipped(jobSearch.id, reason)
             }
 
-            // CRITICAL: Check if user has active subscription (unless admin)
+            // Check if user has active subscription (unless admin)
             val isAdmin = jobSearch.isAdmin == true
             if (!isAdmin && !shouldScheduleJobSearchForUser(jobSearch.userId)) {
                 logger.info(
@@ -285,6 +300,11 @@ class SubscriptionAwareSchedulingService(
             logger.error("Error scheduling job search with subscription logic: ${jobSearch.id}", e)
             return SchedulingResult.Error(jobSearch.id, e)
         }
+        }
+
+        // Scheduling is temporarily disabled
+        logger.info("Job search scheduling temporarily disabled for job search: {}", jobSearch.id)
+        return SchedulingResult.Skipped(jobSearch.id, "scheduling temporarily disabled")
     }
 
     /**
@@ -419,6 +439,8 @@ class SubscriptionAwareSchedulingService(
      * Schedules initial job searches on application startup with subscription-aware logic
      */
     suspend fun scheduleInitialJobSearches(jobSearches: List<JobSearchOut>) {
+        // TEMPORARY: Disable initial job search scheduling
+        if (false) {
         logger.info("Scheduling {} initial job searches with subscription awareness", jobSearches.size)
 
         val results = jobSearches.map { jobSearch ->
@@ -431,6 +453,9 @@ class SubscriptionAwareSchedulingService(
         if (errorCount > 0) {
             logger.warn("Some initial job searches failed to schedule during startup. Check logs for details.")
         }
+        }
+
+        logger.info("Initial job search scheduling temporarily disabled (skipped {} searches)", jobSearches.size)
     }
 
     /**

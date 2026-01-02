@@ -5,7 +5,6 @@ import com.jobsearchcv.backend.domain.model.Destination
 import com.jobsearchcv.backend.repository.DestinationRepository
 import com.jobsearchcv.backend.service.SubscriptionAwareSchedulingService
 import com.jobsearchcv.backend.service.SubscriptionService
-import com.jobsearchcv.backend.service.MonthlyOverviewService
 import com.jobsearchcv.backend.service.FirebaseUser
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
@@ -29,8 +28,7 @@ import org.springframework.web.bind.annotation.*
 class DestinationController(
     private val destinationRepository: DestinationRepository,
     private val subscriptionAwareSchedulingService: SubscriptionAwareSchedulingService,
-    private val subscriptionService: SubscriptionService,
-    private val monthlyOverviewService: MonthlyOverviewService
+    private val subscriptionService: SubscriptionService
 ) {
     companion object {
         private val logger: Logger = LoggerFactory.getLogger(DestinationController::class.java)
@@ -68,6 +66,17 @@ class DestinationController(
                     .body(DestinationResponse(
                         success = false,
                         message = "Invalid channel. Allowed values: ${Channel.values().map { it.value }}",
+                        destination = null
+                    ))
+            }
+
+            // Reject email channel - Firebase is now the source of truth for email addresses
+            if (channel == Channel.EMAIL) {
+                logger.warn("Email channel is no longer supported via destinations - use Firebase")
+                return@runBlocking ResponseEntity.badRequest()
+                    .body(DestinationResponse(
+                        success = false,
+                        message = "Email channel is not supported. Email addresses are automatically retrieved from your Firebase account.",
                         destination = null
                     ))
             }
@@ -114,19 +123,6 @@ class DestinationController(
                 logger.info("Destination changed for user $userId, rescheduling approved job searches")
                 runBlocking {
                     subscriptionAwareSchedulingService.scheduleAllApprovedSubscribedSearchesForUser(userId)
-                }
-
-                // If this is the first EMAIL destination, also trigger monthly overview
-                if (!hadDestinationsBefore && channel == Channel.EMAIL) {
-                    logger.info("User $userId added first email destination, triggering monthly overview")
-                    try {
-                        runBlocking {
-                            monthlyOverviewService.triggerMonthlyOverviewForUser(userId)
-                        }
-                    } catch (e: Exception) {
-                        logger.error("Failed to trigger monthly overview for user $userId", e)
-                        // Don't fail the destination creation if monthly overview fails
-                    }
                 }
             } catch (e: Exception) {
                 logger.error("Failed to reschedule approved job searches for user $userId after destination change", e)

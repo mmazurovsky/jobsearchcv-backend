@@ -40,7 +40,8 @@ class SubscriptionService(
         private val destinationRepository: DestinationRepository,
         private val emailTemplateService: EmailTemplateService,
         private val asyncEmailService: AsyncEmailService,
-        @Lazy private val subscriptionAwareSchedulingService: SubscriptionAwareSchedulingService
+        @Lazy private val subscriptionAwareSchedulingService: SubscriptionAwareSchedulingService,
+        private val firebaseAuthService: FirebaseAuthService
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
@@ -489,15 +490,14 @@ class SubscriptionService(
 
     private suspend fun sendTrialEndingEmail(userId: String) {
         try {
-            val destinations = destinationRepository.findByUserId(userId)
-            val emailDestination = destinations.find { it.channel == "email" }
+            // Get email from Firebase instead of destination
+            val email = firebaseAuthService.getUserEmail(userId)
 
-            if (emailDestination == null) {
-                logger.warn("No email destination found for trial ending email to user: $userId")
+            if (email == null) {
+                logger.warn("No email found in Firebase for trial ending email to user: $userId")
                 return
             }
 
-            val email = emailDestination.channelValue
             val emailContent = emailTemplateService.createTrialEndingEmail(email)
 
             asyncEmailService.sendEmailWithRetry(emailContent, maxRetries = 2)
@@ -509,15 +509,14 @@ class SubscriptionService(
 
     private suspend fun sendPaymentFailedEmail(userId: String) {
         try {
-            val destinations = destinationRepository.findByUserId(userId)
-            val emailDestination = destinations.find { it.channel == "email" }
+            // Get email from Firebase instead of destination
+            val email = firebaseAuthService.getUserEmail(userId)
 
-            if (emailDestination == null) {
-                logger.warn("No email destination found for payment failed email to user: $userId")
+            if (email == null) {
+                logger.warn("No email found in Firebase for payment failed email to user: $userId")
                 return
             }
 
-            val email = emailDestination.channelValue
             val emailContent = emailTemplateService.createPaymentFailedEmail(email)
 
             asyncEmailService.sendEmailWithRetry(emailContent, maxRetries = 3)
@@ -529,15 +528,14 @@ class SubscriptionService(
 
     private suspend fun sendWelcomeEmail(userId: String) {
         try {
-            val destinations = destinationRepository.findByUserId(userId)
-            val emailDestination = destinations.find { it.channel == "email" }
+            // Get email from Firebase instead of destination
+            val email = firebaseAuthService.getUserEmail(userId)
 
-            if (emailDestination == null) {
-                logger.warn("No email destination found for welcome email to user: $userId")
+            if (email == null) {
+                logger.warn("No email found in Firebase for welcome email to user: $userId")
                 return
             }
 
-            val email = emailDestination.channelValue
             val emailContent = emailTemplateService.createWelcomeEmail(email)
 
             asyncEmailService.sendEmailAsync(emailContent)

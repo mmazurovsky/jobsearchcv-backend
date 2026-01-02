@@ -31,6 +31,24 @@ class FirebaseAuthService(
     fun isTokenExpired(token: String): Boolean {
         return firebaseJwtTokenService?.isTokenExpired(token) ?: true
     }
+
+    /**
+     * Retrieves user email from Firebase by user ID
+     * @param uid Firebase user ID
+     * @return User's email address or null if not found/Firebase not enabled
+     */
+    fun getUserEmail(uid: String): String? {
+        return firebaseJwtTokenService?.getUserEmail(uid)
+    }
+
+    /**
+     * Retrieves full user record from Firebase by user ID
+     * @param uid Firebase user ID
+     * @return FirebaseUser object or null if not found/Firebase not enabled
+     */
+    fun getUserById(uid: String): FirebaseUser? {
+        return firebaseJwtTokenService?.getUserById(uid)
+    }
 }
 
 data class FirebaseUser(

@@ -24,6 +24,7 @@ class IncomingJobsProcessingService(
     private val asyncEmailService: AsyncEmailService,
     private val subscriptionService: SubscriptionService,
     private val xcomQueueService: XComQueueService,
+    private val firebaseAuthService: FirebaseAuthService,
 ) {
     private val logger = LoggerFactory.getLogger(this::class.java)
 
@@ -199,8 +200,12 @@ class IncomingJobsProcessingService(
                 return
             }
 
-            // Build email and send
-            val recipientEmail = destination.channelValue
+            // Get email from Firebase instead of destination
+            val recipientEmail = firebaseAuthService.getUserEmail(userId)
+            if (recipientEmail == null) {
+                logger.error("[EMAIL] No email found for user $userId in Firebase, skipping")
+                return
+            }
             val displaySearchName = buildSearchDisplayName(jobSearch, specialSearchName)
             val hasPremiumAccess = subscriptionService.checkPremiumAccess(userId)
 
@@ -209,8 +214,7 @@ class IncomingJobsProcessingService(
                 searchName = displaySearchName,
                 jobs = filteredJobs,
                 alertId = jobSearch.id,
-                specialMessage = if (specialSearchName == "Monthly Overview")
-                    "This is an overview of jobs posted in the last month" else null,
+                specialMessage = null,
                 userId = userId,
                 isFreeTier = !hasPremiumAccess && jobSearch.isAdmin != true
             )
@@ -350,11 +354,11 @@ class IncomingJobsProcessingService(
         reason: String
     ) {
         try {
-            val destinations = destinationRepository.findByUserId(userId)
-            val emailDestination = destinations.find { it.channel == "email" }
+            // Get email from Firebase instead of destination
+            val recipientEmail = firebaseAuthService.getUserEmail(userId)
 
-            if (emailDestination == null) {
-                logger.info("No email destination found for user: $userId, skipping no-results email")
+            if (recipientEmail == null) {
+                logger.info("No email found in Firebase for user: $userId, skipping no-results email")
                 return
             }
 
@@ -362,7 +366,7 @@ class IncomingJobsProcessingService(
             val timePeriod = jobSearch?.timePeriod?.displayName ?: "recent period"
 
             val emailContent = emailTemplateService.createNoResultsEmail(
-                recipient = emailDestination.channelValue,
+                recipient = recipientEmail,
                 searchName = searchName,
                 timePeriod = timePeriod
             )

@@ -106,4 +106,49 @@ class FirebaseJwtTokenService {
         val expiration = getTokenExpiration(token) ?: return true
         return expiration.before(Date())
     }
+
+    /**
+     * Retrieves user email from Firebase by user ID
+     * @param uid Firebase user ID
+     * @return User's email address or null if not found/error
+     */
+    fun getUserEmail(uid: String): String? {
+        return try {
+            val userRecord = firebaseAuth.getUser(uid)
+            val email = userRecord.email
+            log.debug("Retrieved email for user $uid: ${email != null}")
+            email
+        } catch (e: FirebaseAuthException) {
+            log.warn("Failed to get user email from Firebase for uid $uid: ${e.message}")
+            null
+        } catch (e: Exception) {
+            log.error("Unexpected error getting user email for uid $uid", e)
+            null
+        }
+    }
+
+    /**
+     * Retrieves full user record from Firebase by user ID
+     * @param uid Firebase user ID
+     * @return FirebaseUser object or null if not found/error
+     */
+    fun getUserById(uid: String): FirebaseUser? {
+        return try {
+            val userRecord = firebaseAuth.getUser(uid)
+            FirebaseUser(
+                uid = userRecord.uid,
+                email = userRecord.email,
+                emailVerified = userRecord.isEmailVerified,
+                displayName = userRecord.displayName,
+                photoUrl = userRecord.photoUrl,
+                provider = userRecord.providerData.firstOrNull()?.providerId
+            )
+        } catch (e: FirebaseAuthException) {
+            log.warn("Failed to get user from Firebase for uid $uid: ${e.message}")
+            null
+        } catch (e: Exception) {
+            log.error("Unexpected error getting user for uid $uid", e)
+            null
+        }
+    }
 }

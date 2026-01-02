@@ -5,7 +5,10 @@ import com.jobsearchcv.backend.repository.JobSearchRepository
 import com.jobsearchcv.backend.service.JobSearchCreationException
 import com.jobsearchcv.backend.service.JobSearchCreationService
 import com.jobsearchcv.backend.service.JobSearchService
+import com.jobsearchcv.backend.service.ManualTriggerRateLimiter
+import com.jobsearchcv.backend.service.ScraperJobService
 import com.jobsearchcv.backend.service.SubscriptionAwareSchedulingService
+import java.time.OffsetDateTime
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.media.Schema
@@ -29,7 +32,9 @@ class JobSearchController(
     private val jobSearchCreationService: JobSearchCreationService,
     private val jobSearchRepository: JobSearchRepository,
     private val subscriptionAwareSchedulingService: SubscriptionAwareSchedulingService,
-    private val jobSearchService: JobSearchService
+    private val jobSearchService: JobSearchService,
+    private val scraperJobService: ScraperJobService,
+    private val manualTriggerRateLimiter: ManualTriggerRateLimiter
 ) {
     companion object {
         private val logger: Logger = LoggerFactory.getLogger(JobSearchController::class.java)
@@ -367,6 +372,123 @@ class JobSearchController(
             return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response)
         }
     }
+
+    @PostMapping("/{searchId}/trigger")
+    @Operation(
+        summary = "Manually trigger job search execution",
+        description = """
+            Manually triggers execution of a job search. The job search must be approved and belong to the authenticated user.
+            Rate limited to once per 30 minutes per job search to prevent abuse.
+        """
+    )
+    @ApiResponses(
+        ApiResponse(responseCode = "200", description = "Job search triggered successfully"),
+        ApiResponse(responseCode = "400", description = "Job search is not approved or invalid searchId"),
+        ApiResponse(responseCode = "403", description = "Forbidden - job search belongs to another user"),
+        ApiResponse(responseCode = "404", description = "Job search not found"),
+        ApiResponse(responseCode = "429", description = "Rate limit exceeded - triggered too recently"),
+        ApiResponse(responseCode = "500", description = "Internal server error")
+    )
+    fun triggerJobSearch(
+        @Parameter(description = "Job search ID to trigger", example = "search-123e4567-e89b-12d3-a456-426614174000")
+        @PathVariable searchId: String,
+        @Parameter(hidden = true) authentication: Authentication
+    ): ResponseEntity<TriggerJobSearchResponse> = runBlocking {
+        try {
+            val userId = authentication.principal as String
+            logger.info("Manual trigger requested for job search: id=$searchId, userId=$userId")
+
+            // Step 1: Validate searchId is not empty/blank
+            if (searchId.isBlank()) {
+                logger.warn("Invalid searchId: empty or blank")
+                return@runBlocking ResponseEntity.badRequest().body(
+                    TriggerJobSearchResponse(
+                        message = "Invalid searchId parameter",
+                        jobSearchId = searchId,
+                        triggeredAt = OffsetDateTime.now().toString(),
+                        nextAvailableAt = null
+                    )
+                )
+            }
+
+            // Step 2: Fetch job search from database
+            val jobSearch = jobSearchRepository.findById(searchId)
+
+            if (jobSearch == null) {
+                logger.warn("Job search not found: id=$searchId")
+                return@runBlocking ResponseEntity.notFound().build()
+            }
+
+            // Step 3: Check ownership (authorization)
+            if (jobSearch.userId != userId) {
+                logger.warn("User $userId attempted to trigger job search belonging to user ${jobSearch.userId}")
+                return@runBlocking ResponseEntity.status(HttpStatus.FORBIDDEN).build()
+            }
+
+            // Step 4: Check if job search is approved
+            if (!jobSearch.isApproved) {
+                logger.warn("User $userId attempted to trigger unapproved job search: id=$searchId")
+                return@runBlocking ResponseEntity.badRequest().body(
+                    TriggerJobSearchResponse(
+                        message = "Job search must be approved before manual triggering",
+                        jobSearchId = searchId,
+                        triggeredAt = OffsetDateTime.now().toString(),
+                        nextAvailableAt = null
+                    )
+                )
+            }
+
+            // Step 5: Check rate limit
+            if (!manualTriggerRateLimiter.canTrigger(searchId)) {
+                val nextAvailable = manualTriggerRateLimiter.getNextAvailableTime(searchId)
+                val timeRemaining = manualTriggerRateLimiter.getTimeUntilNextTrigger(searchId)
+
+                logger.warn(
+                    "Rate limit exceeded for job search: id=$searchId, userId=$userId, " +
+                    "time remaining: ${timeRemaining.toMinutes()} minutes"
+                )
+
+                return@runBlocking ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(
+                    TriggerJobSearchResponse(
+                        message = "Rate limit exceeded. Job search can be triggered once per 30 minutes. " +
+                                 "Please wait ${timeRemaining.toMinutes()} more minute(s).",
+                        jobSearchId = searchId,
+                        triggeredAt = OffsetDateTime.now().toString(),
+                        nextAvailableAt = nextAvailable?.toString()
+                    )
+                )
+            }
+
+            // Step 6: Trigger job search execution
+            logger.info("Triggering job search execution: ${jobSearch.toLogString()}, userId=$userId")
+            scraperJobService.triggerScraperJobAndLog(jobSearch)
+
+            // Step 7: Record trigger in rate limiter
+            manualTriggerRateLimiter.recordTrigger(searchId)
+
+            // Step 8: Calculate next available trigger time
+            val triggeredAt = OffsetDateTime.now()
+            val nextAvailable = manualTriggerRateLimiter.getNextAvailableTime(searchId)
+
+            logger.info("Successfully triggered job search: id=$searchId, userId=$userId, nextAvailable=$nextAvailable")
+
+            return@runBlocking ResponseEntity.ok(
+                TriggerJobSearchResponse(
+                    message = "Job search execution triggered successfully",
+                    jobSearchId = searchId,
+                    triggeredAt = triggeredAt.toString(),
+                    nextAvailableAt = nextAvailable?.toString()
+                )
+            )
+
+        } catch (e: ClassCastException) {
+            logger.error("Invalid authentication principal type for job search trigger: searchId=$searchId", e)
+            return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
+        } catch (e: Exception) {
+            logger.error("Unexpected error triggering job search: searchId=$searchId", e)
+            return@runBlocking ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
+        }
+    }
 }
 
 // Request DTOs
@@ -416,4 +538,16 @@ data class UpdateJobSearchRequest(
     val isApproved: Boolean? = null,
     @Schema(description = "Whether user is subscribed to receive notifications for this job search", required = false)
     val isSubscribed: Boolean? = null
+)
+
+@Schema(description = "Response for manual job search trigger")
+data class TriggerJobSearchResponse(
+    @Schema(description = "Operation result message", example = "Job search execution triggered successfully", required = true)
+    val message: String,
+    @Schema(description = "Job search ID that was triggered", example = "search-123e4567-e89b-12d3-a456-426614174000", required = true)
+    val jobSearchId: String,
+    @Schema(description = "Timestamp when the trigger occurred (ISO 8601)", example = "2026-01-02T15:30:00Z", required = true)
+    val triggeredAt: String,
+    @Schema(description = "Next available trigger time (ISO 8601), null if can trigger again immediately", example = "2026-01-02T16:00:00Z", required = false)
+    val nextAvailableAt: String? = null
 )

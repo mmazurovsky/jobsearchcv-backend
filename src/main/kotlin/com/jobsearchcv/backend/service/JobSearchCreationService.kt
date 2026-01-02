@@ -13,9 +13,7 @@ class JobSearchCreationService(
     private val destinationRepository: DestinationRepository,
     private val jobSearchRepository: JobSearchRepository,
     private val scraperJobService: ScraperJobService,
-    private val subscriptionAwareSchedulingService: SubscriptionAwareSchedulingService,
-    private val monthlyOverviewService: MonthlyOverviewService,
-    private val userPreferencesRepository: com.jobsearchcv.backend.repository.UserPreferencesRepository
+    private val subscriptionAwareSchedulingService: SubscriptionAwareSchedulingService
 ) {
     
     companion object {
@@ -125,35 +123,6 @@ class JobSearchCreationService(
             }
 
             logger.info("Successfully processed job searches - created: ${createdSearches.size}, updated: ${updatedSearches.size}, deleted: ${idsToDelete.size}")
-
-            // Check if we should trigger monthly overview for newly approved searches
-            if (isApproved && savedJobSearches.isNotEmpty()) {
-                try {
-                    logger.debug("Checking if monthly overview should be triggered for user: $userId")
-
-                    // Check if user has an email destination
-                    val destinations = destinationRepository.findByUserId(userId)
-                    val hasEmailDestination = destinations.any { it.channel == Channel.EMAIL.value }
-
-                    if (hasEmailDestination) {
-                        // Check if monthly overview has already been sent
-                        val preferences = userPreferencesRepository.findByUserId(userId)
-                        val overviewNotSent = preferences?.freeMonthlyOverviewSentAt == null
-
-                        if (overviewNotSent) {
-                            logger.info("User $userId has approved searches and email destination, but monthly overview not sent yet. Triggering now.")
-                            monthlyOverviewService.triggerMonthlyOverviewForUser(userId)
-                        } else {
-                            logger.debug("Monthly overview already sent to user $userId at ${preferences?.freeMonthlyOverviewSentAt}")
-                        }
-                    } else {
-                        logger.debug("User $userId does not have an email destination, skipping monthly overview trigger")
-                    }
-                } catch (e: Exception) {
-                    logger.error("Failed to check/trigger monthly overview for user $userId", e)
-                    // Don't fail the entire operation if monthly overview check fails
-                }
-            }
 
             return@coroutineScope JobSearchCreationResult(
                 success = true,
