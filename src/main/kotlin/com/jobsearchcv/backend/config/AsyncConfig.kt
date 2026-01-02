@@ -18,9 +18,9 @@ class AsyncConfig : AsyncConfigurer {
     @Bean(name = ["jobProcessingExecutor"])
     override fun getAsyncExecutor(): Executor {
         val executor = ThreadPoolTaskExecutor()
-        executor.corePoolSize = 5
-        executor.maxPoolSize = 10
-        executor.queueCapacity = 100
+        executor.corePoolSize = 12
+        executor.maxPoolSize = 20
+        executor.queueCapacity = 200  // Increased from 100 to handle 5-20 concurrent searches
         executor.setThreadNamePrefix("JobProcessing-")
         executor.setWaitForTasksToCompleteOnShutdown(true)
         executor.setAwaitTerminationSeconds(60)

@@ -20,8 +20,10 @@ interface ProcessedJobRepository {
     fun countAll(): Long
     fun findByLinkPattern(pattern: String): List<ProcessedJobData>
     fun findById(id: String): ProcessedJobData?
+    fun findByIds(ids: Set<String>): List<ProcessedJobData>
     fun findByInternalId(internalId: String): ProcessedJobData?
     fun findByInternalIds(internalIds: Set<String>): List<ProcessedJobData>
+    fun findByInternalIdsWithFilters(internalIds: Set<String>, tags: List<String>?, techstack: List<String>?): List<ProcessedJobData>
     fun findInternalIdsForJobIds(jobIds: Set<String>): Map<String, String>
 }
 
@@ -157,6 +159,18 @@ class ProcessedJobRepositoryImpl(
     }
 
     /**
+     * Finds multiple jobs by their external job IDs (_id field).
+     * Used to re-fetch jobs after bulk upsert to get actual internal IDs from database.
+     */
+    override fun findByIds(ids: Set<String>): List<ProcessedJobData> {
+        if (ids.isEmpty()) {
+            return emptyList()
+        }
+        val query = Query(Criteria.where("_id").`in`(ids))
+        return mongoTemplate.find(query, ProcessedJobData::class.java)
+    }
+
+    /**
      * Finds a single job by its internal ID.
      */
     override fun findByInternalId(internalId: String): ProcessedJobData? {
@@ -174,5 +188,66 @@ class ProcessedJobRepositoryImpl(
 
         val query = Query(Criteria.where("internal_id").`in`(internalIds))
         return mongoTemplate.find(query, ProcessedJobData::class.java)
+    }
+
+    /**
+     * Finds multiple jobs by their internal IDs, filtered by tags and/or techstack.
+     * Filters are applied with AND logic - a job must match ALL provided tags AND ALL provided techstack items.
+     * Matching is flexible and case-insensitive: "entry-level", "entry level", "entry_level", "entrylevel" all match.
+     *
+     * @param internalIds Set of internal IDs to search for
+     * @param tags Optional list of tags to filter by (e.g., ["entry-level", "remote"])
+     * @param techstack Optional list of techstack items to filter by (e.g., ["Kotlin", "Spring Boot"])
+     * @return List of ProcessedJobData matching the filters
+     */
+    override fun findByInternalIdsWithFilters(internalIds: Set<String>, tags: List<String>?, techstack: List<String>?): List<ProcessedJobData> {
+        if (internalIds.isEmpty()) {
+            return emptyList()
+        }
+
+        val criteria = Criteria.where("internal_id").`in`(internalIds)
+
+        // Add tags filter - job must contain ALL specified tags (flexible, case-insensitive)
+        if (!tags.isNullOrEmpty()) {
+            tags.forEach { tag ->
+                val flexibleRegex = createFlexibleRegex(tag)
+                criteria.and("tags").regex(flexibleRegex, "i")
+            }
+        }
+
+        // Add techstack filter - job must contain ALL specified techstack items (flexible, case-insensitive)
+        if (!techstack.isNullOrEmpty()) {
+            techstack.forEach { tech ->
+                val flexibleRegex = createFlexibleRegex(tech)
+                criteria.and("techstack").regex(flexibleRegex, "i")
+            }
+        }
+
+        val query = Query(criteria)
+
+        logger.debug("Filtering with tags=$tags, techstack=$techstack")
+        return mongoTemplate.find(query, ProcessedJobData::class.java)
+    }
+
+    /**
+     * Creates a flexible regex pattern that matches variations of the input string as a substring.
+     * For example, "spring boot" matches: "Spring Boot", "springbootframework", "my-spring-boot-app", etc.
+     * Uses flexible separator matching: "spring boot" matches "spring-boot", "spring_boot", "springboot", etc.
+     *
+     * @param value The input string to create a flexible pattern for
+     * @return Regex pattern string that matches variations with different separators (substring matching)
+     */
+    private fun createFlexibleRegex(value: String): String {
+        // Split on common separators (hyphen, space, underscore)
+        val words = value.lowercase().split(Regex("[-_ ]+"))
+
+        return if (words.size > 1) {
+            // Multi-word: join with optional separator pattern
+            // "spring boot" → "spring[-_ ]?boot" (matches substring)
+            words.joinToString("[-_ ]?") { Regex.escape(it) }
+        } else {
+            // Single word: just escape it (matches substring)
+            Regex.escape(value.lowercase())
+        }
     }
 }

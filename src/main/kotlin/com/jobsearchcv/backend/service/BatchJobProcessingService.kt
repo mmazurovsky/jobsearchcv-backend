@@ -53,12 +53,35 @@ class BatchJobProcessingService(
     private val objectMapper: ObjectMapper,
     private val jobDataConverter: JobDataConverter,
     private val processedJobRepository: ProcessedJobRepository,
-    private val deterministicJobFilterService: DeterministicJobFilterService
+    private val deterministicJobFilterService: DeterministicJobFilterService,
+    private val llmModelConfig: com.jobsearchcv.backend.config.LLMModelConfig
 ) {
     private val logger = LoggerFactory.getLogger(this::class.java)
 
     // Semaphore to limit parallel LLM requests
-    private val llmSemaphore = Semaphore(3)
+    // Increased from 3 to 12 to support higher concurrency (5-20 concurrent searches)
+    private val llmSemaphore = Semaphore(10)
+
+    /**
+     * Selects appropriate LLM configs based on admin status
+     * Admin searches use free models (for internal testing/admin purposes)
+     * Non-admin searches use premium models (for real users)
+     */
+    private fun selectLLMConfigs(isAdmin: Boolean?): Pair<LLMConfig, LLMConfig> {
+        return if (isAdmin == true) {
+            // Admin search: use free models (internal testing)
+            Pair(
+                LLMConfig.forEnrichment(llmModelConfig.enrichment),
+                LLMConfig.forScoring(llmModelConfig.scoring)
+            )
+        } else {
+            // Non-admin search: use premium models (real users)
+            Pair(
+                LLMConfig.forEnrichment(llmModelConfig.adminEnrichment),
+                LLMConfig.forScoring(llmModelConfig.adminScoring)
+            )
+        }
+    }
 
     /**
      * Full LLM processing pipeline for ScrapedJobData.
@@ -67,19 +90,27 @@ class BatchJobProcessingService(
     suspend fun processAndSaveJobsDataBatch(
         jobsData: List<ScrapedJobData>,
         jobSearch: JobSearchOut?,
-        enrichmentConfig: LLMConfig = LLMConfig.forEnrichment(),
-        scoringConfig: LLMConfig = LLMConfig.forScoring()
+        enrichmentConfig: LLMConfig? = null,
+        scoringConfig: LLMConfig? = null
     ): List<ScoredJobData> = withContext(Dispatchers.IO) {
         val jobSearchId = jobSearch?.id ?: "unknown"
+
+        // Select configs based on admin status if not explicitly provided
+        val (selectedEnrichmentConfig, selectedScoringConfig) = if (enrichmentConfig != null && scoringConfig != null) {
+            Pair(enrichmentConfig, scoringConfig)
+        } else {
+            selectLLMConfigs(jobSearch?.isAdmin)
+        }
+
         try {
-            logger.info("[JobSearch: $jobSearchId] Processing ${jobsData.size} jobs using full LLM pipeline")
+            logger.info("[JobSearch: $jobSearchId] Processing ${jobsData.size} jobs using full LLM pipeline (admin=${jobSearch?.isAdmin}, enrichModel=${selectedEnrichmentConfig.model}, scoreModel=${selectedScoringConfig.model})")
 
             // Step 1: Translation
             val translatedJobs = translateJobsDataBatch(jobsData, jobSearchId)
             logger.info("[JobSearch: $jobSearchId] Translated ${translatedJobs.size} jobs")
 
             // Step 2: Enrichment (techstack and salary extraction)
-            val enrichedJobs = enrichJobsDataBatch(translatedJobs, jobSearchId, enrichmentConfig)
+            val enrichedJobs = enrichJobsDataBatch(translatedJobs, jobSearchId, selectedEnrichmentConfig)
             logger.info("[JobSearch: $jobSearchId] Enriched ${enrichedJobs.size} jobs")
             enrichedJobs.filter { it.techstack.isEmpty() }.forEach { job ->
                 logger.warn("[JobSearch: $jobSearchId] Didn't get techstack for job ${job.id}, link: ${job.link}")
@@ -91,12 +122,18 @@ class BatchJobProcessingService(
             }
             processedJobRepository.bulkSaveOrUpdate(processedJobs)
 
+            // Step 3.5: Re-fetch jobs from database to get actual internal IDs
+            // (MongoDB's setOnInsert means in-memory objects may have wrong internal IDs for existing jobs)
+            val jobIds = processedJobs.map { it.id }.toSet()
+            val savedJobs = processedJobRepository.findByIds(jobIds)
+            logger.info("[JobSearch: $jobSearchId] Re-fetched ${savedJobs.size} jobs from database with correct internal IDs")
+
             // Step 4: Compatibility Scoring
             val scoredJobs = scoreJobsDataBatch(
-                processedJobs,
+                savedJobs,
                 enrichedJobs,
                 jobSearch,
-                scoringConfig
+                selectedScoringConfig
             ).sortedByDescending { it.compatibilityScore }
             logger.info("[JobSearch: $jobSearchId] Scored ${scoredJobs.size} jobs")
             logger.info("[JobSearch: $jobSearchId] Scores of scored jobs: ${scoredJobs.map { it.compatibilityScore }}")
@@ -119,18 +156,22 @@ class BatchJobProcessingService(
     suspend fun processJobsForXcomOrPageChannel(
         jobsData: List<ScrapedJobData>,
         jobSearch: JobSearchOut?,
-        enrichmentConfig: LLMConfig = LLMConfig.forEnrichment()
+        enrichmentConfig: LLMConfig? = null
     ): List<ScoredJobData> = withContext(Dispatchers.IO) {
         val jobSearchId = jobSearch?.id ?: "unknown"
+
+        // Select config based on admin status if not explicitly provided
+        val selectedEnrichmentConfig = enrichmentConfig ?: selectLLMConfigs(jobSearch?.isAdmin).first
+
         try {
-            logger.info("[JobSearch: $jobSearchId] Processing ${jobsData.size} jobs for XCOM/PAGE channel (no scoring)")
+            logger.info("[JobSearch: $jobSearchId] Processing ${jobsData.size} jobs for XCOM/PAGE channel (admin=${jobSearch?.isAdmin}, enrichModel=${selectedEnrichmentConfig.model})")
 
             // Step 1: Translation
             val translatedJobs = translateJobsDataBatch(jobsData, jobSearchId)
             logger.info("[JobSearch: $jobSearchId] Translated ${translatedJobs.size} jobs")
 
             // Step 2: Enrichment (techstack, tags, salary extraction)
-            val enrichedJobs = enrichJobsDataBatch(translatedJobs, jobSearchId, enrichmentConfig)
+            val enrichedJobs = enrichJobsDataBatch(translatedJobs, jobSearchId, selectedEnrichmentConfig)
             logger.info("[JobSearch: $jobSearchId] Enriched ${enrichedJobs.size} jobs")
             enrichedJobs.filter { it.techstack.isEmpty() }.forEach { job ->
                 logger.warn("[JobSearch: $jobSearchId] No techstack for job ${job.id}, link: ${job.link}")
@@ -143,9 +184,16 @@ class BatchJobProcessingService(
             processedJobRepository.bulkSaveOrUpdate(processedJobs)
             logger.info("[JobSearch: $jobSearchId] Saved ${processedJobs.size} jobs to processed_jobs")
 
-            // Step 4: Convert to ScoredJobData with default score (100 = no filtering)
+            // Step 4: Re-fetch jobs from database to get actual internal IDs
+            // (MongoDB's setOnInsert means in-memory objects may have wrong internal IDs for existing jobs)
+            val jobIds = processedJobs.map { it.id }.toSet()
+            val savedJobs = processedJobRepository.findByIds(jobIds)
+            val savedJobsMap = savedJobs.associateBy { it.id }
+            logger.info("[JobSearch: $jobSearchId] Re-fetched ${savedJobs.size} jobs from database with correct internal IDs")
+
+            // Step 5: Convert to ScoredJobData with default score (100 = no filtering)
             val scoredJobs = enrichedJobs.mapNotNull { enrichedJob ->
-                val processedJob = processedJobs.find { it.id == enrichedJob.id }
+                val processedJob = savedJobsMap[enrichedJob.id]
                 if (processedJob != null) {
                     jobDataConverter.toScoredJobData(
                         processedJob = processedJob,

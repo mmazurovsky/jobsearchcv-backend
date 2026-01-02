@@ -20,7 +20,7 @@ class PageJobController(
     @GetMapping("/{userId}")
     @Operation(
         summary = "Get page jobs for a user",
-        description = "Fetches jobs sent to the user in the last 24 hours (1440 minutes) for page display. Optionally filters by seniority level. No authentication required."
+        description = "Fetches jobs sent to the user in the last 24 hours (1440 minutes) for page display. Optionally filters by tags and techstack. No authentication required."
     )
     fun getPageJobs(
         @Parameter(description = "User ID to fetch jobs for")
@@ -29,17 +29,34 @@ class PageJobController(
         @Parameter(description = "Minutes to look back (default: 1440 = 24 hours)")
         @RequestParam(defaultValue = "1440") minutesBack: Long,
 
-        @Parameter(description = "Seniority level to filter by (e.g., 'entry-level', 'mid-level', 'senior')")
-        @RequestParam(required = false) seniority: String?
+        @Parameter(description = "Comma-separated list of tags to filter by (e.g., 'entry-level,remote')")
+        @RequestParam(required = false) tags: String?,
+
+        @Parameter(description = "Comma-separated list of techstack items to filter by (e.g., 'Kotlin,Spring Boot')")
+        @RequestParam(required = false) techstack: String?
     ): ResponseEntity<List<PageJobResponse>> {
-        logger.debug("Received request for page jobs: userId=$userId, minutesBack=$minutesBack, seniority=$seniority")
+        logger.debug("Received request for page jobs: userId=$userId, minutesBack=$minutesBack, tags=$tags, techstack=$techstack")
 
         // Validate minutesBack parameter
         if (minutesBack <= 0 || minutesBack > 10080) { // Max 7 days (168 hours)
             return ResponseEntity.badRequest().build()
         }
 
-        val jobs = pageJobService.getPageJobsForUser(userId, minutesBack, seniority)
+        // Parse comma-separated tags and techstack into lists
+        // Sort them to ensure consistent cache keys regardless of input order
+        val tagsList = tags?.takeIf { it.isNotBlank() }
+            ?.split(",")
+            ?.map { it.trim() }
+            ?.filter { it.isNotEmpty() }
+            ?.sorted()
+
+        val techstackList = techstack?.takeIf { it.isNotBlank() }
+            ?.split(",")
+            ?.map { it.trim() }
+            ?.filter { it.isNotEmpty() }
+            ?.sorted()
+
+        val jobs = pageJobService.getPageJobsForUser(userId, minutesBack, tagsList, techstackList)
         return ResponseEntity.ok(jobs)
     }
 }

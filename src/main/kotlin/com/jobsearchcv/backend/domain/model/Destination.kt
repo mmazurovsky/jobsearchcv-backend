@@ -20,9 +20,18 @@ data class Destination(
     @field:Field("channel") 
     @Schema(description = "Channel type (email, telegram)", example = "email", required = true)
     val channel: String, // Stored as string in DB but used as enum in code
-    @field:Field("channel_value") 
+    @field:Field("channel_value")
     @Schema(description = "Channel value (email address, telegram chat ID)", example = "user@example.com", required = true)
     val channelValue: String,
+    @field:Field("page_path")
+    @Schema(description = "Page path for PAGE channel destinations", example = "us-tech-jobs", required = false)
+    val pagePath: String? = null,
+    @field:Field("social_media_tags")
+    @Schema(description = "Hashtags to include in social media posts", example = "[\"#techjobs\", \"#remotework\", \"#hiring\"]", required = false)
+    val socialMediaTags: List<String>? = null,
+    @field:Field("post_on_x")
+    @Schema(description = "Whether to post page overviews on X (Twitter). Only applicable for PAGE channel destinations.", example = "true", required = false)
+    val postOnX: Boolean? = null,
     @field:Field("created_at")
     @Schema(description = "Timestamp when the destination was created", required = true)
     val createdAt: OffsetDateTime = OffsetDateTime.now()
@@ -32,12 +41,22 @@ data class Destination(
         get() = Channel.fromString(channel)
     
     companion object {
-        fun createNew(userId: String, channel: Channel, channelValue: String): Destination {
+        fun createNew(
+            userId: String,
+            channel: Channel,
+            channelValue: String,
+            pagePath: String? = null,
+            socialMediaTags: List<String>? = null,
+            postOnX: Boolean? = null
+        ): Destination {
             return Destination(
                 id = UUID.randomUUID().toString(),
                 userId = userId,
                 channel = channel.value,
                 channelValue = channelValue,
+                pagePath = pagePath,
+                socialMediaTags = socialMediaTags,
+                postOnX = postOnX,
                 createdAt = OffsetDateTime.now()
             )
         }

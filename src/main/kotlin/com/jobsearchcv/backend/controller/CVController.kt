@@ -4,6 +4,7 @@ import com.jobsearchcv.backend.service.SimpleCVService
 import com.jobsearchcv.backend.service.CVProcessingService
 import com.jobsearchcv.backend.service.PromptJobSearchCreationService
 import com.jobsearchcv.backend.service.CVListItem
+import com.jobsearchcv.backend.service.RateLimitService
 import com.jobsearchcv.backend.repository.JobSearchRepository
 import com.jobsearchcv.backend.domain.model.*
 import io.swagger.v3.oas.annotations.Operation
@@ -34,11 +35,13 @@ class CVController(
     private val cvService: SimpleCVService,
     private val cvProcessingService: CVProcessingService,
     private val jobSearchRepository: JobSearchRepository,
-    private val promptJobSearchCreationService: PromptJobSearchCreationService
+    private val promptJobSearchCreationService: PromptJobSearchCreationService,
+    private val rateLimitService: RateLimitService
 ) {
     companion object {
         private val logger: Logger = LoggerFactory.getLogger(CVController::class.java)
         private const val MAX_FILE_SIZE = 10 * 1024 * 1024L // 10MB
+        private const val MAX_PROMPT_LENGTH = 300 // Max characters for prompt input
         private val ALLOWED_CONTENT_TYPES = setOf(
             "application/pdf",
             "application/msword",
@@ -154,7 +157,7 @@ class CVController(
     @PostMapping("/createSearchesFromPrompt")
     @Operation(
         summary = "Create job searches from free-form text prompt",
-        description = "Analyzes a text prompt with AI and generates 3-5 recommended job searches. Available to all authenticated users including anonymous. Saves both the searches and the prompt to the database."
+        description = "Analyzes a text prompt with AI and generates 1 recommended job search. Available to all authenticated users including anonymous. Saves both the search and the prompt to the database."
     )
     @ApiResponses(
         ApiResponse(responseCode = "200", description = "Job searches created successfully from prompt"),
@@ -170,6 +173,9 @@ class CVController(
             // Extract user ID from authentication (can be anonymous Firebase user)
             val userId = authentication.principal as String
 
+            // Check rate limit for prompt injection protection
+            rateLimitService.checkRateLimit(userId)
+
             logger.info("Create searches from prompt request: userId=$userId")
             logger.debug("Prompt text: ${request.prompt}")
 
@@ -178,6 +184,12 @@ class CVController(
                 logger.warn("Empty prompt provided by user: $userId")
                 return@runBlocking ResponseEntity.badRequest()
                     .body(createPromptErrorResponse("Prompt cannot be empty"))
+            }
+
+            if (request.prompt.length > MAX_PROMPT_LENGTH) {
+                logger.warn("Prompt too long from user: $userId, length: ${request.prompt.length}")
+                return@runBlocking ResponseEntity.badRequest()
+                    .body(createPromptErrorResponse("Prompt too long (max $MAX_PROMPT_LENGTH characters)"))
             }
 
             // Create job searches from prompt via service

@@ -103,7 +103,8 @@ class DestinationController(
             val destination = Destination.createNew(
                 userId = userId,
                 channel = channel,
-                channelValue = request.channelValue
+                channelValue = request.channelValue,
+                postOnX = request.postOnX
             )
             val savedDestination = destinationRepository.save(destination)
 
@@ -192,7 +193,9 @@ data class AddDestinationRequest(
     @Schema(description = "Channel type (email, telegram)", example = "email", required = true)
     val channel: String,
     @Schema(description = "Channel value (email address, telegram chat ID)", example = "user@example.com", required = true)
-    val channelValue: String
+    val channelValue: String,
+    @Schema(description = "Whether to post page overviews on X (Twitter). Only applicable for PAGE channel destinations.", example = "true", required = false)
+    val postOnX: Boolean? = null
 )
 
 @Schema(description = "Response for destination operations")

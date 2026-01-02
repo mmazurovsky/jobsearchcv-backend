@@ -7,7 +7,7 @@ technologies:
   - id: java
     name: Java
     aliases: ["java", "jdk", "java-se", "java-ee", "jakarta-ee", "j2ee"]
-    category: language
+    category: LANGUAGE
     subcategory: backend
     primary: true
     related:
@@ -27,7 +27,7 @@ technologies:
   - id: python
     name: Python
     aliases: ["python", "python3", "py", "cpython", "pypy", "python2"]
-    category: language
+    category: LANGUAGE
     subcategory: backend
     primary: true
     related:
@@ -44,7 +44,7 @@ technologies:
   - id: javascript
     name: JavaScript
     aliases: ["javascript", "js", "es6", "es2015", "es2020", "ecmascript", "es5"]
-    category: language
+    category: LANGUAGE
     subcategory: frontend
     primary: true
     related:
@@ -58,7 +58,7 @@ technologies:
   - id: typescript
     name: TypeScript
     aliases: ["typescript", "ts"]
-    category: language
+    category: LANGUAGE
     subcategory: frontend
     primary: true
     related:
@@ -72,7 +72,7 @@ technologies:
   - id: csharp
     name: "C#"
     aliases: ["c#", "csharp", "c-sharp", "cs"]
-    category: language
+    category: LANGUAGE
     subcategory: backend
     primary: true
     related:
@@ -86,7 +86,7 @@ technologies:
   - id: go
     name: Go
     aliases: ["go", "golang"]
-    category: language
+    category: LANGUAGE
     subcategory: backend
     primary: true
     related:
@@ -100,7 +100,7 @@ technologies:
   - id: rust
     name: Rust
     aliases: ["rust", "rustlang"]
-    category: language
+    category: LANGUAGE
     subcategory: systems
     primary: true
     related:
@@ -114,7 +114,7 @@ technologies:
   - id: php
     name: PHP
     aliases: ["php", "php7", "php8", "php5"]
-    category: language
+    category: LANGUAGE
     subcategory: backend
     primary: true
     related:
@@ -128,7 +128,7 @@ technologies:
   - id: ruby
     name: Ruby
     aliases: ["ruby"]
-    category: language
+    category: LANGUAGE
     subcategory: backend
     primary: true
     related:
@@ -142,7 +142,7 @@ technologies:
   - id: kotlin
     name: Kotlin
     aliases: ["kotlin"]
-    category: language
+    category: LANGUAGE
     subcategory: backend
     primary: true
     related:
@@ -159,7 +159,7 @@ technologies:
   - id: swift
     name: Swift
     aliases: ["swift"]
-    category: language
+    category: LANGUAGE
     subcategory: mobile
     primary: true
     related:
@@ -173,7 +173,7 @@ technologies:
   - id: cpp
     name: "C++"
     aliases: ["c++", "cpp", "cplusplus", "cxx"]
-    category: language
+    category: LANGUAGE
     subcategory: systems
     primary: true
     related:
@@ -187,7 +187,7 @@ technologies:
   - id: c
     name: C
     aliases: ["c", "c-lang"]
-    category: language
+    category: LANGUAGE
     subcategory: systems
     primary: true
     related:
@@ -198,7 +198,7 @@ technologies:
   - id: scala
     name: Scala
     aliases: ["scala"]
-    category: language
+    category: LANGUAGE
     subcategory: backend
     primary: true
     related:
@@ -212,7 +212,7 @@ technologies:
   - id: r
     name: R
     aliases: ["r", "r-lang"]
-    category: language
+    category: LANGUAGE
     subcategory: analytics
     primary: true
     related:
@@ -223,7 +223,7 @@ technologies:
   - id: objective-c
     name: Objective-C
     aliases: ["objective-c", "objc", "objectivec"]
-    category: language
+    category: LANGUAGE
     subcategory: mobile
     primary: true
     related:
@@ -234,7 +234,7 @@ technologies:
   - id: dart
     name: Dart
     aliases: ["dart"]
-    category: language
+    category: LANGUAGE
     subcategory: mobile
     primary: true
     related:
@@ -245,7 +245,7 @@ technologies:
   - id: elixir
     name: Elixir
     aliases: ["elixir"]
-    category: language
+    category: LANGUAGE
     subcategory: backend
     primary: true
     related:
@@ -256,7 +256,7 @@ technologies:
   - id: erlang
     name: Erlang
     aliases: ["erlang"]
-    category: language
+    category: LANGUAGE
     subcategory: backend
     primary: true
     related:
@@ -267,7 +267,7 @@ technologies:
   - id: perl
     name: Perl
     aliases: ["perl"]
-    category: language
+    category: LANGUAGE
     subcategory: scripting
     primary: true
     related:
@@ -278,7 +278,7 @@ technologies:
   - id: lua
     name: Lua
     aliases: ["lua"]
-    category: language
+    category: LANGUAGE
     subcategory: scripting
     primary: true
     related: []
@@ -286,7 +286,7 @@ technologies:
   - id: haskell
     name: Haskell
     aliases: ["haskell"]
-    category: language
+    category: LANGUAGE
     subcategory: functional
     primary: true
     related:
@@ -297,7 +297,7 @@ technologies:
   - id: clojure
     name: Clojure
     aliases: ["clojure"]
-    category: language
+    category: LANGUAGE
     subcategory: functional
     primary: true
     related:
@@ -308,7 +308,7 @@ technologies:
   - id: fsharp
     name: "F#"
     aliases: ["f#", "fsharp", "f-sharp"]
-    category: language
+    category: LANGUAGE
     subcategory: functional
     primary: true
     related:
@@ -319,7 +319,7 @@ technologies:
   - id: groovy
     name: Groovy
     aliases: ["groovy"]
-    category: language
+    category: LANGUAGE
     subcategory: backend
     primary: true
     related:
@@ -330,7 +330,7 @@ technologies:
   - id: coffeescript
     name: CoffeeScript
     aliases: ["coffeescript", "coffee"]
-    category: language
+    category: LANGUAGE
     subcategory: frontend
     primary: true
     related:
@@ -341,7 +341,7 @@ technologies:
   - id: shell
     name: Shell
     aliases: ["bash", "shell", "sh", "zsh", "shell-scripting"]
-    category: language
+    category: LANGUAGE
     subcategory: scripting
     primary: true
     related: []
@@ -349,7 +349,7 @@ technologies:
   - id: powershell
     name: PowerShell
     aliases: ["powershell", "pwsh"]
-    category: language
+    category: LANGUAGE
     subcategory: scripting
     primary: true
     related:
@@ -364,7 +364,7 @@ technologies:
   - id: spring
     name: Spring Framework
     aliases: ["spring", "spring-framework", "spring-boot", "springboot", "spring-mvc"]
-    category: framework
+    category: FRAMEWORK
     subcategory: backend
     primary: false
     parent_technology: java
@@ -379,7 +379,7 @@ technologies:
   - id: django
     name: Django
     aliases: ["django"]
-    category: framework
+    category: FRAMEWORK
     subcategory: backend
     primary: false
     parent_technology: python
@@ -394,7 +394,7 @@ technologies:
   - id: flask
     name: Flask
     aliases: ["flask"]
-    category: framework
+    category: FRAMEWORK
     subcategory: backend
     primary: false
     parent_technology: python
@@ -409,7 +409,7 @@ technologies:
   - id: fastapi
     name: FastAPI
     aliases: ["fastapi", "fast-api"]
-    category: framework
+    category: FRAMEWORK
     subcategory: backend
     primary: false
     parent_technology: python
@@ -424,7 +424,7 @@ technologies:
   - id: express
     name: Express.js
     aliases: ["express", "expressjs", "express.js"]
-    category: framework
+    category: FRAMEWORK
     subcategory: backend
     primary: false
     parent_technology: javascript
@@ -439,7 +439,7 @@ technologies:
   - id: nestjs
     name: NestJS
     aliases: ["nest", "nestjs", "nest.js"]
-    category: framework
+    category: FRAMEWORK
     subcategory: backend
     primary: false
     parent_technology: typescript
@@ -454,7 +454,7 @@ technologies:
   - id: rails
     name: Ruby on Rails
     aliases: ["rails", "ruby-on-rails", "ror", "rubyonrails"]
-    category: framework
+    category: FRAMEWORK
     subcategory: backend
     primary: false
     parent_technology: ruby
@@ -469,7 +469,7 @@ technologies:
   - id: laravel
     name: Laravel
     aliases: ["laravel"]
-    category: framework
+    category: FRAMEWORK
     subcategory: backend
     primary: false
     parent_technology: php
@@ -484,7 +484,7 @@ technologies:
   - id: dotnet
     name: .NET
     aliases: [".net", "dotnet", ".net-core", "dotnet-core", "asp.net", "aspnet", "asp.net-core", "aspnet-core"]
-    category: framework
+    category: FRAMEWORK
     subcategory: backend
     primary: false
     parent_technology: csharp
@@ -496,7 +496,7 @@ technologies:
   - id: symfony
     name: Symfony
     aliases: ["symfony"]
-    category: framework
+    category: FRAMEWORK
     subcategory: backend
     primary: false
     parent_technology: php
@@ -508,7 +508,7 @@ technologies:
   - id: koa
     name: Koa
     aliases: ["koa", "koajs", "koa.js"]
-    category: framework
+    category: FRAMEWORK
     subcategory: backend
     primary: false
     parent_technology: javascript
@@ -520,7 +520,7 @@ technologies:
   - id: micronaut
     name: Micronaut
     aliases: ["micronaut"]
-    category: framework
+    category: FRAMEWORK
     subcategory: backend
     primary: false
     parent_technology: java
@@ -535,7 +535,7 @@ technologies:
   - id: quarkus
     name: Quarkus
     aliases: ["quarkus"]
-    category: framework
+    category: FRAMEWORK
     subcategory: backend
     primary: false
     parent_technology: java
@@ -550,7 +550,7 @@ technologies:
   - id: phoenix
     name: Phoenix
     aliases: ["phoenix", "phoenix-framework"]
-    category: framework
+    category: FRAMEWORK
     subcategory: backend
     primary: false
     parent_technology: elixir
@@ -562,7 +562,7 @@ technologies:
   - id: sinatra
     name: Sinatra
     aliases: ["sinatra"]
-    category: framework
+    category: FRAMEWORK
     subcategory: backend
     primary: false
     parent_technology: ruby
@@ -578,7 +578,7 @@ technologies:
   - id: react
     name: React
     aliases: ["react", "reactjs", "react.js", "react-js"]
-    category: framework
+    category: FRAMEWORK
     subcategory: frontend
     primary: false
     parent_technology: javascript
@@ -596,7 +596,7 @@ technologies:
   - id: vue
     name: Vue.js
     aliases: ["vue", "vuejs", "vue.js", "vue3", "vue2"]
-    category: framework
+    category: FRAMEWORK
     subcategory: frontend
     primary: false
     parent_technology: javascript
@@ -611,7 +611,7 @@ technologies:
   - id: angular
     name: Angular
     aliases: ["angular", "angularjs", "angular2", "angular2+"]
-    category: framework
+    category: FRAMEWORK
     subcategory: frontend
     primary: false
     parent_technology: typescript
@@ -626,7 +626,7 @@ technologies:
   - id: svelte
     name: Svelte
     aliases: ["svelte", "sveltekit"]
-    category: framework
+    category: FRAMEWORK
     subcategory: frontend
     primary: false
     parent_technology: javascript
@@ -641,7 +641,7 @@ technologies:
   - id: nextjs
     name: Next.js
     aliases: ["next", "nextjs", "next.js"]
-    category: framework
+    category: FRAMEWORK
     subcategory: frontend
     primary: false
     parent_technology: react
@@ -656,7 +656,7 @@ technologies:
   - id: nuxt
     name: Nuxt.js
     aliases: ["nuxt", "nuxtjs", "nuxt.js"]
-    category: framework
+    category: FRAMEWORK
     subcategory: frontend
     primary: false
     parent_technology: vue
@@ -668,7 +668,7 @@ technologies:
   - id: gatsby
     name: Gatsby
     aliases: ["gatsby", "gatsbyjs"]
-    category: framework
+    category: FRAMEWORK
     subcategory: frontend
     primary: false
     parent_technology: react
@@ -680,7 +680,7 @@ technologies:
   - id: ember
     name: Ember.js
     aliases: ["ember", "emberjs", "ember.js"]
-    category: framework
+    category: FRAMEWORK
     subcategory: frontend
     primary: false
     parent_technology: javascript
@@ -692,7 +692,7 @@ technologies:
   - id: backbone
     name: Backbone.js
     aliases: ["backbone", "backbonejs", "backbone.js"]
-    category: framework
+    category: FRAMEWORK
     subcategory: frontend
     primary: false
     parent_technology: javascript
@@ -708,7 +708,7 @@ technologies:
   - id: postgresql
     name: PostgreSQL
     aliases: ["postgresql", "postgres", "psql", "pg"]
-    category: database
+    category: DATABASE
     subcategory: relational
     primary: false
     related:
@@ -725,7 +725,7 @@ technologies:
   - id: mysql
     name: MySQL
     aliases: ["mysql"]
-    category: database
+    category: DATABASE
     subcategory: relational
     primary: false
     related:
@@ -739,7 +739,7 @@ technologies:
   - id: mariadb
     name: MariaDB
     aliases: ["mariadb", "maria-db"]
-    category: database
+    category: DATABASE
     subcategory: relational
     primary: false
     related:
@@ -753,7 +753,7 @@ technologies:
   - id: oracle
     name: Oracle Database
     aliases: ["oracle", "oracle-db", "oracle-database"]
-    category: database
+    category: DATABASE
     subcategory: relational
     primary: false
     related:
@@ -767,7 +767,7 @@ technologies:
   - id: mssql
     name: Microsoft SQL Server
     aliases: ["mssql", "ms-sql", "sql-server", "sqlserver"]
-    category: database
+    category: DATABASE
     subcategory: relational
     primary: false
     related:
@@ -781,7 +781,7 @@ technologies:
   - id: sqlite
     name: SQLite
     aliases: ["sqlite", "sqlite3"]
-    category: database
+    category: DATABASE
     subcategory: relational
     primary: false
     related:
@@ -796,7 +796,7 @@ technologies:
   - id: mongodb
     name: MongoDB
     aliases: ["mongodb", "mongo"]
-    category: database
+    category: DATABASE
     subcategory: nosql
     primary: false
     related:
@@ -810,7 +810,7 @@ technologies:
   - id: redis
     name: Redis
     aliases: ["redis"]
-    category: database
+    category: DATABASE
     subcategory: cache
     primary: false
     related:
@@ -824,7 +824,7 @@ technologies:
   - id: elasticsearch
     name: Elasticsearch
     aliases: ["elasticsearch", "elastic-search", "elastic"]
-    category: database
+    category: DATABASE
     subcategory: search
     primary: false
     related:
@@ -838,7 +838,7 @@ technologies:
   - id: cassandra
     name: Cassandra
     aliases: ["cassandra", "apache-cassandra"]
-    category: database
+    category: DATABASE
     subcategory: nosql
     primary: false
     related:
@@ -849,7 +849,7 @@ technologies:
   - id: dynamodb
     name: DynamoDB
     aliases: ["dynamodb", "dynamo-db"]
-    category: database
+    category: DATABASE
     subcategory: nosql
     primary: false
     related:
@@ -860,7 +860,7 @@ technologies:
   - id: couchdb
     name: CouchDB
     aliases: ["couchdb", "couch-db"]
-    category: database
+    category: DATABASE
     subcategory: nosql
     primary: false
     related:
@@ -871,7 +871,7 @@ technologies:
   - id: memcached
     name: Memcached
     aliases: ["memcached"]
-    category: database
+    category: DATABASE
     subcategory: cache
     primary: false
     related:
@@ -882,7 +882,7 @@ technologies:
   - id: solr
     name: Apache Solr
     aliases: ["solr", "apache-solr"]
-    category: database
+    category: DATABASE
     subcategory: search
     primary: false
     related:
@@ -893,7 +893,7 @@ technologies:
   - id: opensearch
     name: OpenSearch
     aliases: ["opensearch"]
-    category: database
+    category: DATABASE
     subcategory: search
     primary: false
     related:
@@ -904,7 +904,7 @@ technologies:
   - id: neo4j
     name: Neo4j
     aliases: ["neo4j"]
-    category: database
+    category: DATABASE
     subcategory: graph
     primary: false
     related: []
@@ -916,7 +916,7 @@ technologies:
   - id: aws
     name: Amazon Web Services
     aliases: ["aws", "amazon-web-services"]
-    category: cloud
+    category: CLOUD
     subcategory: platform
     primary: false
     related:
@@ -930,7 +930,7 @@ technologies:
   - id: azure
     name: Microsoft Azure
     aliases: ["azure", "microsoft-azure"]
-    category: cloud
+    category: CLOUD
     subcategory: platform
     primary: false
     related:
@@ -944,7 +944,7 @@ technologies:
   - id: gcp
     name: Google Cloud Platform
     aliases: ["gcp", "google-cloud", "google-cloud-platform"]
-    category: cloud
+    category: CLOUD
     subcategory: platform
     primary: false
     related:
@@ -958,7 +958,7 @@ technologies:
   - id: lambda
     name: AWS Lambda
     aliases: ["lambda", "aws-lambda"]
-    category: cloud
+    category: CLOUD
     subcategory: serverless
     primary: false
     parent_technology: aws
@@ -970,7 +970,7 @@ technologies:
   - id: s3
     name: AWS S3
     aliases: ["s3", "aws-s3", "simple-storage-service"]
-    category: cloud
+    category: CLOUD
     subcategory: storage
     primary: false
     parent_technology: aws
@@ -982,7 +982,7 @@ technologies:
   - id: ec2
     name: AWS EC2
     aliases: ["ec2", "aws-ec2"]
-    category: cloud
+    category: CLOUD
     subcategory: compute
     primary: false
     parent_technology: aws
@@ -994,7 +994,7 @@ technologies:
   - id: azure-functions
     name: Azure Functions
     aliases: ["azure-functions"]
-    category: cloud
+    category: CLOUD
     subcategory: serverless
     primary: false
     parent_technology: azure
@@ -1006,7 +1006,7 @@ technologies:
   - id: azure-blob
     name: Azure Blob Storage
     aliases: ["azure-blob", "blob-storage"]
-    category: cloud
+    category: CLOUD
     subcategory: storage
     primary: false
     parent_technology: azure
@@ -1018,7 +1018,7 @@ technologies:
   - id: azure-vms
     name: Azure Virtual Machines
     aliases: ["azure-vms", "azure-virtual-machines"]
-    category: cloud
+    category: CLOUD
     subcategory: compute
     primary: false
     parent_technology: azure
@@ -1030,7 +1030,7 @@ technologies:
   - id: heroku
     name: Heroku
     aliases: ["heroku"]
-    category: cloud
+    category: CLOUD
     subcategory: paas
     primary: false
     related:
@@ -1041,7 +1041,7 @@ technologies:
   - id: digitalocean
     name: DigitalOcean
     aliases: ["digitalocean", "digital-ocean"]
-    category: cloud
+    category: CLOUD
     subcategory: platform
     primary: false
     related:
@@ -1056,7 +1056,7 @@ technologies:
   - id: docker
     name: Docker
     aliases: ["docker", "docker-compose", "dockerfile"]
-    category: devops
+    category: DEVOPS
     subcategory: containerization
     primary: false
     related:
@@ -1070,7 +1070,7 @@ technologies:
   - id: kubernetes
     name: Kubernetes
     aliases: ["kubernetes", "k8s"]
-    category: devops
+    category: DEVOPS
     subcategory: orchestration
     primary: false
     related:
@@ -1084,7 +1084,7 @@ technologies:
   - id: jenkins
     name: Jenkins
     aliases: ["jenkins"]
-    category: devops
+    category: DEVOPS
     subcategory: ci-cd
     primary: false
     related:
@@ -1098,7 +1098,7 @@ technologies:
   - id: terraform
     name: Terraform
     aliases: ["terraform"]
-    category: devops
+    category: DEVOPS
     subcategory: iac
     primary: false
     related:
@@ -1112,7 +1112,7 @@ technologies:
   - id: ansible
     name: Ansible
     aliases: ["ansible"]
-    category: devops
+    category: DEVOPS
     subcategory: iac
     primary: false
     related:
@@ -1126,7 +1126,7 @@ technologies:
   - id: github-actions
     name: GitHub Actions
     aliases: ["github-actions", "githubactions"]
-    category: devops
+    category: DEVOPS
     subcategory: ci-cd
     primary: false
     related:
@@ -1140,7 +1140,7 @@ technologies:
   - id: gitlab-ci
     name: GitLab CI
     aliases: ["gitlab-ci", "gitlab-cicd"]
-    category: devops
+    category: DEVOPS
     subcategory: ci-cd
     primary: false
     related:
@@ -1154,7 +1154,7 @@ technologies:
   - id: circleci
     name: CircleCI
     aliases: ["circleci", "circle-ci"]
-    category: devops
+    category: DEVOPS
     subcategory: ci-cd
     primary: false
     related:
@@ -1165,7 +1165,7 @@ technologies:
   - id: travis-ci
     name: Travis CI
     aliases: ["travis-ci", "travis"]
-    category: devops
+    category: DEVOPS
     subcategory: ci-cd
     primary: false
     related:
@@ -1176,7 +1176,7 @@ technologies:
   - id: podman
     name: Podman
     aliases: ["podman"]
-    category: devops
+    category: DEVOPS
     subcategory: containerization
     primary: false
     related:
@@ -1187,7 +1187,7 @@ technologies:
   - id: openshift
     name: OpenShift
     aliases: ["openshift"]
-    category: devops
+    category: DEVOPS
     subcategory: orchestration
     primary: false
     related:
@@ -1198,7 +1198,7 @@ technologies:
   - id: puppet
     name: Puppet
     aliases: ["puppet"]
-    category: devops
+    category: DEVOPS
     subcategory: iac
     primary: false
     related:
@@ -1209,7 +1209,7 @@ technologies:
   - id: chef
     name: Chef
     aliases: ["chef"]
-    category: devops
+    category: DEVOPS
     subcategory: iac
     primary: false
     related:
@@ -1220,7 +1220,7 @@ technologies:
   - id: cloudformation
     name: CloudFormation
     aliases: ["cloudformation", "aws-cloudformation"]
-    category: devops
+    category: DEVOPS
     subcategory: iac
     primary: false
     parent_technology: aws
@@ -1236,7 +1236,7 @@ technologies:
   - id: android
     name: Android
     aliases: ["android"]
-    category: mobile
+    category: MOBILE
     subcategory: platform
     primary: false
     related:
@@ -1247,7 +1247,7 @@ technologies:
   - id: ios
     name: iOS
     aliases: ["ios"]
-    category: mobile
+    category: MOBILE
     subcategory: platform
     primary: false
     related:
@@ -1258,7 +1258,7 @@ technologies:
   - id: flutter
     name: Flutter
     aliases: ["flutter"]
-    category: mobile
+    category: MOBILE
     subcategory: framework
     primary: false
     parent_technology: dart
@@ -1270,7 +1270,7 @@ technologies:
   - id: react-native
     name: React Native
     aliases: ["react-native", "reactnative"]
-    category: mobile
+    category: MOBILE
     subcategory: framework
     primary: false
     parent_technology: javascript
@@ -1285,7 +1285,7 @@ technologies:
   - id: xamarin
     name: Xamarin
     aliases: ["xamarin"]
-    category: mobile
+    category: MOBILE
     subcategory: framework
     primary: false
     parent_technology: csharp
@@ -1297,7 +1297,7 @@ technologies:
   - id: ionic
     name: Ionic
     aliases: ["ionic"]
-    category: mobile
+    category: MOBILE
     subcategory: framework
     primary: false
     parent_technology: javascript
@@ -1313,7 +1313,7 @@ technologies:
   - id: spark
     name: Apache Spark
     aliases: ["spark", "apache-spark", "pyspark"]
-    category: data-engineering
+    category: DATA_ENGINEERING
     subcategory: processing
     primary: false
     related:
@@ -1324,7 +1324,7 @@ technologies:
   - id: hadoop
     name: Hadoop
     aliases: ["hadoop", "apache-hadoop"]
-    category: data-engineering
+    category: DATA_ENGINEERING
     subcategory: processing
     primary: false
     related:
@@ -1335,7 +1335,7 @@ technologies:
   - id: kafka
     name: Apache Kafka
     aliases: ["kafka", "apache-kafka"]
-    category: messaging
+    category: MESSAGING
     subcategory: streaming
     primary: false
     related:
@@ -1349,7 +1349,7 @@ technologies:
   - id: airflow
     name: Apache Airflow
     aliases: ["airflow", "apache-airflow"]
-    category: data-engineering
+    category: DATA_ENGINEERING
     subcategory: orchestration
     primary: false
     related:
@@ -1360,7 +1360,7 @@ technologies:
   - id: dbt
     name: dbt
     aliases: ["dbt", "data-build-tool"]
-    category: data-engineering
+    category: DATA_ENGINEERING
     subcategory: transformation
     primary: false
     related: []
@@ -1368,7 +1368,7 @@ technologies:
   - id: snowflake
     name: Snowflake
     aliases: ["snowflake"]
-    category: database
+    category: DATABASE
     subcategory: data-warehouse
     primary: false
     related:
@@ -1379,7 +1379,7 @@ technologies:
   - id: bigquery
     name: BigQuery
     aliases: ["bigquery", "big-query"]
-    category: database
+    category: DATABASE
     subcategory: data-warehouse
     primary: false
     parent_technology: gcp
@@ -1391,7 +1391,7 @@ technologies:
   - id: redshift
     name: Amazon Redshift
     aliases: ["redshift", "aws-redshift"]
-    category: database
+    category: DATABASE
     subcategory: data-warehouse
     primary: false
     parent_technology: aws
@@ -1403,7 +1403,7 @@ technologies:
   - id: prefect
     name: Prefect
     aliases: ["prefect"]
-    category: data-engineering
+    category: DATA_ENGINEERING
     subcategory: orchestration
     primary: false
     related:
@@ -1418,7 +1418,7 @@ technologies:
   - id: tensorflow
     name: TensorFlow
     aliases: ["tensorflow", "tf"]
-    category: ai-ml
+    category: AI_ML
     subcategory: framework
     primary: false
     parent_technology: python
@@ -1433,7 +1433,7 @@ technologies:
   - id: pytorch
     name: PyTorch
     aliases: ["pytorch", "torch"]
-    category: ai-ml
+    category: AI_ML
     subcategory: framework
     primary: false
     parent_technology: python
@@ -1445,7 +1445,7 @@ technologies:
   - id: keras
     name: Keras
     aliases: ["keras"]
-    category: ai-ml
+    category: AI_ML
     subcategory: framework
     primary: false
     parent_technology: tensorflow
@@ -1457,7 +1457,7 @@ technologies:
   - id: scikit-learn
     name: scikit-learn
     aliases: ["scikit-learn", "sklearn", "scikit"]
-    category: ai-ml
+    category: AI_ML
     subcategory: library
     primary: false
     parent_technology: python
@@ -1469,7 +1469,7 @@ technologies:
   - id: pandas
     name: pandas
     aliases: ["pandas"]
-    category: data-engineering
+    category: DATA_ENGINEERING
     subcategory: library
     primary: false
     parent_technology: python
@@ -1481,7 +1481,7 @@ technologies:
   - id: numpy
     name: NumPy
     aliases: ["numpy"]
-    category: data-engineering
+    category: DATA_ENGINEERING
     subcategory: library
     primary: false
     parent_technology: python
@@ -1493,7 +1493,7 @@ technologies:
   - id: huggingface
     name: Hugging Face
     aliases: ["huggingface", "hugging-face", "transformers"]
-    category: ai-ml
+    category: AI_ML
     subcategory: library
     primary: false
     parent_technology: python
@@ -1505,7 +1505,7 @@ technologies:
   - id: openai
     name: OpenAI
     aliases: ["openai", "gpt", "chatgpt"]
-    category: ai-ml
+    category: AI_ML
     subcategory: service
     primary: false
     related:
@@ -1520,7 +1520,7 @@ technologies:
   - id: rabbitmq
     name: RabbitMQ
     aliases: ["rabbitmq", "rabbit-mq"]
-    category: messaging
+    category: MESSAGING
     subcategory: queue
     primary: false
     related:
@@ -1534,7 +1534,7 @@ technologies:
   - id: activemq
     name: ActiveMQ
     aliases: ["activemq", "active-mq"]
-    category: messaging
+    category: MESSAGING
     subcategory: queue
     primary: false
     related:
@@ -1545,7 +1545,7 @@ technologies:
   - id: pulsar
     name: Apache Pulsar
     aliases: ["pulsar", "apache-pulsar"]
-    category: messaging
+    category: MESSAGING
     subcategory: streaming
     primary: false
     related:
@@ -1556,7 +1556,7 @@ technologies:
   - id: sqs
     name: AWS SQS
     aliases: ["sqs", "aws-sqs"]
-    category: messaging
+    category: MESSAGING
     subcategory: queue
     primary: false
     parent_technology: aws
@@ -1572,7 +1572,7 @@ technologies:
   - id: rest
     name: REST API
     aliases: ["rest", "restful", "rest-api"]
-    category: api
+    category: API
     subcategory: architecture
     primary: false
     related:
@@ -1583,7 +1583,7 @@ technologies:
   - id: graphql
     name: GraphQL
     aliases: ["graphql", "graph-ql"]
-    category: api
+    category: API
     subcategory: query-language
     primary: false
     related:
@@ -1594,7 +1594,7 @@ technologies:
   - id: grpc
     name: gRPC
     aliases: ["grpc", "g-rpc"]
-    category: api
+    category: API
     subcategory: rpc
     primary: false
     related:
@@ -1605,7 +1605,7 @@ technologies:
   - id: websocket
     name: WebSocket
     aliases: ["websocket", "websockets", "ws"]
-    category: api
+    category: API
     subcategory: protocol
     primary: false
     related: []
@@ -1613,7 +1613,7 @@ technologies:
   - id: soap
     name: SOAP
     aliases: ["soap"]
-    category: api
+    category: API
     subcategory: protocol
     primary: false
     related:
@@ -1628,7 +1628,7 @@ technologies:
   - id: jest
     name: Jest
     aliases: ["jest"]
-    category: testing
+    category: TESTING
     subcategory: unit
     primary: false
     parent_technology: javascript
@@ -1640,7 +1640,7 @@ technologies:
   - id: pytest
     name: pytest
     aliases: ["pytest"]
-    category: testing
+    category: TESTING
     subcategory: unit
     primary: false
     parent_technology: python
@@ -1652,7 +1652,7 @@ technologies:
   - id: junit
     name: JUnit
     aliases: ["junit"]
-    category: testing
+    category: TESTING
     subcategory: unit
     primary: false
     parent_technology: java
@@ -1664,7 +1664,7 @@ technologies:
   - id: selenium
     name: Selenium
     aliases: ["selenium"]
-    category: testing
+    category: TESTING
     subcategory: e2e
     primary: false
     related:
@@ -1675,7 +1675,7 @@ technologies:
   - id: cypress
     name: Cypress
     aliases: ["cypress"]
-    category: testing
+    category: TESTING
     subcategory: e2e
     primary: false
     parent_technology: javascript
@@ -1687,7 +1687,7 @@ technologies:
   - id: mocha
     name: Mocha
     aliases: ["mocha"]
-    category: testing
+    category: TESTING
     subcategory: unit
     primary: false
     parent_technology: javascript
@@ -1699,7 +1699,7 @@ technologies:
   - id: testng
     name: TestNG
     aliases: ["testng"]
-    category: testing
+    category: TESTING
     subcategory: unit
     primary: false
     parent_technology: java
@@ -1711,7 +1711,7 @@ technologies:
   - id: unittest
     name: unittest
     aliases: ["unittest"]
-    category: testing
+    category: TESTING
     subcategory: unit
     primary: false
     parent_technology: python
@@ -1723,7 +1723,7 @@ technologies:
   - id: playwright
     name: Playwright
     aliases: ["playwright"]
-    category: testing
+    category: TESTING
     subcategory: e2e
     primary: false
     related:
@@ -1738,7 +1738,7 @@ technologies:
   - id: git
     name: Git
     aliases: ["git"]
-    category: tools
+    category: TOOLS
     subcategory: version-control
     primary: false
     related: []
@@ -1746,7 +1746,7 @@ technologies:
   - id: github
     name: GitHub
     aliases: ["github"]
-    category: tools
+    category: TOOLS
     subcategory: version-control
     primary: false
     related:
@@ -1757,7 +1757,7 @@ technologies:
   - id: gitlab
     name: GitLab
     aliases: ["gitlab"]
-    category: tools
+    category: TOOLS
     subcategory: version-control
     primary: false
     related:
@@ -1768,7 +1768,7 @@ technologies:
   - id: bitbucket
     name: Bitbucket
     aliases: ["bitbucket"]
-    category: tools
+    category: TOOLS
     subcategory: version-control
     primary: false
     related:
@@ -1779,7 +1779,7 @@ technologies:
   - id: jira
     name: Jira
     aliases: ["jira"]
-    category: tools
+    category: TOOLS
     subcategory: project-management
     primary: false
     related:
@@ -1790,7 +1790,7 @@ technologies:
   - id: confluence
     name: Confluence
     aliases: ["confluence"]
-    category: tools
+    category: TOOLS
     subcategory: documentation
     primary: false
     related:
@@ -1801,7 +1801,7 @@ technologies:
   - id: slack
     name: Slack
     aliases: ["slack"]
-    category: tools
+    category: TOOLS
     subcategory: communication
     primary: false
     related:
@@ -1812,7 +1812,7 @@ technologies:
   - id: teams
     name: Microsoft Teams
     aliases: ["teams", "microsoft-teams"]
-    category: tools
+    category: TOOLS
     subcategory: communication
     primary: false
     related:
@@ -1827,7 +1827,7 @@ technologies:
   - id: accounting
     name: Accounting
     aliases: ["accounting", "accountant", "bookkeeping", "cpa", "certified-public-accountant"]
-    category: domain
+    category: DOMAIN
     subcategory: finance
     primary: true
     related:
@@ -1844,7 +1844,7 @@ technologies:
   - id: finance
     name: Finance
     aliases: ["finance", "financial", "financial-analysis", "financial-analyst"]
-    category: domain
+    category: DOMAIN
     subcategory: finance
     primary: true
     related:
@@ -1858,7 +1858,7 @@ technologies:
   - id: auditing
     name: Auditing
     aliases: ["auditing", "auditor", "audit"]
-    category: domain
+    category: DOMAIN
     subcategory: finance
     primary: true
     related:
@@ -1869,7 +1869,7 @@ technologies:
   - id: tax
     name: Tax
     aliases: ["tax", "taxation", "tax-accounting"]
-    category: domain
+    category: DOMAIN
     subcategory: finance
     primary: true
     related:
@@ -1880,7 +1880,7 @@ technologies:
   - id: investment-banking
     name: Investment Banking
     aliases: ["investment-banking", "investment-banker"]
-    category: domain
+    category: DOMAIN
     subcategory: finance
     primary: true
     related:
@@ -1891,7 +1891,7 @@ technologies:
   - id: marketing
     name: Marketing
     aliases: ["marketing", "digital-marketing", "marketing-strategy"]
-    category: domain
+    category: DOMAIN
     subcategory: business
     primary: true
     related:
@@ -1905,7 +1905,7 @@ technologies:
   - id: content-marketing
     name: Content Marketing
     aliases: ["content-marketing", "content-strategy"]
-    category: domain
+    category: DOMAIN
     subcategory: business
     primary: true
     related:
@@ -1916,7 +1916,7 @@ technologies:
   - id: seo
     name: SEO
     aliases: ["seo", "search-engine-optimization"]
-    category: domain
+    category: DOMAIN
     subcategory: business
     primary: true
     related:
@@ -1927,7 +1927,7 @@ technologies:
   - id: sem
     name: SEM
     aliases: ["sem", "search-engine-marketing"]
-    category: domain
+    category: DOMAIN
     subcategory: business
     primary: true
     related:
@@ -1938,7 +1938,7 @@ technologies:
   - id: data-science
     name: Data Science
     aliases: ["data-science", "data-scientist"]
-    category: domain
+    category: DOMAIN
     subcategory: analytics
     primary: true
     related:
@@ -1955,7 +1955,7 @@ technologies:
   - id: machine-learning
     name: Machine Learning
     aliases: ["machine-learning", "ml", "ml-engineer"]
-    category: domain
+    category: DOMAIN
     subcategory: analytics
     primary: true
     related:
@@ -1969,7 +1969,7 @@ technologies:
   - id: ai
     name: Artificial Intelligence
     aliases: ["ai", "artificial-intelligence"]
-    category: domain
+    category: DOMAIN
     subcategory: analytics
     primary: true
     related:
@@ -1980,7 +1980,7 @@ technologies:
   - id: statistics
     name: Statistics
     aliases: ["statistics", "statistical-analysis"]
-    category: domain
+    category: DOMAIN
     subcategory: analytics
     primary: true
     related:
@@ -1991,7 +1991,7 @@ technologies:
   - id: data-analytics
     name: Data Analytics
     aliases: ["data-analytics", "data-analyst"]
-    category: domain
+    category: DOMAIN
     subcategory: analytics
     primary: true
     related:
@@ -2005,7 +2005,7 @@ technologies:
   - id: business-intelligence
     name: Business Intelligence
     aliases: ["business-intelligence", "bi"]
-    category: domain
+    category: DOMAIN
     subcategory: analytics
     primary: true
     related:
@@ -2016,7 +2016,7 @@ technologies:
   - id: hr
     name: Human Resources
     aliases: ["hr", "human-resources", "people-operations"]
-    category: domain
+    category: DOMAIN
     subcategory: business
     primary: true
     related:
@@ -2030,7 +2030,7 @@ technologies:
   - id: recruiting
     name: Recruiting
     aliases: ["recruiting", "recruitment", "talent-acquisition", "recruiter"]
-    category: domain
+    category: DOMAIN
     subcategory: business
     primary: true
     related:
@@ -2041,7 +2041,7 @@ technologies:
   - id: payroll
     name: Payroll
     aliases: ["payroll"]
-    category: domain
+    category: DOMAIN
     subcategory: business
     primary: true
     related:
@@ -2052,7 +2052,7 @@ technologies:
   - id: sales
     name: Sales
     aliases: ["sales", "account-executive", "sales-rep"]
-    category: domain
+    category: DOMAIN
     subcategory: business
     primary: true
     related:
@@ -2066,7 +2066,7 @@ technologies:
   - id: business-development
     name: Business Development
     aliases: ["business-development", "biz-dev", "bd"]
-    category: domain
+    category: DOMAIN
     subcategory: business
     primary: true
     related:
@@ -2077,7 +2077,7 @@ technologies:
   - id: healthcare
     name: Healthcare
     aliases: ["healthcare", "medical"]
-    category: domain
+    category: DOMAIN
     subcategory: healthcare
     primary: true
     related:
@@ -2088,7 +2088,7 @@ technologies:
   - id: nursing
     name: Nursing
     aliases: ["nursing", "nurse", "rn"]
-    category: domain
+    category: DOMAIN
     subcategory: healthcare
     primary: true
     related:
@@ -2099,7 +2099,7 @@ technologies:
   - id: clinical-research
     name: Clinical Research
     aliases: ["clinical-research", "clinical-trials"]
-    category: domain
+    category: DOMAIN
     subcategory: healthcare
     primary: true
     related:
@@ -2110,7 +2110,7 @@ technologies:
   - id: operations-management
     name: Operations Management
     aliases: ["operations-management", "operations", "ops"]
-    category: domain
+    category: DOMAIN
     subcategory: business
     primary: true
     related:
@@ -2121,7 +2121,7 @@ technologies:
   - id: supply-chain
     name: Supply Chain
     aliases: ["supply-chain", "logistics", "scm"]
-    category: domain
+    category: DOMAIN
     subcategory: business
     primary: true
     related:
@@ -2132,7 +2132,7 @@ technologies:
   - id: customer-service
     name: Customer Service
     aliases: ["customer-service", "customer-support"]
-    category: domain
+    category: DOMAIN
     subcategory: business
     primary: true
     related:
@@ -2143,7 +2143,7 @@ technologies:
   - id: technical-support
     name: Technical Support
     aliases: ["technical-support", "tech-support"]
-    category: domain
+    category: DOMAIN
     subcategory: business
     primary: true
     related:
@@ -2154,7 +2154,7 @@ technologies:
   - id: project-management
     name: Project Management
     aliases: ["project-management", "pm", "project-manager"]
-    category: domain
+    category: DOMAIN
     subcategory: business
     primary: true
     related:
@@ -2165,7 +2165,7 @@ technologies:
   - id: product-management
     name: Product Management
     aliases: ["product-management", "product-manager"]
-    category: domain
+    category: DOMAIN
     subcategory: business
     primary: true
     related:
@@ -2176,7 +2176,7 @@ technologies:
   - id: legal
     name: Legal
     aliases: ["legal", "lawyer", "attorney"]
-    category: domain
+    category: DOMAIN
     subcategory: legal
     primary: true
     related:
@@ -2187,7 +2187,7 @@ technologies:
   - id: compliance
     name: Compliance
     aliases: ["compliance", "regulatory"]
-    category: domain
+    category: DOMAIN
     subcategory: legal
     primary: true
     related:
@@ -2202,7 +2202,7 @@ technologies:
   - id: quickbooks
     name: QuickBooks
     aliases: ["quickbooks", "qb", "intuit-quickbooks"]
-    category: tool
+    category: TOOL
     subcategory: accounting
     primary: false
     parent_technology: accounting
@@ -2217,7 +2217,7 @@ technologies:
   - id: sap
     name: SAP
     aliases: ["sap"]
-    category: tool
+    category: TOOL
     subcategory: erp
     primary: false
     related:
@@ -2228,7 +2228,7 @@ technologies:
   - id: netsuite
     name: NetSuite
     aliases: ["netsuite"]
-    category: tool
+    category: TOOL
     subcategory: erp
     primary: false
     related:
@@ -2239,7 +2239,7 @@ technologies:
   - id: oracle-erp
     name: Oracle ERP
     aliases: ["oracle-erp"]
-    category: tool
+    category: TOOL
     subcategory: erp
     primary: false
     related:
@@ -2250,7 +2250,7 @@ technologies:
   - id: salesforce
     name: Salesforce
     aliases: ["salesforce", "sfdc", "salesforce-crm"]
-    category: tool
+    category: TOOL
     subcategory: crm
     primary: false
     parent_technology: sales
@@ -2262,7 +2262,7 @@ technologies:
   - id: hubspot-crm
     name: HubSpot CRM
     aliases: ["hubspot", "hubspot-crm"]
-    category: tool
+    category: TOOL
     subcategory: crm
     primary: false
     related:
@@ -2273,7 +2273,7 @@ technologies:
   - id: google-analytics
     name: Google Analytics
     aliases: ["google-analytics", "ga", "ga4"]
-    category: tool
+    category: TOOL
     subcategory: analytics
     primary: false
     parent_technology: marketing
@@ -2285,7 +2285,7 @@ technologies:
   - id: adobe-analytics
     name: Adobe Analytics
     aliases: ["adobe-analytics"]
-    category: tool
+    category: TOOL
     subcategory: analytics
     primary: false
     related:
@@ -2296,7 +2296,7 @@ technologies:
   - id: tableau
     name: Tableau
     aliases: ["tableau"]
-    category: tool
+    category: TOOL
     subcategory: bi
     primary: false
     related:
@@ -2307,7 +2307,7 @@ technologies:
   - id: power-bi
     name: Power BI
     aliases: ["power-bi", "powerbi"]
-    category: tool
+    category: TOOL
     subcategory: bi
     primary: false
     related:
@@ -2318,7 +2318,7 @@ technologies:
   - id: workday
     name: Workday
     aliases: ["workday"]
-    category: tool
+    category: TOOL
     subcategory: hr
     primary: false
     parent_technology: hr
@@ -2330,7 +2330,7 @@ technologies:
   - id: bamboohr
     name: BambooHR
     aliases: ["bamboohr", "bamboo-hr"]
-    category: tool
+    category: TOOL
     subcategory: hr
     primary: false
     parent_technology: hr
@@ -2342,7 +2342,7 @@ technologies:
   - id: adp
     name: ADP
     aliases: ["adp"]
-    category: tool
+    category: TOOL
     subcategory: hr
     primary: false
     parent_technology: payroll
@@ -2354,7 +2354,7 @@ technologies:
   - id: zendesk
     name: Zendesk
     aliases: ["zendesk"]
-    category: tool
+    category: TOOL
     subcategory: support
     primary: false
     parent_technology: customer-service
@@ -2366,7 +2366,7 @@ technologies:
   - id: intercom
     name: Intercom
     aliases: ["intercom"]
-    category: tool
+    category: TOOL
     subcategory: support
     primary: false
     parent_technology: customer-service
@@ -2378,7 +2378,7 @@ technologies:
   - id: asana
     name: Asana
     aliases: ["asana"]
-    category: tool
+    category: TOOL
     subcategory: project-management
     primary: false
     parent_technology: project-management
@@ -2393,7 +2393,7 @@ technologies:
   - id: monday
     name: Monday.com
     aliases: ["monday", "monday.com"]
-    category: tool
+    category: TOOL
     subcategory: project-management
     primary: false
     parent_technology: project-management
@@ -2405,7 +2405,7 @@ technologies:
   - id: trello
     name: Trello
     aliases: ["trello"]
-    category: tool
+    category: TOOL
     subcategory: project-management
     primary: false
     parent_technology: project-management
@@ -2417,7 +2417,7 @@ technologies:
   - id: notion
     name: Notion
     aliases: ["notion"]
-    category: tool
+    category: TOOL
     subcategory: documentation
     primary: false
     related:
@@ -2428,7 +2428,7 @@ technologies:
   - id: excel
     name: Excel
     aliases: ["excel", "microsoft-excel"]
-    category: tool
+    category: TOOL
     subcategory: productivity
     primary: false
     related:
@@ -2439,7 +2439,7 @@ technologies:
   - id: google-sheets
     name: Google Sheets
     aliases: ["google-sheets", "sheets"]
-    category: tool
+    category: TOOL
     subcategory: productivity
     primary: false
     related:
@@ -2450,7 +2450,7 @@ technologies:
   - id: agile
     name: Agile
     aliases: ["agile", "agile-methodology"]
-    category: methodology
+    category: METHODOLOGY
     subcategory: project-management
     primary: false
     related:
@@ -2461,7 +2461,7 @@ technologies:
   - id: scrum
     name: Scrum
     aliases: ["scrum"]
-    category: methodology
+    category: METHODOLOGY
     subcategory: project-management
     primary: false
     related:
@@ -2475,7 +2475,7 @@ technologies:
   - id: kanban
     name: Kanban
     aliases: ["kanban"]
-    category: methodology
+    category: METHODOLOGY
     subcategory: project-management
     primary: false
     related:
@@ -2486,7 +2486,7 @@ technologies:
   - id: lean-six-sigma
     name: Lean Six Sigma
     aliases: ["lean-six-sigma", "six-sigma", "lean"]
-    category: methodology
+    category: METHODOLOGY
     subcategory: operations
     primary: false
     parent_technology: operations-management
@@ -2495,7 +2495,7 @@ technologies:
   - id: pmp
     name: PMP
     aliases: ["pmp", "project-management-professional"]
-    category: certification
+    category: CERTIFICATION
     subcategory: project-management
     primary: false
     parent_technology: project-management
@@ -2504,7 +2504,7 @@ technologies:
   - id: hipaa
     name: HIPAA
     aliases: ["hipaa"]
-    category: compliance
+    category: COMPLIANCE
     subcategory: healthcare
     primary: false
     parent_technology: healthcare
@@ -2513,7 +2513,7 @@ technologies:
   - id: gdpr
     name: GDPR
     aliases: ["gdpr"]
-    category: compliance
+    category: COMPLIANCE
     subcategory: legal
     primary: false
     related:
@@ -2524,7 +2524,7 @@ technologies:
   - id: gaap
     name: GAAP
     aliases: ["gaap"]
-    category: standard
+    category: STANDARD
     subcategory: accounting
     primary: false
     parent_technology: accounting
@@ -2536,7 +2536,7 @@ technologies:
   - id: ifrs
     name: IFRS
     aliases: ["ifrs"]
-    category: standard
+    category: STANDARD
     subcategory: accounting
     primary: false
     parent_technology: accounting
@@ -2548,7 +2548,7 @@ technologies:
   - id: sql
     name: SQL
     aliases: ["sql", "structured-query-language"]
-    category: language
+    category: LANGUAGE
     subcategory: query
     primary: false
     related:
@@ -2559,7 +2559,7 @@ technologies:
   - id: nosql
     name: NoSQL
     aliases: ["nosql"]
-    category: database
+    category: DATABASE
     subcategory: nosql
     primary: false
     related:

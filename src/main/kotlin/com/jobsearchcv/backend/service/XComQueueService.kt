@@ -1,6 +1,8 @@
 package com.jobsearchcv.backend.service
 
+import com.jobsearchcv.backend.domain.model.JobSearchOut
 import com.jobsearchcv.backend.domain.model.ScoredJobData
+import com.jobsearchcv.backend.domain.model.XComJobData
 import com.jobsearchcv.backend.domain.model.XComQueueJob
 import com.jobsearchcv.backend.repository.XComQueueRepository
 import org.slf4j.LoggerFactory
@@ -43,7 +45,7 @@ class XComQueueService(
         val queueJobs = jobs.filter {
             (it.techstack.size > 3 && it.salary != null)
         }
-        
+        .take(5) // Limit to 5 jobs for X.com posting
         .map { job ->
             val xcomJobData = xcomMessageComposer.createXComJobData(job)
             val tweetText = xcomMessageComposer.formatTweet(xcomJobData)
@@ -69,5 +71,65 @@ class XComQueueService(
     suspend fun getPendingJobsCount(userId: String): Int {
         val jobs = xcomQueueRepository.findByUserId(userId)
         return jobs.count { it.statusEnum.name == "PENDING" }
+    }
+
+    /**
+     * Enqueues a single page overview post to X.com queue
+     * @param jobCount Number of jobs in the batch
+     * @param jobSearch Job search configuration
+     * @param username X.com username (from Destination.channelValue)
+     * @param pagePath Page path for the overview URL (from Destination.pagePath)
+     * @param hashtags Optional list of hashtags to include (from Destination.socialMediaTags)
+     * @param userId User ID who owns this post
+     * @return true if enqueued successfully, false otherwise
+     */
+    suspend fun enqueuePageOverviewPost(
+        jobCount: Int,
+        jobSearch: JobSearchOut,
+        username: String,
+        pagePath: String,
+        hashtags: List<String>?,
+        userId: String
+    ): Boolean {
+        try {
+            logger.info("Enqueueing page overview post for $jobCount jobs (username: $username, userId: $userId)")
+
+            // Format tweet text with hashtags
+            val tweetText = xcomMessageComposer.formatPageOverviewTweet(
+                jobCount = jobCount,
+                jobSearch = jobSearch,
+                pagePath = pagePath,
+                hashtags = hashtags
+            )
+
+            // Create placeholder XComJobData (required by XComQueueJob schema)
+            val summaryJobData = XComJobData(
+                internalId = "page-overview-${jobSearch.id}",
+                title = "Page Overview: ${jobSearch.jobTitle}",
+                company = "Multiple Companies",
+                location = jobSearch.location,
+                techstack = emptyList(),
+                salary = null,
+                internalJobLink = ""
+            )
+
+            // Create and save queue job
+            val queueJob = XComQueueJob.create(
+                userId = userId,
+                username = username,
+                jobData = summaryJobData,
+                tweetText = tweetText,
+                scheduledAt = OffsetDateTime.now()
+            )
+
+            xcomQueueRepository.save(queueJob)
+
+            logger.info("Successfully enqueued page overview post (tweetLength: ${tweetText.length} chars)")
+            return true
+
+        } catch (e: Exception) {
+            logger.error("Failed to enqueue page overview post for user $userId", e)
+            return false
+        }
     }
 }

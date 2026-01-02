@@ -62,6 +62,12 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-quartz")
+    implementation("org.springframework.boot:spring-boot-starter-cache")
+
+    // ── Redis (Lettuce client) ──────────────────────────────
+    implementation("org.springframework.boot:spring-boot-starter-data-redis")
+    implementation("io.lettuce:lettuce-core:6.3.2.RELEASE")
+    implementation("org.apache.commons:commons-pool2:2.12.0") // Connection pooling
 
     // ── Logging (Logback with SLF4J - industry standard) ─────────
     // Spring Boot includes Logback by default - no additional dependencies needed
