@@ -23,7 +23,7 @@ class ScoredJobController(
     @GetMapping
     @Operation(
         summary = "Get scored jobs for authenticated user",
-        description = "Fetches enriched/scored jobs sent within specified time window. Optionally filters by status."
+        description = "Fetches enriched/scored jobs sent within specified time window. Optionally filters by status and/or job search ID."
     )
     fun getScoredJobs(
         @Parameter(description = "Minutes to look back (max: 10080 = 7 days)")
@@ -32,13 +32,16 @@ class ScoredJobController(
         @Parameter(description = "Optional status filter")
         @RequestParam(required = false) status: String?,
 
+        @Parameter(description = "Optional job search ID filter")
+        @RequestParam(required = false) jobSearchId: String?,
+
         @Parameter(hidden = true) authentication: Authentication
     ): ResponseEntity<List<ScoredJobResponse>> {
         val userId = authentication.principal as String
 
-        logger.debug("Request: userId=$userId, minutesBack=$minutesBack, status=$status")
+        logger.debug("Request: userId=$userId, minutesBack=$minutesBack, status=$status, jobSearchId=$jobSearchId")
 
-        val jobs = scoredJobService.getRecentScoredJobs(userId, minutesBack, status)
+        val jobs = scoredJobService.getRecentScoredJobs(userId, minutesBack, status, jobSearchId)
         return ResponseEntity.ok(jobs)
     }
 }

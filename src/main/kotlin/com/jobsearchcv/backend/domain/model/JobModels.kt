@@ -211,6 +211,7 @@ data class ScoredJobResponse(
     val title: String,
     val company: String,
     val location: String,
+    val applicants: String,
     val techstack: List<String>,
     val tags: List<String>,
     val salary: String?,

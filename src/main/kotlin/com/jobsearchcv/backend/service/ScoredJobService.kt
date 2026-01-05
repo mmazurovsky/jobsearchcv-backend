@@ -16,16 +16,36 @@ class ScoredJobService(
     fun getRecentScoredJobs(
         userId: String,
         minutesBack: Long,
-        status: String?
+        status: String?,
+        jobSearchId: String?
     ): List<ScoredJobResponse> {
-        logger.info("Fetching scored jobs: userId=$userId, minutesBack=$minutesBack, status=$status")
+        logger.info("Fetching scored jobs: userId=$userId, minutesBack=$minutesBack, status=$status, jobSearchId=$jobSearchId")
 
         val sentAtAfter = OffsetDateTime.now().minusMinutes(minutesBack)
 
-        val scoredJobs = if (status.isNullOrBlank()) {
-            scoredJobRepository.findByUserIdAndSentAtAfterOrderBySentAtDesc(userId, sentAtAfter)
-        } else {
-            scoredJobRepository.findByUserIdAndStatusAndSentAtAfterOrderBySentAtDesc(userId, status, sentAtAfter)
+        val scoredJobs = when {
+            // Filter by jobSearchId and status
+            !jobSearchId.isNullOrBlank() && !status.isNullOrBlank() -> {
+                scoredJobRepository.findByUserIdAndJobSearchIdAndStatusAndSentAtAfterOrderBySentAtDesc(
+                    userId, jobSearchId, status, sentAtAfter
+                )
+            }
+            // Filter by jobSearchId only
+            !jobSearchId.isNullOrBlank() -> {
+                scoredJobRepository.findByUserIdAndJobSearchIdAndSentAtAfterOrderBySentAtDesc(
+                    userId, jobSearchId, sentAtAfter
+                )
+            }
+            // Filter by status only
+            !status.isNullOrBlank() -> {
+                scoredJobRepository.findByUserIdAndStatusAndSentAtAfterOrderBySentAtDesc(
+                    userId, status, sentAtAfter
+                )
+            }
+            // No filters
+            else -> {
+                scoredJobRepository.findByUserIdAndSentAtAfterOrderBySentAtDesc(userId, sentAtAfter)
+            }
         }
 
         logger.info("Found ${scoredJobs.size} scored jobs for userId=$userId")
@@ -42,6 +62,7 @@ class ScoredJobService(
             title = this.title,
             company = this.company,
             location = this.location,
+            applicants = this.applicants,
             techstack = this.techstack,
             tags = this.tags,
             salary = this.salary,
