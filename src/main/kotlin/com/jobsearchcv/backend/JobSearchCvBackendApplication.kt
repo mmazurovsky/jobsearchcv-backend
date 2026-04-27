@@ -8,7 +8,10 @@ import org.springframework.scheduling.annotation.EnableAsync
 import org.springframework.scheduling.annotation.EnableScheduling
 
 @SpringBootApplication(
-    exclude = [RedisRepositoriesAutoConfiguration::class]  // We use Redis for Streams, not repositories
+    exclude = [
+        RedisRepositoriesAutoConfiguration::class,  // We use Redis for Streams, not repositories
+        org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration::class  // Prevent auto-connection to localhost:6379 when Redis is disabled
+    ]
 )
 @EnableScheduling
 @EnableAsync

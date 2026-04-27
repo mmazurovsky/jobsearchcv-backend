@@ -25,6 +25,7 @@ class IncomingJobsProcessingService(
     private val subscriptionService: SubscriptionService,
     private val xcomQueueService: XComQueueService,
     private val firebaseAuthService: FirebaseAuthService,
+    private val telegramService: TelegramService,
 ) {
     private val logger = LoggerFactory.getLogger(this::class.java)
 
@@ -92,6 +93,9 @@ class IncomingJobsProcessingService(
                     )
                     "page" -> processJobsForPageChannel(
                         newJobs, savedJobSearch, userId, latestDestination
+                    )
+                    "telegram" -> processJobsForTelegramChannel(
+                        newJobs, savedJobSearch, userId, latestDestination, searchName
                     )
                     else -> {
                         logger.warn("Unknown channel: $channel, skipping")
@@ -340,6 +344,48 @@ class IncomingJobsProcessingService(
             // Log error but don't propagate - X.com post creation should not fail job processing
             logger.error("[PAGE] Error creating X.com overview post for user $userId", e)
             io.sentry.Sentry.captureException(e)
+        }
+    }
+
+    /**
+     * TELEGRAM Channel: Full LLM pipeline with scoring and filtering.
+     * Only sends jobs with compatibility score > 70.
+     */
+    private suspend fun processJobsForTelegramChannel(
+        jobs: List<ScrapedJobData>,
+        jobSearch: JobSearchOut,
+        userId: String,
+        destination: Destination,
+        specialSearchName: String?
+    ) {
+        try {
+            logger.info("[TELEGRAM] Processing ${jobs.size} jobs for user $userId")
+
+            // Full LLM pipeline: Translation → Enrichment → Save → Scoring
+            val scoredJobs = batchJobProcessingService.processAndSaveJobsDataBatch(jobs, jobSearch)
+
+            // Filter by compatibility score > 70
+            val filteredJobs = scoredJobs.filter { it.compatibilityScore > 70 }
+            logger.info("[TELEGRAM] {} of {} jobs passed compatibility filter", filteredJobs.size, scoredJobs.size)
+
+            // Save scored jobs to MongoDB before sending (persisted even if Telegram fails)
+            val chatId = destination.channelValue
+            saveScoredJobs(filteredJobs, userId, jobSearch.id, chatId, "unseen")
+
+            if (filteredJobs.isEmpty()) {
+                logger.info("[TELEGRAM] No high-quality matches found")
+                return
+            }
+
+            // Send to Telegram
+            val displaySearchName = buildSearchDisplayName(jobSearch, specialSearchName)
+            telegramService.sendJobNotifications(chatId, displaySearchName, filteredJobs)
+
+            markJobsAsSent(filteredJobs, userId, chatId)
+            logger.info("[TELEGRAM] Successfully processed and sent ${filteredJobs.size} jobs")
+
+        } catch (e: Exception) {
+            logger.error("[TELEGRAM] Error processing jobs for user $userId", e)
         }
     }
 

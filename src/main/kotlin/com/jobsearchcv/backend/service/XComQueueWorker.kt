@@ -5,6 +5,7 @@ import com.jobsearchcv.backend.domain.model.XComQueueJob
 import com.jobsearchcv.backend.repository.XComQueueRepository
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Service
 import java.time.OffsetDateTime
@@ -15,6 +16,7 @@ import kotlin.random.Random
  * Posts ONE job every 3-8 minutes (random delay between posts)
  */
 @Service
+@ConditionalOnProperty(name = ["xcom.worker.enabled"], havingValue = "true", matchIfMissing = false)
 class XComQueueWorker(
     private val xcomQueueRepository: XComQueueRepository,
     private val xcomClient: XComClient

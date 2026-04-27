@@ -1,0 +1,77 @@
+version: "3.9"
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: local-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: localpassword
+      MONGO_INITDB_DATABASE: jobsearchcv
+    volumes:
+      - mongo-data:/data/db
+      - ./local-dev/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - local-net
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: local-backend
+    ports:
+      - "8080:8080"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    env_file:
+      - .env.prod
+    environment:
+      # Override infrastructure vars for local Docker setup
+      SPRING_DATA_MONGODB_URI: mongodb://admin:localpassword@mongodb:27017/jobsearchcv?authSource=admin
+      ENABLE_REDIS_STREAMS: "false"
+      FALLBACK_TO_HTTP: "true"
+      SCRAPER_SERVICE_URL: http://scraper:8002
+      CALLBACK_URL: http://backend:8080
+      CORS_ALLOWED_ORIGINS: "*"
+      SENTRY_DSN: ""
+      FIREBASE_ENABLED: "false"
+      LOCAL_DEV_SEED_ENABLED: "true"
+      LOCAL_DEV_SEED_JSON_PATH: "/app/config/job-searches.json"
+      LLM_ENRICHMENT_MODEL: openai/gpt-oss-120b
+      LLM_SCORING_MODEL: openai/gpt-oss-120b
+      LOG_LEVEL: DEBUG
+    volumes:
+      - ./local-dev/job-searches.json:/app/config/job-searches.json:ro
+    networks:
+      - local-net
+
+  scraper:
+    build:
+      context: ../../jobs_alerts
+      dockerfile: linkedin_scraper_service/Dockerfile
+    container_name: local-scraper
+    platform: linux/amd64
+    ports:
+      - "8002:8002"
+    env_file:
+      - ../../jobs_alerts/linkedin_scraper_service/.env
+    environment:
+      SCRAPER_ENABLE_REDIS_STREAMS: "false"
+      SENTRY_DSN: ""
+    networks:
+      - local-net
+
+volumes:
+  mongo-data:
+
+networks:
+  local-net:
+    driver: bridge

@@ -1,0 +1,54 @@
+[
+  {
+    "_id": "search-001",
+    "job_title": "Kotlin Developer",
+    "location": "Germany",
+    "job_types": [
+      "Full-time"
+    ],
+    "remote_types": [
+      "Remote"
+    ],
+    "time_period": "1 hour",
+    "filter_text": "Include only backend jobs without requirement to know German at B2, C1, C2 or native level, only include remote jobs"
+  },
+  {
+    "_id": "search-002",
+    "job_title": "Java Developer",
+    "location": "Germany",
+    "job_types": [
+      "Full-time"
+    ],
+    "remote_types": [
+      "Remote"
+    ],
+    "time_period": "1 hour",
+    "filter_text": "Include only backend jobs without requirement to know German at B2, C1, C2 or native level, only include remote jobs"
+  },
+  {
+    "_id": "search-003",
+    "job_title": "Solution Architect",
+    "location": "Germany",
+    "job_types": [
+      "Full-time"
+    ],
+    "remote_types": [
+      "Remote"
+    ],
+    "time_period": "1 hour",
+    "filter_text": "Include only jobs without requirement to know German at B2, C1, C2 or native level"
+  },
+  {
+    "_id": "search-004",
+    "job_title": "AI Developer",
+    "location": "Germany",
+    "job_types": [
+      "Full-time"
+    ],
+    "remote_types": [
+      "Remote"
+    ],
+    "time_period": "1 hour",
+    "filter_text": "Include only jobs without requirement to know German at B2, C1, C2 or native level"
+  }
+]

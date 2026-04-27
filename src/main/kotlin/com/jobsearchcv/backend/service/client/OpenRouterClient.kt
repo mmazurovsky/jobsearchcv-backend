@@ -135,7 +135,9 @@ class OpenRouterClient(
                 val isRetryableError = when (e) {
                     is java.io.IOException -> e.message?.contains("RST_STREAM") == true ||
                             e.message?.contains("Connection reset") == true ||
-                            e.message?.contains("timeout") == true
+                            e.message?.contains("timeout") == true ||
+                            e.message?.contains("chunked transfer") == true ||
+                            e.message?.contains("EOF") == true
                     is java.net.http.HttpTimeoutException -> true
                     else -> false
                 }

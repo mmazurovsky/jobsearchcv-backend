@@ -724,9 +724,8 @@ EVALUATION PRIORITY (in order of importance):
 3. JOB TITLE RELEVANCE: Is the job title relevant to the searched position? (e.g., "Backend Developer" for "Java Developer" is good, "DevOps Engineer" might be less relevant)
 4. REMOTE WORK TYPE: Does the job's remote policy (on-site/hybrid/remote) match requirements?
 5. JOB TYPE: Does the job type (full-time/contract/part-time) match requirements?
-6. NUMBER OF APPLICANTS: Filter out jobs with more than 70 applicants (too much competition)
-7. DESCRIPTION QUALITY: Is the job description detailed and professional, or vague and low-quality?
-8. SALARY EXPECTATIONS: If salary is specified in requirements, does the job's salary align?
+6. DESCRIPTION QUALITY: Is the job description detailed and professional, or vague and low-quality?
+7. SALARY EXPECTATIONS: If salary is specified in requirements, does the job's salary align?
 
 SCORING GUIDELINES:
 - 90-100: Excellent fit (perfect seniority match, all tags align, great title match, meets all criteria)
@@ -883,9 +882,8 @@ EVALUATION PRIORITY (in order of importance):
 3. JOB TITLE RELEVANCE: Is the job title relevant to the searched position? (e.g., "Backend Developer" for "Java Developer" is good, "DevOps Engineer" might be less relevant)
 4. REMOTE WORK TYPE: Does the job's remote policy (on-site/hybrid/remote) match requirements?
 5. JOB TYPE: Does the job type (full-time/contract/part-time) match requirements?
-6. NUMBER OF APPLICANTS: Filter out jobs with more than 70 applicants (too much competition)
-7. DESCRIPTION QUALITY: Is the job description detailed and professional, or vague and low-quality?
-8. SALARY EXPECTATIONS: If salary is specified in requirements, does the job's salary align?
+6. DESCRIPTION QUALITY: Is the job description detailed and professional, or vague and low-quality?
+7. SALARY EXPECTATIONS: If salary is specified in requirements, does the job's salary align?
 
 SCORING GUIDELINES:
 - 90-100: Excellent fit (perfect seniority match, all tags align, great title match, meets all criteria)

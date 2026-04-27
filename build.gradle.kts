@@ -99,6 +99,7 @@ dependencies {
     implementation("io.ktor:ktor-serialization-jackson:$ktorVersion")
     
     
+
     // ── Resend Email SDK ────────────────────────────────────────
     implementation("com.resend:resend-java:4.5.0")
     

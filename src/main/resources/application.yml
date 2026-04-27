@@ -104,6 +104,8 @@ resend:
 xcom:
   api-url: ${XCOM_API_URL}
   api-key: ${XCOM_API_KEY}
+  worker:
+    enabled: ${XCOM_WORKER_ENABLED:false}
 
 # Application URLs and contact information
 app:
@@ -111,6 +113,16 @@ app:
     url: ${WEBSITE_URL}
   support:
     email: ${SUPPORT_EMAIL}
+
+# Telegram Bot Configuration
+telegram:
+  bot-token: ${TELEGRAM_BOT_TOKEN:}
+
+local-dev:
+  seed:
+    enabled: ${LOCAL_DEV_SEED_ENABLED:false}
+    json-path: ${LOCAL_DEV_SEED_JSON_PATH:/app/config/job-searches.json}
+    trigger-delay-ms: ${LOCAL_DEV_SEED_TRIGGER_DELAY_MS:2000}
 
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}

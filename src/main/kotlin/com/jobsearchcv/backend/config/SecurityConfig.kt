@@ -37,6 +37,8 @@ class SecurityConfig(
                     .requestMatchers("/api/subscriptions/webhook").permitAll()
                     // Admin endpoints (authenticated via admin secret)
                     .requestMatchers("/api/admin/**").permitAll()
+                    // Custom search trigger endpoint
+                    .requestMatchers("/api/custom-search/**").permitAll()
                     // Public job viewing endpoint (for X.com tweet links)
                     .requestMatchers("/api/jobs/**").permitAll()
                     // Public page jobs endpoint (for displaying user's page jobs)
