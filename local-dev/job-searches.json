@@ -36,11 +36,11 @@
       "Remote"
     ],
     "time_period": "1 hour",
-    "filter_text": "Include only jobs without requirement to know German at B2, C1, C2 or native level"
+    "filter_text": "Include only jobs without requirement to know German at B2, C1, C2 or native level, dont include jobs to work with Salesforce or SAP"
   },
   {
     "_id": "search-004",
-    "job_title": "AI Developer",
+    "job_title": "GenAI Developer",
     "location": "Germany",
     "job_types": [
       "Full-time"
@@ -50,5 +50,44 @@
     ],
     "time_period": "1 hour",
     "filter_text": "Include only jobs without requirement to know German at B2, C1, C2 or native level"
+  },
+  {
+    "_id": "search-005",
+    "job_title": "GenAI Developer",
+    "location": "Baden-Württemberg",
+    "job_types": [
+      "Full-time"
+    ],
+    "remote_types": [
+      "Hybrid"
+    ],
+    "time_period": "1 hour",
+    "filter_text": "Include only jobs without requirement to know German at B2, C1, C2 or native level"
+  },
+    {
+    "_id": "search-006",
+    "job_title": "Solution Architect",
+    "location": "Baden-Württemberg",
+    "job_types": [
+      "Full-time"
+    ],
+    "remote_types": [
+      "Hybrid"
+    ],
+    "time_period": "1 hour",
+    "filter_text": "Include only jobs without requirement to know German at B2, C1, C2 or native level, dont include jobs to work with Salesforce or SAP"
+  },
+  {
+    "_id": "search-007",
+    "job_title": "Java Developer",
+    "location": "Germany",
+    "job_types": [
+      "Full-time"
+    ],
+    "remote_types": [
+      "Hybrid"
+    ],
+    "time_period": "1 hour",
+    "filter_text": "Include only backend jobs without requirement to know German at B2, C1, C2 or native level, only include remote jobs"
   }
 ]

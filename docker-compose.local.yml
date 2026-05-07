@@ -45,8 +45,10 @@ services:
       FIREBASE_ENABLED: "false"
       LOCAL_DEV_SEED_ENABLED: "true"
       LOCAL_DEV_SEED_JSON_PATH: "/app/config/job-searches.json"
-      LLM_ENRICHMENT_MODEL: openai/gpt-oss-120b
-      LLM_SCORING_MODEL: openai/gpt-oss-120b
+      LLM_ENRICHMENT_MODEL: deepseek/deepseek-v4-flash
+      LLM_SCORING_MODEL: deepseek/deepseek-v4-flash
+      LLM_ADMIN_ENRICHMENT_MODEL: deepseek/deepseek-v4-flash
+      LLM_ADMIN_SCORING_MODEL: deepseek/deepseek-v4-flash
       LOG_LEVEL: DEBUG
     volumes:
       - ./local-dev/job-searches.json:/app/config/job-searches.json:ro

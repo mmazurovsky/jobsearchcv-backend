@@ -14,7 +14,6 @@ import java.time.OffsetDateTime
 import java.util.UUID
 
 data class CustomSearchRequest(
-    @JsonProperty("_id") val id: String? = null,
     @JsonProperty("user_id") val userId: String,
     @JsonProperty("job_title") val jobTitle: String,
     val location: String,
@@ -41,7 +40,7 @@ class CustomSearchController(
         val timePeriod = TimePeriod.fromDisplayName(request.timePeriod) ?: TimePeriod.getDefault()
 
         val jobSearch = JobSearchOut(
-            id = request.id ?: UUID.randomUUID().toString(),
+            id = UUID.randomUUID().toString(),
             jobTitle = request.jobTitle,
             location = request.location,
             jobTypes = jobTypes,

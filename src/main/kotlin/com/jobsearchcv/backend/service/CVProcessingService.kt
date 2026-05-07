@@ -84,7 +84,7 @@ class CVProcessingService(
                 prompt = systemPrompt,
                 temperature = 0.3,
                 maxTokens = 12000,
-                model = "openai/gpt-4-turbo"
+                model = "deepseek/deepseek-v4-flash"
             )
 
             val response = openRouterClient.chat(LLMRequest)
